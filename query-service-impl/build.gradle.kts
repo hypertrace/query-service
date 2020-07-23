@@ -28,13 +28,14 @@ dependencies {
     }
   }
   api(project(":query-service-api"))
-  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.1.0")
+  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.1.3")
   implementation("org.apache.pinot:pinot-java-client:0.3.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
     exclude("org.slf4j", "slf4j-log4j12")
   }
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("com.typesafe:config:1.3.2")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.3")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")

@@ -16,4 +16,16 @@ public class PinotUtilsTest {
     Assertions.assertEquals(
         "localhost:2181/pinot/myView", PinotUtils.getZkPath("localhost:2181/pinot/", "myView"));
   }
+
+  @Test
+  public void testGetMetricName() {
+    Assertions.assertEquals("span.event.view.handler",
+        PinotUtils.getMetricName("span-event-view-handler"));
+
+    Assertions.assertEquals("span.event.view.handler",
+        PinotUtils.getMetricName("span.event-view-handler"));
+
+    Assertions.assertEquals("span_event.view.handler",
+        PinotUtils.getMetricName("span_event-view-handler"));
+  }
 }
