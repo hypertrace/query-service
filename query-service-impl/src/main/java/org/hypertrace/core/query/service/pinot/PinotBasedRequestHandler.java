@@ -137,12 +137,13 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         LOG.warn("Query Execution time: {} millis\nQuery Request: {}", requestTimeMs, request);
       }
     } catch (Exception ex) {
-      // stop any timer context
-      timerContext.stop();
       // Catch this exception to log the Pinot SQL query that caused the issue
       LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
       // Rethrow for the caller to return an error.
       throw ex;
+    } finally {
+      // stop any timer context
+      timerContext.stop();
     }
   }
 
