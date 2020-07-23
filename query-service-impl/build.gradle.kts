@@ -35,6 +35,7 @@ dependencies {
   }
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("com.typesafe:config:1.3.2")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.2")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")

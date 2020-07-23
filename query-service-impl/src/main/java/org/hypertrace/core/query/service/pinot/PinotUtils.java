@@ -7,4 +7,8 @@ public class PinotUtils {
         ? zkBasePath + pinotClusterName
         : zkBasePath + "/" + pinotClusterName;
   }
+
+  public static String getMetricName(String name) {
+    return name.replaceAll("[^a-zA-Z0-9_]", ".");
+  }
 }

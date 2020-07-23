@@ -1,5 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
+import com.codahale.metrics.Timer;
+import com.codahale.metrics.Timer.Context;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,6 +23,7 @@ import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
+import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +50,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   private final ResultSetTypePredicateProvider resultSetTypePredicateProvider;
   private final PinotClientFactory pinotClientFactory;
 
+  private Timer pinotQueryExecutionTimer;
+
   public PinotBasedRequestHandler() {
     this(new DefaultResultSetTypePredicateProvider(), PinotClientFactory.get());
   }
@@ -57,6 +62,13 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     this.resultSetTypePredicateProvider = resultSetTypePredicateProvider;
     this.pinotClientFactory = pinotClientFactory;
     this.pinotMapConverter = new PinotMapConverter();
+  }
+
+  private void initMetrics() {
+    this.pinotQueryExecutionTimer = new Timer();
+    PlatformMetricsRegistry.register(
+        String.format("pinot.%s.query.execution", PinotUtils.getMetricName(name)),
+        pinotQueryExecutionTimer);
   }
 
   @Override
@@ -70,6 +82,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     // TODO:use typesafe HOCON object
     this.viewDefinition = (ViewDefinition) config.get(VIEW_DEFINITION_CONFIG_KEY);
     request2PinotSqlConverter = new QueryRequestToPinotSQLConverter(viewDefinition);
+    initMetrics();
   }
 
   @Override
@@ -109,8 +122,11 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
     }
     final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
+    Context timerContext = pinotQueryExecutionTimer.time();
     try {
       final ResultSetGroup resultSetGroup = pinotClient.executeQuery(pql.getKey(), pql.getValue());
+      timerContext.stop();
+
       if (LOG.isDebugEnabled()) {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
       }
@@ -121,6 +137,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         LOG.warn("Query Execution time: {} millis\nQuery Request: {}", requestTimeMs, request);
       }
     } catch (Exception ex) {
+      // stop any timer context
+      timerContext.stop();
       // Catch this exception to log the Pinot SQL query that caused the issue
       LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
       // Rethrow for the caller to return an error.
