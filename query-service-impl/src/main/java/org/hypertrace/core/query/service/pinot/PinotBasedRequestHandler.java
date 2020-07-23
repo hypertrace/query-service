@@ -122,7 +122,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
     }
     final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
-    Context timerContext = pinotQueryExecutionTimer.time();
+    final Context timerContext = pinotQueryExecutionTimer.time();
     try {
       final ResultSetGroup resultSetGroup = pinotClient.executeQuery(pql.getKey(), pql.getValue());
       timerContext.stop();
