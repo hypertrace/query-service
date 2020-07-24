@@ -7,7 +7,7 @@ plugins {
 
 dependencies {
   implementation(project(":query-service-impl"))
-  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.1.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.1.3")
   implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.2")
   implementation("io.grpc:grpc-netty:1.30.2")
 
