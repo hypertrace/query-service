@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.api.ValueType;
 
 public class ViewDefinition {
+
   static final String MAP_KEYS_SUFFIX = "__KEYS";
   static final String MAP_VALUES_SUFFIX = "__VALUES";
 
@@ -35,6 +37,10 @@ public class ViewDefinition {
       mapFields.addAll(mapFieldsList);
     }
 
+    // get bytes fields
+    final Set<String> bytesFields = new HashSet<>(
+        (List<String>) config.getOrDefault("bytesFields", new ArrayList<>()));
+
     for (String logicalName : fieldMap.keySet()) {
       String physName = fieldMap.get(logicalName);
       PinotColumnSpec spec = new PinotColumnSpec();
@@ -44,6 +50,9 @@ public class ViewDefinition {
         // split them to 2 automatically here
         spec.addColumnName(physName + MAP_KEYS_SUFFIX);
         spec.addColumnName(physName + MAP_VALUES_SUFFIX);
+      } else if (bytesFields.contains(physName)) {
+        spec.addColumnName(physName);
+        spec.setType(ValueType.BYTES);
       } else {
         spec.addColumnName(physName);
         spec.setType(ValueType.STRING);
@@ -71,6 +80,10 @@ public class ViewDefinition {
 
   public boolean isMap(String logicalName) {
     return (ValueType.STRING_MAP.equals(columnSpecMap.get(logicalName).getType()));
+  }
+
+  public boolean isBytesColumn(String logicalName) {
+    return (ValueType.BYTES.equals(columnSpecMap.get(logicalName).getType()));
   }
 
   public String getKeyColumnNameForMap(String logicalName) {

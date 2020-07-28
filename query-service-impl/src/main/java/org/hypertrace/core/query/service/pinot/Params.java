@@ -15,18 +15,21 @@ public class Params {
   private Map<Integer, String> stringParams;
   private Map<Integer, Float> floatParams;
   private Map<Integer, Double> doubleParams;
+  private Map<Integer, String> bytesStringParams;
 
   private Params(
       Map<Integer, Integer> integerParams,
       Map<Integer, Long> longParams,
       Map<Integer, String> stringParams,
       Map<Integer, Float> floatParams,
-      Map<Integer, Double> doubleParams) {
+      Map<Integer, Double> doubleParams,
+      Map<Integer, String> bytesStringParams) {
     this.integerParams = integerParams;
     this.longParams = longParams;
     this.stringParams = stringParams;
     this.floatParams = floatParams;
     this.doubleParams = doubleParams;
+    this.bytesStringParams = bytesStringParams;
   }
 
   public Map<Integer, Integer> getIntegerParams() {
@@ -49,17 +52,23 @@ public class Params {
     return doubleParams;
   }
 
+  public Map<Integer, String> getBytesStringParams() {
+    return bytesStringParams;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
 
   public static class Builder {
+
     private int nextIndex;
     private Map<Integer, Integer> integerParams;
     private Map<Integer, Long> longParams;
     private Map<Integer, String> stringParams;
     private Map<Integer, Float> floatParams;
     private Map<Integer, Double> doubleParams;
+    private Map<Integer, String> bytesStringParams;
 
     private Builder() {
       nextIndex = 0;
@@ -68,6 +77,7 @@ public class Params {
       stringParams = new HashMap<>();
       floatParams = new HashMap<>();
       doubleParams = new HashMap<>();
+      bytesStringParams = new HashMap<>();
     }
 
     public Builder addIntegerParam(int paramValue) {
@@ -95,8 +105,14 @@ public class Params {
       return this;
     }
 
+    public Builder addBytesStringParam(String paramValue) {
+      bytesStringParams.put(nextIndex++, paramValue);
+      return this;
+    }
+
     public Params build() {
-      return new Params(integerParams, longParams, stringParams, floatParams, doubleParams);
+      return new Params(integerParams, longParams, stringParams, floatParams, doubleParams,
+          bytesStringParams);
     }
   }
 }
