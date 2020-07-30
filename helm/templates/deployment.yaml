@@ -45,7 +45,7 @@ spec:
     {{- end }}
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+          image: "traceableai-docker.jfrog.io/hypertrace/query-service:latest-slim"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: grpc-port

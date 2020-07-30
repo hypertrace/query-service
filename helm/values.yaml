@@ -57,6 +57,7 @@ queryServiceConfig:
   data:
     zookeeperConnectionString: zookeeper:2181/pinot/my-views
     tenantColumnName: tenant_id
+handlers: []
 
 extraHandlers: []
 
