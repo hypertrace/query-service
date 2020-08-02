@@ -82,8 +82,8 @@ public class ViewDefinition {
     return (ValueType.STRING_MAP.equals(columnSpecMap.get(logicalName).getType()));
   }
 
-  public boolean isBytesColumn(String logicalName) {
-    return (ValueType.BYTES.equals(columnSpecMap.get(logicalName).getType()));
+  public ValueType getColumnType(String logicalName) {
+    return columnSpecMap.get(logicalName).getType();
   }
 
   public String getKeyColumnNameForMap(String logicalName) {
