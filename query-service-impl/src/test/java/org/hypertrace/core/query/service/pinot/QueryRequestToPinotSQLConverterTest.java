@@ -784,6 +784,75 @@ public class QueryRequestToPinotSQLConverterTest {
             + "AND REGEXP_LIKE(span_id,'null')");
   }
 
+  @Test
+  public void testQueryWithLongColumn() {
+    Builder builder = QueryRequest.newBuilder();
+
+    // create selections
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    // create an and filter with Long literal type
+    ColumnIdentifier durationColumn = ColumnIdentifier.newBuilder()
+            .setColumnName("Span.metrics.duration_millis").build();
+    Filter andFilter = Filter.newBuilder()
+            .setOperator(Operator.GE)
+            .setLhs(Expression.newBuilder().setColumnIdentifier(durationColumn).build())
+            .setRhs(Expression.newBuilder()
+                    .setLiteral(LiteralConstant.newBuilder()
+                            .setValue(Value.newBuilder()
+                                    .setValueType(ValueType.LONG)
+                                    .setLong(1000L).build()))
+                    .build())
+            .build();
+
+    builder.setFilter(andFilter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+
+    assertPQLQuery(
+            request,
+            "SELECT span_id FROM SpanEventView "
+                    + "WHERE "
+                    + viewDefinition.getTenantIdColumn()
+                    + " = '"
+                    + TENANT_ID
+                    + "' "
+                    + "AND duration_millis >= 1000 limit 5");
+  }
+
+  @Test
+  public void testQueryWithLongColumnWithLikeFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    ColumnIdentifier durationColumn = ColumnIdentifier.newBuilder()
+            .setColumnName("Span.metrics.duration_millis").build();
+    Filter likeFilter =
+            Filter.newBuilder()
+                    .setOperator(Operator.LIKE)
+                    .setLhs(Expression.newBuilder().setColumnIdentifier(durationColumn).build())
+                    .setRhs(Expression.newBuilder()
+                            .setLiteral(LiteralConstant.newBuilder()
+                                    .setValue(Value.newBuilder().
+                                            setValueType(ValueType.LONG).setLong(5000L).build()))
+                            .build())
+                    .build();
+
+    builder.setFilter(likeFilter);
+    assertPQLQuery(
+            builder.build(),
+            "SELECT span_id FROM SpanEventView "
+                    + "WHERE "
+                    + viewDefinition.getTenantIdColumn()
+                    + " = '"
+                    + TENANT_ID
+                    + "' "
+                    + "AND REGEXP_LIKE(duration_millis,5000)");
+  }
+
   private Filter createTimeFilter(String columnName, Operator op, long value) {
     ColumnIdentifier startTimeColumn =
         ColumnIdentifier.newBuilder().setColumnName(columnName).build();
