@@ -197,20 +197,19 @@ class QueryRequestToPinotSQLConverter {
     Expression newRhs = rhs;
     String lhsColumnName = lhs.getColumnIdentifier().getColumnName();
 
-    if (viewDefinition.isBytesColumn(lhsColumnName)) {
-      ToValueConverter converter = getValueConverter(rhs.getLiteral().getValue().getValueType());
-      if (converter != null) {
-        try {
-          Value value = converter.convert(rhs.getLiteral().getValue().getString(), ValueType.BYTES);
-          newRhs = Expression.newBuilder()
-              .setLiteral(LiteralConstant.newBuilder().setValue(value))
-              .build();
-        } catch (Exception e) {
-          throw new IllegalArgumentException(
-              String.format("Invalid string input:{ %s } for bytes column:{ %s }",
-                  rhs.getLiteral().getValue().getString(),
-                  viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
-        }
+    ToValueConverter converter = getValueConverter(rhs.getLiteral().getValue().getValueType());
+    if (converter != null) {
+      try {
+        Value value = converter.convert(rhs.getLiteral().getValue().getString(),
+                viewDefinition.getColumnType(lhsColumnName));
+        newRhs = Expression.newBuilder()
+            .setLiteral(LiteralConstant.newBuilder().setValue(value))
+            .build();
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            String.format("Invalid string input:{ %s } for bytes column:{ %s }",
+                rhs.getLiteral().getValue().getString(),
+                viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
       }
     }
 
