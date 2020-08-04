@@ -14,7 +14,7 @@ data:
           connectionString = "{{ .Values.queryServiceConfig.data.zookeeperConnectionString }}"
         }
       ]
-      {{- if .Values.handlers }}
+      {{- if or .Values.handlers .Values.extraHandlers }}
       queryRequestHandlersConfig = [
       {{- range .Values.handlers }}
         {
