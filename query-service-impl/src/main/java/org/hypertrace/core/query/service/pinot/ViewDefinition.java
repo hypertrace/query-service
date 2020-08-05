@@ -39,7 +39,7 @@ public class ViewDefinition {
 
     // get bytes fields
     final Set<String> bytesFields = new HashSet<>(
-        (List<String>) config.getOrDefault("bytesFields", new ArrayList<>()));
+        (List<String>) config.getOrDefault("bytesFields", List.of()));
 
     for (String logicalName : fieldMap.keySet()) {
       String physName = fieldMap.get(logicalName);
