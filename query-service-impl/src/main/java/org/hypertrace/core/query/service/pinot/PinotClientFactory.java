@@ -21,7 +21,8 @@ public class PinotClientFactory {
 
   private final ConcurrentHashMap<String, PinotClient> clientMap = new ConcurrentHashMap<>();
 
-  private PinotClientFactory() {}
+  private PinotClientFactory() {
+  }
 
   // Create a Pinot Client.
   public static PinotClient createPinotClient(String pinotCluster, String pathType, String path) {
@@ -52,6 +53,7 @@ public class PinotClientFactory {
   }
 
   public static class PinotClient {
+
     private static final String SQL_FORMAT = "sql";
 
     private final Connection connection;
@@ -95,6 +97,7 @@ public class PinotClientFactory {
       params.getLongParams().forEach(preparedStatement::setLong);
       params.getDoubleParams().forEach(preparedStatement::setDouble);
       params.getFloatParams().forEach(preparedStatement::setFloat);
+      params.getBytesStringParams().forEach(preparedStatement::setString);
       return preparedStatement;
     }
   }

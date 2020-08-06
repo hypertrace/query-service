@@ -8,6 +8,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import org.apache.commons.codec.binary.Hex;
 import org.hypertrace.core.query.service.QueryContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -19,11 +20,16 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
+import org.hypertrace.core.query.service.pinot.converters.StringToValueConverter;
+import org.hypertrace.core.query.service.pinot.converters.ToValueConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Converts {@link QueryRequest} to Pinot SQL query */
+/**
+ * Converts {@link QueryRequest} to Pinot SQL query
+ */
 class QueryRequestToPinotSQLConverter {
+
   private static final Logger LOG = LoggerFactory.getLogger(QueryRequestToPinotSQLConverter.class);
 
   private static final String QUESTION_MARK = "?";
@@ -128,11 +134,12 @@ class QueryRequestToPinotSQLConverter {
       switch (filter.getOperator()) {
         case LIKE:
           // The like operation in PQL looks like `regexp_like(lhs, rhs)`
+          Expression rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(operator);
           builder.append("(");
           builder.append(convertExpression2String(filter.getLhs(), paramsBuilder));
           builder.append(",");
-          builder.append(convertExpression2String(filter.getRhs(), paramsBuilder));
+          builder.append(convertExpression2String(rhs, paramsBuilder));
           builder.append(")");
           break;
         case CONTAINS_KEY:
@@ -164,14 +171,62 @@ class QueryRequestToPinotSQLConverter {
           builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
           break;
         default:
+          rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(convertExpression2String(filter.getLhs(), paramsBuilder));
           builder.append(" ");
           builder.append(operator);
           builder.append(" ");
-          builder.append(convertExpression2String(filter.getRhs(), paramsBuilder));
+          builder.append(convertExpression2String(rhs, paramsBuilder));
       }
     }
     return builder.toString();
+  }
+
+  /**
+   * Handles value conversion of a literal expression based on its associated column.
+   *
+   * @param lhs LHS expression with which literal is associated with
+   * @param rhs RHS expression which needs value conversion if its a literal expression
+   * @return newly created literal {@link Expression} of rhs if converted else the same one.
+   */
+  private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
+    if (!(lhs.getValueCase().equals(COLUMNIDENTIFIER) && rhs.getValueCase().equals(LITERAL))) {
+      return rhs;
+    }
+
+    Expression newRhs = rhs;
+    String lhsColumnName = lhs.getColumnIdentifier().getColumnName();
+
+    ToValueConverter converter = getValueConverter(rhs.getLiteral().getValue().getValueType());
+    if (converter != null) {
+      try {
+        Value value = converter.convert(rhs.getLiteral().getValue().getString(),
+                viewDefinition.getColumnType(lhsColumnName));
+        newRhs = Expression.newBuilder()
+            .setLiteral(LiteralConstant.newBuilder().setValue(value))
+            .build();
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            String.format("Invalid string input:{ %s } for bytes column:{ %s }",
+                rhs.getLiteral().getValue().getString(),
+                viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
+      }
+    }
+
+    return newRhs;
+  }
+
+  private ToValueConverter getValueConverter(ValueType valueType) {
+    ToValueConverter result;
+    switch (valueType) {
+      case STRING:
+        result = StringToValueConverter.INSTANCE;
+        break;
+      default:
+        result = null;
+        break;
+    }
+    return result;
   }
 
   private String convertOperator2String(Operator operator) {
@@ -298,7 +353,9 @@ class QueryRequestToPinotSQLConverter {
     return literals;
   }
 
-  /** TODO:Handle all types */
+  /**
+   * TODO:Handle all types
+   */
   private String convertLiteralToString(LiteralConstant literal, Params.Builder paramsBuilder) {
     Value value = literal.getValue();
     String ret = null;
@@ -348,6 +405,8 @@ class QueryRequestToPinotSQLConverter {
         paramsBuilder.addDoubleParam(value.getDouble());
         break;
       case BYTES:
+        ret = QUESTION_MARK;
+        paramsBuilder.addBytesStringParam(Hex.encodeHexString(value.getBytes().toByteArray()));
         break;
       case BOOL:
         ret = QUESTION_MARK;

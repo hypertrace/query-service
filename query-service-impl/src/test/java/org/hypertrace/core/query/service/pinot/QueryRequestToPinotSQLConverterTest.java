@@ -5,19 +5,16 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createF
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.mockito.ArgumentMatchers.any;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import java.util.HashMap;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import java.io.File;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.QueryContext;
-import org.hypertrace.core.query.service.RequestHandlerInfo;
-import org.hypertrace.core.query.service.RequestHandlerRegistry;
+import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -40,8 +37,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 public class QueryRequestToPinotSQLConverterTest {
+
   private static final String TENANT_ID = "__default";
   private static final String TENANT_COLUMN_NAME = "tenant_id";
+
+  private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "request_handler.conf";
 
   private static ViewDefinition viewDefinition;
   private static QueryContext queryContext;
@@ -50,51 +50,14 @@ public class QueryRequestToPinotSQLConverterTest {
 
   @BeforeAll
   public static void setUp() {
-    String handlerName = "pinotBasedRequestHandler";
-
-    Map<String, Object> config = new HashMap<>();
-    Map<String, PinotColumnSpec> columnSpecMap = new HashMap<>();
-    Set<String> mapFields = Set.of("tags", "request_headers");
-
-    Map<String, List<String>> logicalToViewColumns =
-        ImmutableMap.<String, List<String>>builder()
-            .put("Span.tags", Lists.newArrayList("tags"))
-            .put("Span.id", Lists.newArrayList("span_id"))
-            .put("Span.duration_millis", Lists.newArrayList("duration_millis"))
-            .put("Span.start_time_millis", Lists.newArrayList("start_time_millis"))
-            .put("Span.end_time_millis", Lists.newArrayList("end_time_millis"))
-            .put("Span.displaySpanName", Lists.newArrayList("span_name"))
-            .put("Span.is_entry", Lists.newArrayList("is_entry"))
-            .put("Span.attributes.request_headers", Lists.newArrayList("request_headers"))
-            .put("Span.attributes.request_body", Lists.newArrayList("request_body"))
-            .put("Span.attributes.protocol_name", Lists.newArrayList("protocol_name"))
-            .put("Span.attributes.response_headers", Lists.newArrayList("response_headers"))
-            .put("Span.attributes.response_body", Lists.newArrayList("response_body"))
-            .put("Span.metrics.duration_millis", Lists.newArrayList("duration_millis"))
-            .put("Span.serviceName", Lists.newArrayList("service_name"))
-            .put("Span.attributes.parent_span_id", Lists.newArrayList("parent_span_id"))
-            .build();
-
-    for (String logicalName : logicalToViewColumns.keySet()) {
-      PinotColumnSpec spec = new PinotColumnSpec();
-      for (String viewName : logicalToViewColumns.get(logicalName)) {
-        if (mapFields.contains(viewName)) {
-          spec.setType(ValueType.STRING_MAP);
-          spec.addColumnName(viewName + "__KEYS");
-          spec.addColumnName(viewName + "__VALUES");
-        } else {
-          spec.addColumnName(viewName);
-          spec.setType(ValueType.STRING);
-        }
-      }
-      columnSpecMap.put(logicalName, spec);
-    }
-    viewDefinition = new ViewDefinition("SpanEventView", columnSpecMap, TENANT_COLUMN_NAME);
-    config.put(PinotBasedRequestHandler.VIEW_DEFINITION_CONFIG_KEY, viewDefinition);
-    RequestHandlerInfo requestHandlerInfo =
-        new RequestHandlerInfo(handlerName, PinotBasedRequestHandler.class, config);
-    RequestHandlerRegistry.get().register(handlerName, requestHandlerInfo);
-
+    Config fileConfig = ConfigFactory.parseFile(new File(
+        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
+            .getResource(TEST_REQUEST_HANDLER_CONFIG_FILE)
+            .getFile()));
+    RequestHandlerConfig requestHandlerConfig = RequestHandlerConfig.parse(fileConfig);
+    viewDefinition = ViewDefinition.parse(
+        (Map<String, Object>) requestHandlerConfig.getRequestHandlerInfo().get("viewDefinition"),
+        TENANT_COLUMN_NAME);
     queryContext = new QueryContext(TENANT_ID);
   }
 
@@ -192,7 +155,8 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithStringFilter() {
     QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(createStringFilter("Span.displaySpanName", Operator.EQ, "GET /login"));
+        buildSimpleQueryWithFilter(
+            createStringFilter("Span.displaySpanName", Operator.EQ, "GET /login"));
     assertPQLQuery(
         queryRequest,
         "Select span_id FROM SpanEventView "
@@ -208,7 +172,8 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testSQLiWithStringValueFilter() {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
-            createStringFilter("Span.displaySpanName", Operator.EQ, "GET /login' OR tenant_id = 'tenant2"));
+            createStringFilter("Span.displaySpanName", Operator.EQ,
+                "GET /login' OR tenant_id = 'tenant2"));
 
     assertPQLQuery(
         queryRequest,
@@ -596,6 +561,298 @@ public class QueryRequestToPinotSQLConverterTest {
             + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'");
   }
 
+  @Test
+  public void testQueryWithBytesColumnWithValidId() {
+    Builder builder = QueryRequest.newBuilder();
+
+    // create selections
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    // create NEQ filter
+    Filter parentIdFilter = QueryRequestUtil
+        .createColumnValueFilter("Span.attributes.parent_span_id",
+            Operator.EQ, "042e5523ff6b2506").build();
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(parentIdFilter)
+            .build();
+    builder.setFilter(andFilter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+
+    assertPQLQuery(
+        request,
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( parent_span_id = '042e5523ff6b2506' ) limit 5");
+  }
+
+  @Test
+  public void testQueryWithBytesColumnWithInValidId() {
+    Builder builder = QueryRequest.newBuilder();
+
+    // create selections
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    // create NEQ filter
+    Filter parentIdFilter = QueryRequestUtil
+        .createColumnValueFilter("Span.attributes.parent_span_id",
+            Operator.EQ, "042e5523ff6b250L").build();
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(parentIdFilter)
+            .build();
+    builder.setFilter(andFilter);
+    builder.setLimit(5);
+
+    assertExceptionOnPQLQuery(builder.build(), IllegalArgumentException.class,
+        "Invalid string input:{ 042e5523ff6b250L } for bytes column:{ parent_span_id }");
+  }
+
+  @Test
+  public void testQueryWithBytesColumnWithNullId() {
+    Builder builder = QueryRequest.newBuilder();
+
+    // create selections
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    // create NEQ filter
+    Filter parentIdFilter = QueryRequestUtil
+        .createColumnValueFilter("Span.attributes.parent_span_id",
+            Operator.NEQ, "null").build();
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(parentIdFilter)
+            .build();
+    builder.setFilter(andFilter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+
+    assertPQLQuery(
+        request,
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( parent_span_id != '' ) limit 5");
+  }
+
+  @Test
+  public void testQueryWithBytesColumnWithEmptyId() {
+    Builder builder = QueryRequest.newBuilder();
+
+    // create selections
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    // create NEQ filter
+    Filter parentIdFilter = QueryRequestUtil
+        .createColumnValueFilter("Span.attributes.parent_span_id",
+            Operator.NEQ, "''").build();
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(parentIdFilter)
+            .build();
+    builder.setFilter(andFilter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+
+    assertPQLQuery(
+        request,
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( parent_span_id != '' ) limit 5");
+  }
+
+  @Test
+  public void testQueryWithBytesColumnWithLikeFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    ColumnIdentifier parentSpanId = ColumnIdentifier.newBuilder()
+        .setColumnName("Span.attributes.parent_span_id").build();
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.LIKE)
+            .setLhs(Expression.newBuilder().setColumnIdentifier(parentSpanId).build())
+            .setRhs(
+                Expression.newBuilder()
+                    .setLiteral(
+                        LiteralConstant.newBuilder()
+                            .setValue(Value.newBuilder().setString("null").build()))
+                    .build())
+            .build();
+
+    builder.setFilter(likeFilter);
+    assertPQLQuery(
+        builder.build(),
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND REGEXP_LIKE(parent_span_id,'')");
+  }
+
+  @Test
+  public void testQueryWithStringColumnWithNullString() {
+    Builder builder = QueryRequest.newBuilder();
+
+    // create selections
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    // create NEQ filter
+    Filter parentIdFilter = QueryRequestUtil
+        .createColumnValueFilter("Span.id",
+            Operator.NEQ, "null").build();
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(parentIdFilter)
+            .build();
+    builder.setFilter(andFilter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+
+    assertPQLQuery(
+        request,
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( span_id != 'null' ) limit 5");
+  }
+
+  @Test
+  public void testQueryWithStringColumnWithNullStringWithLikeFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.LIKE)
+            .setLhs(Expression.newBuilder().setColumnIdentifier(spanId).build())
+            .setRhs(
+                Expression.newBuilder()
+                    .setLiteral(
+                        LiteralConstant.newBuilder()
+                            .setValue(Value.newBuilder().setString("null").build()))
+                    .build())
+            .build();
+
+    builder.setFilter(likeFilter);
+    assertPQLQuery(
+        builder.build(),
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND REGEXP_LIKE(span_id,'null')");
+  }
+
+  @Test
+  public void testQueryWithLongColumn() {
+    Builder builder = QueryRequest.newBuilder();
+
+    // create selections
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    // create an and filter with Long literal type
+    ColumnIdentifier durationColumn = ColumnIdentifier.newBuilder()
+            .setColumnName("Span.metrics.duration_millis").build();
+    Filter andFilter = Filter.newBuilder()
+            .setOperator(Operator.GE)
+            .setLhs(Expression.newBuilder().setColumnIdentifier(durationColumn).build())
+            .setRhs(Expression.newBuilder()
+                    .setLiteral(LiteralConstant.newBuilder()
+                            .setValue(Value.newBuilder()
+                                    .setValueType(ValueType.LONG)
+                                    .setLong(1000L).build()))
+                    .build())
+            .build();
+
+    builder.setFilter(andFilter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+
+    assertPQLQuery(
+            request,
+            "SELECT span_id FROM SpanEventView "
+                    + "WHERE "
+                    + viewDefinition.getTenantIdColumn()
+                    + " = '"
+                    + TENANT_ID
+                    + "' "
+                    + "AND duration_millis >= 1000 limit 5");
+  }
+
+  @Test
+  public void testQueryWithLongColumnWithLikeFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+
+    ColumnIdentifier durationColumn = ColumnIdentifier.newBuilder()
+            .setColumnName("Span.metrics.duration_millis").build();
+    Filter likeFilter =
+            Filter.newBuilder()
+                    .setOperator(Operator.LIKE)
+                    .setLhs(Expression.newBuilder().setColumnIdentifier(durationColumn).build())
+                    .setRhs(Expression.newBuilder()
+                            .setLiteral(LiteralConstant.newBuilder()
+                                    .setValue(Value.newBuilder().
+                                            setValueType(ValueType.LONG).setLong(5000L).build()))
+                            .build())
+                    .build();
+
+    builder.setFilter(likeFilter);
+    assertPQLQuery(
+            builder.build(),
+            "SELECT span_id FROM SpanEventView "
+                    + "WHERE "
+                    + viewDefinition.getTenantIdColumn()
+                    + " = '"
+                    + TENANT_ID
+                    + "' "
+                    + "AND REGEXP_LIKE(duration_millis,5000)");
+  }
+
   private Filter createTimeFilter(String columnName, Operator op, long value) {
     ColumnIdentifier startTimeColumn =
         ColumnIdentifier.newBuilder().setColumnName(columnName).build();
@@ -745,7 +1002,8 @@ public class QueryRequestToPinotSQLConverterTest {
                 ColumnIdentifier.newBuilder().setColumnName("Span.serviceName").build()));
     builder.addGroupBy(
         Expression.newBuilder()
-            .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName("Span.displaySpanName").build()));
+            .setColumnIdentifier(
+                ColumnIdentifier.newBuilder().setColumnName("Span.displaySpanName").build()));
     return builder.build();
   }
 
@@ -779,7 +1037,8 @@ public class QueryRequestToPinotSQLConverterTest {
                 ColumnIdentifier.newBuilder().setColumnName("Span.serviceName").build()));
     builder.addGroupBy(
         Expression.newBuilder()
-            .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName("Span.displaySpanName").build()));
+            .setColumnIdentifier(
+                ColumnIdentifier.newBuilder().setColumnName("Span.displaySpanName").build()));
 
     builder.addOrderBy(
         createOrderByExpression(createColumnExpression("Span.serviceName"), SortOrder.ASC));
@@ -813,6 +1072,17 @@ public class QueryRequestToPinotSQLConverterTest {
     Mockito.verify(connection, Mockito.times(1)).execute(statementCaptor.capture());
     Assertions.assertEquals(
         expectedQuery.toLowerCase(), statementCaptor.getValue().getQuery().toLowerCase());
+  }
+
+  private void assertExceptionOnPQLQuery(QueryRequest queryRequest, Class className,
+      String expectedMessage) {
+    QueryRequestToPinotSQLConverter converter = new QueryRequestToPinotSQLConverter(viewDefinition);
+
+    Throwable exception = Assertions.assertThrows(className, () -> converter
+        .toSQL(queryContext, queryRequest, createSelectionsFromQueryRequest(queryRequest)));
+
+    String actualMessage = exception.getMessage();
+    Assertions.assertTrue(actualMessage.contains(expectedMessage));
   }
 
   // This method will put the selections in a LinkedHashSet in the order that RequestAnalyzer does:
