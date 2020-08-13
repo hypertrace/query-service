@@ -3,6 +3,8 @@ package org.hypertrace.core.query.service.pinot;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.Timer.Context;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,6 +51,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   // to see how it used.
   private final ResultSetTypePredicateProvider resultSetTypePredicateProvider;
   private final PinotClientFactory pinotClientFactory;
+
+  private final JsonFormat.Printer protoJsonPrinter =
+      JsonFormat.printer().omittingInsignificantWhitespace();
 
   private Timer pinotQueryExecutionTimer;
 
@@ -113,7 +118,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       QueryContext queryContext,
       QueryRequest request,
       QueryResultCollector<Row> collector,
-      RequestAnalyzer requestAnalyzer) {
+      RequestAnalyzer requestAnalyzer) throws InvalidProtocolBufferException {
     long start = System.currentTimeMillis();
     validateQueryRequest(queryContext, request);
     Entry<String, Params> pql =
@@ -125,7 +130,6 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     final Context timerContext = pinotQueryExecutionTimer.time();
     try {
       final ResultSetGroup resultSetGroup = pinotClient.executeQuery(pql.getKey(), pql.getValue());
-      timerContext.stop();
 
       if (LOG.isDebugEnabled()) {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
@@ -134,7 +138,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
       long requestTimeMs = System.currentTimeMillis() - start;
       if (requestTimeMs > SLOW_REQUEST_THRESHOLD_MS) {
-        LOG.warn("Query Execution time: {} millis\nQuery Request: {}", requestTimeMs, request);
+        LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
+            requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
       }
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
@@ -268,7 +273,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
               builder.addColumn(
                   Value.newBuilder().setString(pinotMapConverter.merge(mapKeys, mapVals)).build());
             } catch (IOException ex) {
-              LOG.error("An error occured while merging mapKeys and mapVals", ex);
+              LOG.error("An error occurred while merging mapKeys and mapVals", ex);
               throw new RuntimeException(
                   "An error occurred while parsing the Pinot Table format response", ex);
             }
