@@ -118,7 +118,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       QueryContext queryContext,
       QueryRequest request,
       QueryResultCollector<Row> collector,
-      RequestAnalyzer requestAnalyzer) throws InvalidProtocolBufferException {
+      RequestAnalyzer requestAnalyzer) {
     long start = System.currentTimeMillis();
     validateQueryRequest(queryContext, request);
     Entry<String, Params> pql =
@@ -136,10 +136,14 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       }
       // need to merge data especially for Pinot. That's why we need to track the map columns
       convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
-      long requestTimeMs = System.currentTimeMillis() - start;
-      if (requestTimeMs > SLOW_REQUEST_THRESHOLD_MS) {
-        LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
-            requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
+
+      try {
+        long requestTimeMs = System.currentTimeMillis() - start;
+        if (requestTimeMs > SLOW_REQUEST_THRESHOLD_MS) {
+          LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
+              requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
+        }
+      } catch (InvalidProtocolBufferException ignore) {
       }
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
