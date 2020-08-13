@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Map;
 import java.util.Set;
 import org.hypertrace.core.query.service.api.QueryRequest;
@@ -16,7 +17,7 @@ public interface RequestHandler<T, R> {
       QueryContext queryContext,
       QueryRequest request,
       QueryResultCollector<R> collector,
-      RequestAnalyzer requestAnalyzer);
+      RequestAnalyzer requestAnalyzer) throws InvalidProtocolBufferException;
 
   void init(String name, Map<String, Object> config);
 }

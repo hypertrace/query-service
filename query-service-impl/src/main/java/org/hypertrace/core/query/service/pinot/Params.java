@@ -10,12 +10,12 @@ import java.util.Map;
 public class Params {
 
   // Map of index to the corresponding param value
-  private Map<Integer, Integer> integerParams;
-  private Map<Integer, Long> longParams;
-  private Map<Integer, String> stringParams;
-  private Map<Integer, Float> floatParams;
-  private Map<Integer, Double> doubleParams;
-  private Map<Integer, String> bytesStringParams;
+  private final Map<Integer, Integer> integerParams;
+  private final Map<Integer, Long> longParams;
+  private final Map<Integer, String> stringParams;
+  private final Map<Integer, Float> floatParams;
+  private final Map<Integer, Double> doubleParams;
+  private final Map<Integer, String> bytesStringParams;
 
   private Params(
       Map<Integer, Integer> integerParams,
@@ -63,12 +63,12 @@ public class Params {
   public static class Builder {
 
     private int nextIndex;
-    private Map<Integer, Integer> integerParams;
-    private Map<Integer, Long> longParams;
-    private Map<Integer, String> stringParams;
-    private Map<Integer, Float> floatParams;
-    private Map<Integer, Double> doubleParams;
-    private Map<Integer, String> bytesStringParams;
+    private final Map<Integer, Integer> integerParams;
+    private final Map<Integer, Long> longParams;
+    private final Map<Integer, String> stringParams;
+    private final Map<Integer, Float> floatParams;
+    private final Map<Integer, Double> doubleParams;
+    private final Map<Integer, String> bytesStringParams;
 
     private Builder() {
       nextIndex = 0;

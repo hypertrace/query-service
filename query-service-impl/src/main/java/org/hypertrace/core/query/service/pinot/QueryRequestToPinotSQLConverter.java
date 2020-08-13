@@ -38,8 +38,8 @@ class QueryRequestToPinotSQLConverter {
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 
-  private ViewDefinition viewDefinition;
-  private Joiner joiner = Joiner.on(", ").skipNulls();
+  private final ViewDefinition viewDefinition;
+  private final Joiner joiner = Joiner.on(", ").skipNulls();
 
   QueryRequestToPinotSQLConverter(ViewDefinition viewDefinition) {
     this.viewDefinition = viewDefinition;
