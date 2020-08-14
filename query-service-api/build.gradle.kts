@@ -70,4 +70,5 @@ dependencies {
   api("javax.annotation:javax.annotation-api:1.3.2")
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
+  testImplementation("com.google.protobuf:protobuf-java-util:3.12.2")
 }

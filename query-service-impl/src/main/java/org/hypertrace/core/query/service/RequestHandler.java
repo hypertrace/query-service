@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service;
 
-import java.util.Map;
+import com.typesafe.config.Config;
 import java.util.Set;
 import org.hypertrace.core.query.service.api.QueryRequest;
 
@@ -18,5 +18,5 @@ public interface RequestHandler<T, R> {
       QueryResultCollector<R> collector,
       RequestAnalyzer requestAnalyzer) throws Exception;
 
-  void init(String name, Map<String, Object> config);
+  void init(String name, Config config);
 }

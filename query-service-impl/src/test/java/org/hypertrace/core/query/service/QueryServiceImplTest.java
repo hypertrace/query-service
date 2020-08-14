@@ -33,7 +33,6 @@ public class QueryServiceImplTest {
   @Test
   public void testQueryServiceImplInitialization() {
     QueryServiceImplConfig queryServiceConfig = new QueryServiceImplConfig();
-    queryServiceConfig.setTenantColumnName("tenant_id");
     queryServiceConfig.setClients(List.of());
     queryServiceConfig.setQueryRequestHandlersConfig(List.of());
 
@@ -45,7 +44,6 @@ public class QueryServiceImplTest {
   public void testBlankTenantColumnNameThrowsException() {
     // Empty tenant id column name
     QueryServiceImplConfig queryServiceConfig = new QueryServiceImplConfig();
-    queryServiceConfig.setTenantColumnName("");
     queryServiceConfig.setClients(List.of());
 
     Assertions.assertThrows(
@@ -55,7 +53,6 @@ public class QueryServiceImplTest {
 
     // null tenant id column name
     QueryServiceImplConfig queryServiceConfig1 = new QueryServiceImplConfig();
-    queryServiceConfig1.setTenantColumnName(null);
     queryServiceConfig1.setClients(List.of());
 
     Assertions.assertThrows(
@@ -65,7 +62,6 @@ public class QueryServiceImplTest {
 
     // whitespace tenant id column name
     QueryServiceImplConfig queryServiceConfig2 = new QueryServiceImplConfig();
-    queryServiceConfig2.setTenantColumnName("   ");
     queryServiceConfig2.setClients(List.of());
 
     Assertions.assertThrows(

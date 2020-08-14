@@ -37,6 +37,7 @@ dependencies {
   implementation("com.typesafe:config:1.3.2")
   implementation("commons-codec:commons-codec:1.13")
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.8")
+  implementation("com.google.protobuf:protobuf-java-util:3.12.2")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")

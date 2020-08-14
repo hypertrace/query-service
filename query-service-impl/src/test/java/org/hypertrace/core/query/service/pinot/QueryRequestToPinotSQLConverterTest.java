@@ -9,7 +9,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
@@ -55,8 +54,7 @@ public class QueryRequestToPinotSQLConverterTest {
             .getFile()));
     RequestHandlerConfig requestHandlerConfig = RequestHandlerConfig.parse(fileConfig);
     viewDefinition = ViewDefinition.parse(
-        (Map<String, Object>) requestHandlerConfig.getRequestHandlerInfo().get("viewDefinition"),
-        TENANT_COLUMN_NAME);
+        requestHandlerConfig.getRequestHandlerInfo().getConfig("viewDefinition"), TENANT_COLUMN_NAME);
     queryContext = new QueryContext(TENANT_ID);
   }
 
@@ -857,9 +855,7 @@ public class QueryRequestToPinotSQLConverterTest {
         createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
     Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
     Expression percentileAgg = Expression.newBuilder().setFunction(
-      Function.newBuilder().setAlias("P99_duration").setFunctionName("PERCENTILE")
-          .addArguments(Expression.newBuilder().setLiteral(
-              LiteralConstant.newBuilder().setValue(Value.newBuilder().setValueType(ValueType.LONG).setLong(99))))
+      Function.newBuilder().setAlias("P99_duration").setFunctionName("PERCENTILE99")
           .addArguments(Expression.newBuilder().setColumnIdentifier(
               ColumnIdentifier.newBuilder().setColumnName("Span.metrics.duration_millis")))
     ).build();
@@ -878,7 +874,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     assertPQLQuery(
         queryRequest,
-        "select PERCENTILETDIGEST(99, duration_millis) from SpanEventView"
+        "select PERCENTILETDIGEST99(duration_millis) from SpanEventView"
             + " where "
             + viewDefinition.getTenantIdColumn()
             + " = '"

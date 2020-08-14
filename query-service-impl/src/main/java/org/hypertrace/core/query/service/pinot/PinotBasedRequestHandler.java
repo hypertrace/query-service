@@ -1,7 +1,9 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
+import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,10 +32,12 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
 
   private static final Logger LOG = LoggerFactory.getLogger(PinotBasedRequestHandler.class);
 
-  public static String VIEW_DEFINITION_CONFIG_KEY = "viewDefinition";
+  public static final String VIEW_DEFINITION_CONFIG_KEY = "viewDefinition";
+  private static final String TENANT_COLUMN_NAME_CONFIG_KEY = "tenantColumnName";
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
-  private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final String PERCENTILE_AGGREGATION_FUNCTION_CONFIG = "percentileAggFunction";
+
+  private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
 
   /**
    * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster
@@ -57,6 +61,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   private final ResultSetTypePredicateProvider resultSetTypePredicateProvider;
   private final PinotClientFactory pinotClientFactory;
 
+  private final JsonFormat.Printer protoJsonPrinter =
+      JsonFormat.printer().omittingInsignificantWhitespace();
+
   private Timer pinotQueryExecutionTimer;
   private int slowQueryThreshold = DEFAULT_SLOW_QUERY_THRESHOLD_MS;
   private String percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
@@ -76,7 +83,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   private void initMetrics() {
     // Registry the latency metric with handler as a tag.
     this.pinotQueryExecutionTimer = PlatformMetricsRegistry.registerTimer(
-        "pinot.query.latency", Map.of("handler", name));
+        "pinot.query.latency", Map.of("handler", name), true);
   }
 
   @Override
@@ -85,21 +92,30 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   }
 
   @Override
-  public void init(String name, Map<String, Object> config) {
+  public void init(String name, Config config) {
     this.name = name;
-    // TODO:use typesafe HOCON object
-    this.viewDefinition = (ViewDefinition) config.get(VIEW_DEFINITION_CONFIG_KEY);
 
-    if (config.containsKey(PERCENTILE_AGGREGATION_FUNCTION_CONFIG)) {
-      this.percentileAggFunction = (String) config.get(PERCENTILE_AGGREGATION_FUNCTION_CONFIG);
+    if (!config.hasPath(TENANT_COLUMN_NAME_CONFIG_KEY)) {
+      throw new RuntimeException(TENANT_COLUMN_NAME_CONFIG_KEY +
+          " is not defined in the " + name + " request handler.");
+    }
+
+    String tenantColumnName = config.getString(TENANT_COLUMN_NAME_CONFIG_KEY);
+    this.viewDefinition = ViewDefinition.parse(
+        config.getConfig(VIEW_DEFINITION_CONFIG_KEY), tenantColumnName);
+
+    if (config.hasPath(PERCENTILE_AGGREGATION_FUNCTION_CONFIG)) {
+      this.percentileAggFunction = config.getString(PERCENTILE_AGGREGATION_FUNCTION_CONFIG);
     }
     LOG.info("Using {} for percentile aggregations.", this.percentileAggFunction);
+
     this.request2PinotSqlConverter =
         new QueryRequestToPinotSQLConverter(viewDefinition, this.percentileAggFunction);
 
-    if (config.containsKey(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
-      this.slowQueryThreshold = (int) config.get(SLOW_QUERY_THRESHOLD_MS_CONFIG);
+    if (config.hasPath(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
+      this.slowQueryThreshold = config.getInt(SLOW_QUERY_THRESHOLD_MS_CONFIG);
     }
+    LOG.info("Using {} as the threshold for logging slow queries.", slowQueryThreshold);
 
     initMetrics();
   }
@@ -153,7 +169,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
       long requestTimeMs = System.currentTimeMillis() - start;
       if (requestTimeMs > slowQueryThreshold) {
-        LOG.warn("Query Execution time: {} millis\nQuery Request: {}", requestTimeMs, request);
+        LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
+            requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
       }
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
@@ -284,7 +301,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
               builder.addColumn(
                   Value.newBuilder().setString(pinotMapConverter.merge(mapKeys, mapVals)).build());
             } catch (IOException ex) {
-              LOG.error("An error occured while merging mapKeys and mapVals", ex);
+              LOG.error("An error occurred while merging mapKeys and mapVals", ex);
               throw new RuntimeException(
                   "An error occurred while parsing the Pinot Table format response", ex);
             }

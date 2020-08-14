@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -16,7 +15,6 @@ import org.hypertrace.core.query.service.api.QueryServiceGrpc;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.pinot.PinotBasedRequestHandler;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory;
-import org.hypertrace.core.query.service.pinot.ViewDefinition;
 
 public class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
 
@@ -30,41 +28,25 @@ public class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
         config.getClients().stream()
             .map(ClientConfig::parse)
             .collect(Collectors.toMap(ClientConfig::getType, clientConfig -> clientConfig));
-    String tenantColumnName = config.getTenantColumnName();
-
-    if (tenantColumnName == null || tenantColumnName.isBlank()) {
-      throw new RuntimeException(
-          "Tenant column name is not defined. Need to set service.config.tenantColumnName in the application config.");
-    }
 
     for (Config requestHandlerConfig : config.getQueryRequestHandlersConfig()) {
       initRequestHandler(
-          RequestHandlerConfig.parse(requestHandlerConfig), clientConfigMap, tenantColumnName);
+          RequestHandlerConfig.parse(requestHandlerConfig), clientConfigMap);
     }
     selector = new RequestHandlerSelector(RequestHandlerRegistry.get());
   }
 
-  private void initRequestHandler(
-      RequestHandlerConfig config,
-      Map<String, ClientConfig> clientConfigMap,
-      String tenantColumnName) {
+  private void initRequestHandler(RequestHandlerConfig config,
+      Map<String, ClientConfig> clientConfigMap) {
 
     // Register Pinot RequestHandler
     if ("pinot".equals(config.getType())) {
-      Map<String, Object> requestHandlerInfoConf = new HashMap<>();
-      requestHandlerInfoConf.put(
-          PinotBasedRequestHandler.VIEW_DEFINITION_CONFIG_KEY,
-          ViewDefinition.parse(
-              (Map<String, Object>)
-                  config
-                      .getRequestHandlerInfo()
-                      .get(PinotBasedRequestHandler.VIEW_DEFINITION_CONFIG_KEY),
-              tenantColumnName));
-      RequestHandlerRegistry.get()
-          .register(
-              config.getName(),
-              new RequestHandlerInfo(
-                  config.getName(), PinotBasedRequestHandler.class, requestHandlerInfoConf));
+      boolean registered = RequestHandlerRegistry.get().register(config.getName(),
+          new RequestHandlerInfo(
+              config.getName(), PinotBasedRequestHandler.class, config.getRequestHandlerInfo()));
+      if (!registered) {
+        throw new RuntimeException("Could not initialize the request handler: " + config.getName());
+      }
     } else {
       throw new UnsupportedOperationException(
           "Unsupported RequestHandler type - " + config.getType());
