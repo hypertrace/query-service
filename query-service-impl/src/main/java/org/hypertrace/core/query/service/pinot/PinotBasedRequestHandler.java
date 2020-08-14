@@ -169,9 +169,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
       long requestTimeMs = System.currentTimeMillis() - start;
       if (requestTimeMs > slowQueryThreshold) {
-        LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
-            requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
-      }
+          LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
+              requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
+        }
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
       LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
