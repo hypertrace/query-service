@@ -12,5 +12,5 @@ dependencies {
   // Logging
   implementation("org.slf4j:slf4j-api:1.7.30")
   // Config
-  implementation("com.typesafe:config:1.3.2")
+  implementation("com.typesafe:config:1.4.0")
 }

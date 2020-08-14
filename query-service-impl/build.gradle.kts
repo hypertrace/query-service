@@ -34,7 +34,7 @@ dependencies {
     exclude("org.slf4j", "slf4j-log4j12")
   }
   implementation("org.slf4j:slf4j-api:1.7.30")
-  implementation("com.typesafe:config:1.3.2")
+  implementation("com.typesafe:config:1.4.0")
   implementation("commons-codec:commons-codec:1.13")
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.8")
   implementation("com.google.protobuf:protobuf-java-util:3.12.2")

@@ -14,7 +14,7 @@ dependencies {
   implementation("org.slf4j:slf4j-api:1.7.30")
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
 
-  implementation("com.typesafe:config:1.3.2")
+  implementation("com.typesafe:config:1.4.0")
 }
 
 application {

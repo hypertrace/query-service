@@ -6,6 +6,9 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,6 +45,18 @@ public class PinotBasedRequestHandlerTest {
         .thenReturn(false);
     when(resultSetTypePredicateProviderMock.isResultTableResultSetType(any(ResultSet.class)))
         .thenReturn(true);
+  }
+
+  @Test
+  public void testInit() {
+    Config fileConfig = ConfigFactory.parseFile(new File(
+        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
+            .getResource("application.conf").getFile()));
+    Config serviceConfig = fileConfig.getConfig("service.config");
+    for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
+      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+    }
   }
 
   @Test

@@ -1,12 +1,15 @@
 package org.hypertrace.core.query.service;
 
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -68,6 +71,19 @@ public class QueryServiceImplTest {
         RuntimeException.class,
         () -> new QueryServiceImpl(queryServiceConfig2),
         "Tenant column name is not defined. Need to set service.config.tenantColumnName in the application config.");
+  }
+
+  @Test
+  public void testServiceImplInitWithUnhandledHandler() {
+    Config config = ConfigFactory.parseMap(Map.of("clients", List.of(),
+        "queryRequestHandlersConfig", List.of(
+            Map.of("name","test",
+            "type","invalid", "clientConfig", "test",
+            "requestHandlerInfo", Map.of())
+        )));
+    QueryServiceImplConfig queryServiceConfig = QueryServiceImplConfig.parse(config);
+    Assertions.assertThrows(UnsupportedOperationException.class,
+        () -> new QueryServiceImpl(queryServiceConfig));
   }
 
   // works with query service running at localhost
