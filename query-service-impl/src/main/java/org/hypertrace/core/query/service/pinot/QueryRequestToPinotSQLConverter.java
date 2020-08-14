@@ -38,11 +38,13 @@ class QueryRequestToPinotSQLConverter {
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 
-  private ViewDefinition viewDefinition;
-  private Joiner joiner = Joiner.on(", ").skipNulls();
+  private final ViewDefinition viewDefinition;
+  private final String percentileAggFunction;
+  private final Joiner joiner = Joiner.on(", ").skipNulls();
 
-  QueryRequestToPinotSQLConverter(ViewDefinition viewDefinition) {
+  QueryRequestToPinotSQLConverter(ViewDefinition viewDefinition, String percentileAggFunc) {
     this.viewDefinition = viewDefinition;
+    this.percentileAggFunction = percentileAggFunc;
   }
 
   Entry<String, Params> toSQL(
@@ -282,6 +284,8 @@ class QueryRequestToPinotSQLConverter {
         // COUNT(*) for ORDER BY
         if (functionName.equalsIgnoreCase("COUNT")) {
           return functionName + "(*)";
+        } else if (functionName.equalsIgnoreCase("PERCENTILE")) {
+          functionName = percentileAggFunction;
         }
         List<Expression> argumentsList = function.getArgumentsList();
         String[] args = new String[argumentsList.size()];

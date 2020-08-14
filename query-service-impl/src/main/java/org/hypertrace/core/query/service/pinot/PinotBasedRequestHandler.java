@@ -1,8 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
-import com.codahale.metrics.Timer;
-import com.codahale.metrics.Timer.Context;
 import com.google.common.base.Preconditions;
+import io.micrometer.core.instrument.Timer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,7 +31,15 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   private static final Logger LOG = LoggerFactory.getLogger(PinotBasedRequestHandler.class);
 
   public static String VIEW_DEFINITION_CONFIG_KEY = "viewDefinition";
-  private static final int SLOW_REQUEST_THRESHOLD_MS = 3000; // A 3 seconds request is too slow
+  private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
+  private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
+  private static final String PERCENTILE_AGGREGATION_FUNCTION_CONFIG = "percentileAggFunction";
+
+  /**
+   * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster
+   * and reasonably accurate, hence use that as the default.
+   */
+  private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
 
   private String name;
   private ViewDefinition viewDefinition;
@@ -51,6 +58,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   private final PinotClientFactory pinotClientFactory;
 
   private Timer pinotQueryExecutionTimer;
+  private int slowQueryThreshold = DEFAULT_SLOW_QUERY_THRESHOLD_MS;
+  private String percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
 
   public PinotBasedRequestHandler() {
     this(new DefaultResultSetTypePredicateProvider(), PinotClientFactory.get());
@@ -65,10 +74,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   }
 
   private void initMetrics() {
-    this.pinotQueryExecutionTimer = new Timer();
-    PlatformMetricsRegistry.register(
-        String.format("pinot.%s.query.execution", PinotUtils.getMetricName(name)),
-        pinotQueryExecutionTimer);
+    // Registry the latency metric with handler as a tag.
+    this.pinotQueryExecutionTimer = PlatformMetricsRegistry.registerTimer(
+        "pinot.query.latency", Map.of("handler", name));
   }
 
   @Override
@@ -81,7 +89,18 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     this.name = name;
     // TODO:use typesafe HOCON object
     this.viewDefinition = (ViewDefinition) config.get(VIEW_DEFINITION_CONFIG_KEY);
-    request2PinotSqlConverter = new QueryRequestToPinotSQLConverter(viewDefinition);
+
+    if (config.containsKey(PERCENTILE_AGGREGATION_FUNCTION_CONFIG)) {
+      this.percentileAggFunction = (String) config.get(PERCENTILE_AGGREGATION_FUNCTION_CONFIG);
+    }
+    LOG.info("Using {} for percentile aggregations.", this.percentileAggFunction);
+    this.request2PinotSqlConverter =
+        new QueryRequestToPinotSQLConverter(viewDefinition, this.percentileAggFunction);
+
+    if (config.containsKey(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
+      this.slowQueryThreshold = (int) config.get(SLOW_QUERY_THRESHOLD_MS_CONFIG);
+    }
+
     initMetrics();
   }
 
@@ -113,7 +132,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       QueryContext queryContext,
       QueryRequest request,
       QueryResultCollector<Row> collector,
-      RequestAnalyzer requestAnalyzer) {
+      RequestAnalyzer requestAnalyzer) throws Exception {
     long start = System.currentTimeMillis();
     validateQueryRequest(queryContext, request);
     Entry<String, Params> pql =
@@ -122,10 +141,10 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
     }
     final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
-    final Context timerContext = pinotQueryExecutionTimer.time();
+
     try {
-      final ResultSetGroup resultSetGroup = pinotClient.executeQuery(pql.getKey(), pql.getValue());
-      timerContext.stop();
+      final ResultSetGroup resultSetGroup = pinotQueryExecutionTimer.recordCallable(
+          () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
 
       if (LOG.isDebugEnabled()) {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
@@ -133,7 +152,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       // need to merge data especially for Pinot. That's why we need to track the map columns
       convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
       long requestTimeMs = System.currentTimeMillis() - start;
-      if (requestTimeMs > SLOW_REQUEST_THRESHOLD_MS) {
+      if (requestTimeMs > slowQueryThreshold) {
         LOG.warn("Query Execution time: {} millis\nQuery Request: {}", requestTimeMs, request);
       }
     } catch (Exception ex) {
@@ -141,9 +160,6 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
       // Rethrow for the caller to return an error.
       throw ex;
-    } finally {
-      // stop any timer context
-      timerContext.stop();
     }
   }
 

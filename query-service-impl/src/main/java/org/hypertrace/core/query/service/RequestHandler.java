@@ -16,7 +16,7 @@ public interface RequestHandler<T, R> {
       QueryContext queryContext,
       QueryRequest request,
       QueryResultCollector<R> collector,
-      RequestAnalyzer requestAnalyzer);
+      RequestAnalyzer requestAnalyzer) throws Exception;
 
   void init(String name, Map<String, Object> config);
 }
