@@ -107,7 +107,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     if (config.hasPath(PERCENTILE_AGGREGATION_FUNCTION_CONFIG)) {
       this.percentileAggFunction = config.getString(PERCENTILE_AGGREGATION_FUNCTION_CONFIG);
     }
-    LOG.info("Using {} for percentile aggregations.", this.percentileAggFunction);
+    LOG.info("Using {} function for percentile aggregations of handler: {}",
+        this.percentileAggFunction, name);
 
     this.request2PinotSqlConverter =
         new QueryRequestToPinotSQLConverter(viewDefinition, this.percentileAggFunction);
@@ -115,7 +116,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     if (config.hasPath(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
       this.slowQueryThreshold = config.getInt(SLOW_QUERY_THRESHOLD_MS_CONFIG);
     }
-    LOG.info("Using {} as the threshold for logging slow queries.", slowQueryThreshold);
+    LOG.info("Using {}ms as the threshold for logging slow queries of handler: {}",
+        slowQueryThreshold, name);
 
     initMetrics();
   }

@@ -24,6 +24,7 @@ import org.hypertrace.core.query.service.RequestAnalyzer;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Row;
+import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,16 @@ public class PinotBasedRequestHandlerTest {
   }
 
   @Test
+  public void testInitFailure() {
+    Assertions.assertThrows(RuntimeException.class, () -> {
+      Config config = ConfigFactory.parseMap(Map.of("name", "test",
+          "requestHandlerInfo", Map.of()));
+      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
+      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+    });
+  }
+
+  @Test
   public void testCanHandle() {
     Config fileConfig = ConfigFactory.parseFile(new File(
         QueryRequestToPinotSQLConverterTest.class.getClassLoader()
@@ -83,6 +94,32 @@ public class PinotBasedRequestHandlerTest {
             Set.of(), Set.of("Trace.start_time_millis", "Trace.end_time_millis", "Trace.duration_millis",
                 "Trace.id", "Trace.tags"));
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+      }
+    }
+  }
+
+  @Test
+  public void testCanHandleNegativeCase() {
+    Config fileConfig = ConfigFactory.parseFile(new File(
+        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
+            .getResource("application.conf").getFile()));
+    Config serviceConfig = fileConfig.getConfig("service.config");
+    for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
+      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      // Verify that the traces handler can traces query.
+      if (config.getString("name").equals("trace-view-handler")) {
+        QueryCost cost = handler.canHandle(
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("col1"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("col2"))
+                .addGroupBy(QueryRequestBuilderUtils.createColumnExpression("col3"))
+                .build(),
+            Set.of(), Set.of("Trace.does_not_exist", "Trace.end_time_millis",
+                "Trace.duration_millis", "Trace.id", "Trace.tags"));
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
       }
     }
   }
@@ -252,7 +289,7 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void
-      testGroupBysAndAggregationsMixedWithSelectionsThrowsExeptionWhenDistinctSelectionIsSpecified() {
+      testGroupBysAndAggregationsMixedWithSelectionsThrowsExceptionWhenDistinctSelectionIsSpecified() {
     // Setting distinct selections and mixing selections and group bys should throw exception
     Assertions.assertThrows(
         IllegalArgumentException.class,
@@ -300,6 +337,61 @@ public class PinotBasedRequestHandlerTest {
                 .build(),
             mock(QueryResultCollector.class),
             mock(RequestAnalyzer.class)));
+  }
+
+  @Test
+  public void testWithMockPinotClient() throws Exception {
+    Config fileConfig = ConfigFactory.parseFile(new File(
+        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
+            .getResource("application.conf").getFile()));
+    Config serviceConfig = fileConfig.getConfig("service.config");
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!config.getString("name").equals("trace-view-handler")) {
+        continue;
+      }
+
+      // Mock the PinotClient
+      PinotClient pinotClient = mock(PinotClient.class);
+      PinotClientFactory factory = mock(PinotClientFactory.class);
+      when(factory.getPinotClient(any())).thenReturn(pinotClient);
+
+      String[][] resultTable =
+          new String[][] {
+              {"operation-name-0", "service-name-0", "70", "80"},
+              {"operation-name-1", "service-name-1", "71", "79"},
+              {"operation-name-2", "service-name-2", "72", "78"},
+              {"operation-name-3", "service-name-3", "73", "77"}
+          };
+      List<String> columnNames = List.of("operation_name", "service_name", "start_time_millis", "duration");
+      ResultSet resultSet = mockResultSet(4, 4, columnNames, resultTable);
+      ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
+      when(pinotClient.executeQuery(any(), any())).thenReturn(resultSetGroup);
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(new ResultSetTypePredicateProvider() {
+            @Override
+            public boolean isSelectionResultSetType(ResultSet resultSet) {
+              return true;
+            }
+
+            @Override
+            public boolean isResultTableResultSetType(ResultSet resultSet) {
+              return false;
+            }
+          }, factory);
+      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
+
+      QueryContext context = new QueryContext("__default");
+      handler.handleRequest(context,
+          QueryRequest.newBuilder()
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("col1"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("col2"))
+              .build(),
+          testQueryResultCollector, mock(RequestAnalyzer.class));
+      Assertions.assertNotNull(testQueryResultCollector.getResultSetChunk());
+    }
   }
 
   private ResultSet mockResultSet(
