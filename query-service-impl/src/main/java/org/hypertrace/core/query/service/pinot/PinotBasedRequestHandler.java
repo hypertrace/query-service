@@ -123,6 +123,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   @Override
   public QueryCost canHandle(
       QueryRequest request, Set<String> referencedSources, Set<String> referencedColumns) {
+    Preconditions.checkArgument(!referencedColumns.isEmpty());
     double cost = -1;
     boolean found = true;
     for (String referencedColumn : referencedColumns) {

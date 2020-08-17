@@ -13,9 +13,11 @@ import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.QueryContext;
+import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.QueryResultCollector;
 import org.hypertrace.core.query.service.RequestAnalyzer;
@@ -56,6 +58,32 @@ public class PinotBasedRequestHandlerTest {
     for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
       PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
       handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+    }
+  }
+
+  @Test
+  public void testCanHandle() {
+    Config fileConfig = ConfigFactory.parseFile(new File(
+        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
+            .getResource("application.conf").getFile()));
+    Config serviceConfig = fileConfig.getConfig("service.config");
+    for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
+      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      // Verify that the traces handler can traces query.
+      if (config.getString("name").equals("trace-view-handler")) {
+        QueryCost cost = handler.canHandle(
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("col1"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("col2"))
+                .addGroupBy(QueryRequestBuilderUtils.createColumnExpression("col3"))
+                .build(),
+            Set.of(), Set.of("Trace.start_time_millis", "Trace.end_time_millis", "Trace.duration_millis",
+                "Trace.id", "Trace.tags"));
+        Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+      }
     }
   }
 

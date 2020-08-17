@@ -55,7 +55,7 @@ public class QueryServiceImplConfigTest {
 
     RequestHandlerConfig handler0 =
         RequestHandlerConfig.parse(queryServiceConfig.getQueryRequestHandlersConfig().get(0));
-    assertEquals("piontCluster0", handler0.getName());
+    assertEquals("trace-view-handler", handler0.getName());
     assertEquals("pinot", handler0.getType());
     Config requestHandlerInfo = handler0.getRequestHandlerInfo();
     LOGGER.info("{}", requestHandlerInfo);
