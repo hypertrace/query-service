@@ -1,9 +1,10 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.google.common.base.Preconditions;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
-import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -151,7 +152,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       QueryContext queryContext,
       QueryRequest request,
       QueryResultCollector<Row> collector,
-      RequestAnalyzer requestAnalyzer) throws Exception {
+      RequestAnalyzer requestAnalyzer) {
     long start = System.currentTimeMillis();
     validateQueryRequest(queryContext, request);
     Entry<String, Params> pql =
@@ -161,25 +162,30 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     }
     final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
 
+    final ResultSetGroup resultSetGroup;
     try {
-      final ResultSetGroup resultSetGroup = pinotQueryExecutionTimer.recordCallable(
+      resultSetGroup = pinotQueryExecutionTimer.recordCallable(
           () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
-
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
-      }
-      // need to merge data especially for Pinot. That's why we need to track the map columns
-      convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
-      long requestTimeMs = System.currentTimeMillis() - start;
-      if (requestTimeMs > slowQueryThreshold) {
-          LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
-              requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
-        }
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
       LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
       // Rethrow for the caller to return an error.
-      throw ex;
+      throw new RuntimeException(ex);
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
+    }
+    // need to merge data especially for Pinot. That's why we need to track the map columns
+    convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
+
+    long requestTimeMs = System.currentTimeMillis() - start;
+    if (requestTimeMs > slowQueryThreshold) {
+      try {
+        LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
+            requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
+      } catch (InvalidProtocolBufferException ignore) {
+      }
     }
   }
 

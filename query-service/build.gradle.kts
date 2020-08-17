@@ -7,9 +7,9 @@ plugins {
 
 dependencies {
   implementation(project(":query-service-impl"))
-  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.1.3")
-  implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.2")
-  implementation("io.grpc:grpc-netty:1.30.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.1.4")
+  implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.8")
+  implementation("io.grpc:grpc-netty:1.31.1")
 
   implementation("org.slf4j:slf4j-api:1.7.30")
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
