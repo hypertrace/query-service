@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.pinot;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import org.apache.pinot.client.BrokerResponse;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.ConnectionFactory;
 import org.apache.pinot.client.PreparedStatement;
@@ -79,9 +80,9 @@ public class PinotClientFactory {
       }
     }
 
-    public ResultSetGroup executeQuery(String statement, Params params) {
+    public BrokerResponse executeQuery(String statement, Params params) {
       PreparedStatement preparedStatement = buildPreparedStatement(statement, params);
-      return preparedStatement.execute();
+      return preparedStatement.executeRequest();
     }
 
     public Future<ResultSetGroup> executeQueryAsync(String statement, Params params) {

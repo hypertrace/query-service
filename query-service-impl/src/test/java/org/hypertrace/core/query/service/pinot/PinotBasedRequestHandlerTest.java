@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.pinot.client.BrokerResponse;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.QueryContext;
@@ -365,7 +366,7 @@ public class PinotBasedRequestHandlerTest {
       List<String> columnNames = List.of("operation_name", "service_name", "start_time_millis", "duration");
       ResultSet resultSet = mockResultSet(4, 4, columnNames, resultTable);
       ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
-      when(pinotClient.executeQuery(any(), any())).thenReturn(resultSetGroup);
+//      when(pinotClient.executeQuery(any(), any())).thenReturn(resultSetGroup);
 
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(new ResultSetTypePredicateProvider() {

@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.pinot;
 
 import java.util.Collections;
 import java.util.Map;
+import org.apache.pinot.client.BrokerResponse;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 
@@ -31,9 +32,9 @@ public abstract class PinotQuery<T> {
   }
 
   public T execute(Map<String, Object> args) {
-    final ResultSetGroup queryResults =
+    final BrokerResponse queryResults =
         this.pinotClient.executeQuery(getQuery(args), Params.newBuilder().build());
-    return convertQueryResults(queryResults);
+    return convertQueryResults(ResultSetGroup.fromBrokerResponse(queryResults));
   }
 
   @Override

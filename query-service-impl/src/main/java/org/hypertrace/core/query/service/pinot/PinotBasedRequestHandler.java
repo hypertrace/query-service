@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import org.apache.pinot.client.BrokerResponse;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.QueryContext;
@@ -38,7 +39,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
   private static final String PERCENTILE_AGGREGATION_FUNCTION_CONFIG = "percentileAggFunction";
 
-  private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
+  private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 10;
 
   /**
    * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster
@@ -162,9 +163,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     }
     final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
 
-    final ResultSetGroup resultSetGroup;
+    final BrokerResponse response;
     try {
-      resultSetGroup = pinotQueryExecutionTimer.recordCallable(
+      response = pinotQueryExecutionTimer.recordCallable(
           () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
@@ -173,8 +174,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       throw new RuntimeException(ex);
     }
 
+    ResultSetGroup resultSetGroup = ResultSetGroup.fromBrokerResponse(response);
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
+      LOG.debug("Query results: [ {} ]", response.toString());
     }
     // need to merge data especially for Pinot. That's why we need to track the map columns
     convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
@@ -182,8 +184,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     long requestTimeMs = System.currentTimeMillis() - start;
     if (requestTimeMs > slowQueryThreshold) {
       try {
-        LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
-            requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
+        LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}, status: {}",
+            requestTimeMs, pql.getKey(), protoJsonPrinter.print(request),
+            response.getResponseStats());
       } catch (InvalidProtocolBufferException ignore) {
       }
     }
