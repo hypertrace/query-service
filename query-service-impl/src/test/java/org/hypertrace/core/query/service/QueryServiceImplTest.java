@@ -42,37 +42,7 @@ public class QueryServiceImplTest {
     QueryServiceImpl queryServiceImpl = new QueryServiceImpl(queryServiceConfig);
     Assertions.assertNotNull(queryServiceImpl);
   }
-
-  @Test
-  public void testBlankTenantColumnNameThrowsException() {
-    // Empty tenant id column name
-    QueryServiceImplConfig queryServiceConfig = new QueryServiceImplConfig();
-    queryServiceConfig.setClients(List.of());
-
-    Assertions.assertThrows(
-        RuntimeException.class,
-        () -> new QueryServiceImpl(queryServiceConfig),
-        "Tenant column name is not defined. Need to set service.config.tenantColumnName in the application config.");
-
-    // null tenant id column name
-    QueryServiceImplConfig queryServiceConfig1 = new QueryServiceImplConfig();
-    queryServiceConfig1.setClients(List.of());
-
-    Assertions.assertThrows(
-        RuntimeException.class,
-        () -> new QueryServiceImpl(queryServiceConfig1),
-        "Tenant column name is not defined. Need to set service.config.tenantColumnName in the application config.");
-
-    // whitespace tenant id column name
-    QueryServiceImplConfig queryServiceConfig2 = new QueryServiceImplConfig();
-    queryServiceConfig2.setClients(List.of());
-
-    Assertions.assertThrows(
-        RuntimeException.class,
-        () -> new QueryServiceImpl(queryServiceConfig2),
-        "Tenant column name is not defined. Need to set service.config.tenantColumnName in the application config.");
-  }
-
+  
   @Test
   public void testServiceImplInitWithUnhandledHandler() {
     Config config = ConfigFactory.parseMap(Map.of("clients", List.of(),
