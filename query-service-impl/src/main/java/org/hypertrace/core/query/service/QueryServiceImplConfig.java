@@ -3,19 +3,13 @@ package org.hypertrace.core.query.service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigBeanFactory;
 import java.util.List;
-import java.util.Map;
 
 public class QueryServiceImplConfig {
-  private String tenantColumnName;
   private List<Config> clients;
   private List<Config> queryRequestHandlersConfig;
 
   public static QueryServiceImplConfig parse(Config config) {
     return ConfigBeanFactory.create(config, QueryServiceImplConfig.class);
-  }
-
-  public String getTenantColumnName() {
-    return tenantColumnName;
   }
 
   public List<Config> getClients() {
@@ -34,16 +28,12 @@ public class QueryServiceImplConfig {
     this.queryRequestHandlersConfig = queryRequestHandlersConfig;
   }
 
-  public void setTenantColumnName(String tenantColumnName) {
-    this.tenantColumnName = tenantColumnName;
-  }
-
   public static class RequestHandlerConfig {
 
     private String name;
     private String type;
     private String clientConfig;
-    private Map<String, Object> requestHandlerInfo;
+    private Config requestHandlerInfo;
 
     public static RequestHandlerConfig parse(Config config) {
       return ConfigBeanFactory.create(config, RequestHandlerConfig.class);
@@ -73,11 +63,11 @@ public class QueryServiceImplConfig {
       this.clientConfig = clientConfig;
     }
 
-    public Map<String, Object> getRequestHandlerInfo() {
+    public Config getRequestHandlerInfo() {
       return requestHandlerInfo;
     }
 
-    public void setRequestHandlerInfo(Map<String, Object> requestHandlerInfo) {
+    public void setRequestHandlerInfo(Config requestHandlerInfo) {
       this.requestHandlerInfo = requestHandlerInfo;
     }
   }

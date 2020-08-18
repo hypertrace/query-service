@@ -9,7 +9,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
@@ -45,7 +44,6 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private static ViewDefinition viewDefinition;
   private static QueryContext queryContext;
-  private QueryRequestToPinotSQLConverter converter;
   private Connection connection;
 
   @BeforeAll
@@ -56,14 +54,12 @@ public class QueryRequestToPinotSQLConverterTest {
             .getFile()));
     RequestHandlerConfig requestHandlerConfig = RequestHandlerConfig.parse(fileConfig);
     viewDefinition = ViewDefinition.parse(
-        (Map<String, Object>) requestHandlerConfig.getRequestHandlerInfo().get("viewDefinition"),
-        TENANT_COLUMN_NAME);
+        requestHandlerConfig.getRequestHandlerInfo().getConfig("viewDefinition"), TENANT_COLUMN_NAME);
     queryContext = new QueryContext(TENANT_ID);
   }
 
   @BeforeEach
   public void setup() {
-    converter = new QueryRequestToPinotSQLConverter(viewDefinition);
     connection = Mockito.mock(Connection.class);
     Mockito.when(connection.prepareStatement(any(Request.class))).thenCallRealMethod();
   }
@@ -853,6 +849,41 @@ public class QueryRequestToPinotSQLConverterTest {
                     + "AND REGEXP_LIKE(duration_millis,5000)");
   }
 
+  @Test
+  public void testQueryWithPercentileAggregation() {
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+    Expression percentileAgg = Expression.newBuilder().setFunction(
+      Function.newBuilder().setAlias("P99_duration").setFunctionName("PERCENTILE99")
+          .addArguments(Expression.newBuilder().setColumnIdentifier(
+              ColumnIdentifier.newBuilder().setColumnName("Span.metrics.duration_millis")))
+    ).build();
+
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addAggregation(percentileAgg)
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .setLimit(15)
+            .build();
+
+    assertPQLQuery(
+        queryRequest,
+        "select PERCENTILETDIGEST99(duration_millis) from SpanEventView"
+            + " where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > '1570658506605' and end_time_millis < '1570744906673' )"
+            + " limit 15");
+  }
+
   private Filter createTimeFilter(String columnName, Operator op, long value) {
     ColumnIdentifier startTimeColumn =
         ColumnIdentifier.newBuilder().setColumnName(columnName).build();
@@ -1063,7 +1094,8 @@ public class QueryRequestToPinotSQLConverterTest {
   }
 
   private void assertPQLQuery(QueryRequest queryRequest, String expectedQuery) {
-    QueryRequestToPinotSQLConverter converter = new QueryRequestToPinotSQLConverter(viewDefinition);
+    QueryRequestToPinotSQLConverter converter =
+        new QueryRequestToPinotSQLConverter(viewDefinition, "PERCENTILETDIGEST");
     Entry<String, Params> statementToParam =
         converter.toSQL(queryContext, queryRequest, createSelectionsFromQueryRequest(queryRequest));
     PinotClient pinotClient = new PinotClient(connection);
@@ -1076,7 +1108,8 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private void assertExceptionOnPQLQuery(QueryRequest queryRequest, Class className,
       String expectedMessage) {
-    QueryRequestToPinotSQLConverter converter = new QueryRequestToPinotSQLConverter(viewDefinition);
+    QueryRequestToPinotSQLConverter converter =
+        new QueryRequestToPinotSQLConverter(viewDefinition, "PERCENTILETDIGEST");
 
     Throwable exception = Assertions.assertThrows(className, () -> converter
         .toSQL(queryContext, queryRequest, createSelectionsFromQueryRequest(queryRequest)));

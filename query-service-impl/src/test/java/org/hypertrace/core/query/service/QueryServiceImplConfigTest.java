@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.File;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.QueryServiceImplConfig.ClientConfig;
@@ -51,20 +50,19 @@ public class QueryServiceImplConfigTest {
     assertEquals(8090, appConfig.getInt("service.port"));
     assertEquals(2, queryServiceConfig.getQueryRequestHandlersConfig().size());
     assertEquals(2, queryServiceConfig.getClients().size());
-    assertEquals("tenant_id", queryServiceConfig.getTenantColumnName());
 
     LOGGER.info("{}", queryServiceConfig.getQueryRequestHandlersConfig());
 
     RequestHandlerConfig handler0 =
         RequestHandlerConfig.parse(queryServiceConfig.getQueryRequestHandlersConfig().get(0));
-    assertEquals("piontCluster0", handler0.getName());
+    assertEquals("trace-view-handler", handler0.getName());
     assertEquals("pinot", handler0.getType());
-    Map<String, Object> requestHandlerInfo = handler0.getRequestHandlerInfo();
+    Config requestHandlerInfo = handler0.getRequestHandlerInfo();
     LOGGER.info("{}", requestHandlerInfo);
 
     String tenantColumnName = "tenant_id";
     ViewDefinition viewDefinition =
-        ViewDefinition.parse((Map) requestHandlerInfo.get("viewDefinition"), tenantColumnName);
+        ViewDefinition.parse(requestHandlerInfo.getConfig("viewDefinition"), tenantColumnName);
     assertEquals("RawTraceView", viewDefinition.getViewName());
     assertEquals(tenantColumnName, viewDefinition.getTenantIdColumn());
 
@@ -90,24 +88,11 @@ public class QueryServiceImplConfigTest {
     // Register all the handlers with the registry.
     for (Config config : queryServiceConfig.getQueryRequestHandlersConfig()) {
       RequestHandlerConfig handlerConfig = RequestHandlerConfig.parse(config);
-      Map<String, Object> requestHandlerInfoConf = new HashMap<>();
-
-      String tenantColumnName = "tenant_id";
-      ViewDefinition viewDefinition =
-          ViewDefinition.parse(
-              (Map<String, Object>)
-                  handlerConfig
-                      .getRequestHandlerInfo()
-                      .get(PinotBasedRequestHandler.VIEW_DEFINITION_CONFIG_KEY),
-              tenantColumnName);
-      assertEquals(tenantColumnName, viewDefinition.getTenantIdColumn());
-      requestHandlerInfoConf.put(
-          PinotBasedRequestHandler.VIEW_DEFINITION_CONFIG_KEY, viewDefinition);
       RequestHandlerRegistry.get()
           .register(
               handlerConfig.getName(),
               new RequestHandlerInfo(
-                  handlerConfig.getName(), PinotBasedRequestHandler.class, requestHandlerInfoConf));
+                  handlerConfig.getName(), PinotBasedRequestHandler.class, handlerConfig.getRequestHandlerInfo()));
     }
 
     RequestHandlerSelector selector = new RequestHandlerSelector(RequestHandlerRegistry.get());

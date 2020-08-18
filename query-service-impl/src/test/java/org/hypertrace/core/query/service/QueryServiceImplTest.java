@@ -1,12 +1,15 @@
 package org.hypertrace.core.query.service;
 
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -33,45 +36,24 @@ public class QueryServiceImplTest {
   @Test
   public void testQueryServiceImplInitialization() {
     QueryServiceImplConfig queryServiceConfig = new QueryServiceImplConfig();
-    queryServiceConfig.setTenantColumnName("tenant_id");
     queryServiceConfig.setClients(List.of());
     queryServiceConfig.setQueryRequestHandlersConfig(List.of());
 
     QueryServiceImpl queryServiceImpl = new QueryServiceImpl(queryServiceConfig);
     Assertions.assertNotNull(queryServiceImpl);
   }
-
+  
   @Test
-  public void testBlankTenantColumnNameThrowsException() {
-    // Empty tenant id column name
-    QueryServiceImplConfig queryServiceConfig = new QueryServiceImplConfig();
-    queryServiceConfig.setTenantColumnName("");
-    queryServiceConfig.setClients(List.of());
-
-    Assertions.assertThrows(
-        RuntimeException.class,
-        () -> new QueryServiceImpl(queryServiceConfig),
-        "Tenant column name is not defined. Need to set service.config.tenantColumnName in the application config.");
-
-    // null tenant id column name
-    QueryServiceImplConfig queryServiceConfig1 = new QueryServiceImplConfig();
-    queryServiceConfig1.setTenantColumnName(null);
-    queryServiceConfig1.setClients(List.of());
-
-    Assertions.assertThrows(
-        RuntimeException.class,
-        () -> new QueryServiceImpl(queryServiceConfig1),
-        "Tenant column name is not defined. Need to set service.config.tenantColumnName in the application config.");
-
-    // whitespace tenant id column name
-    QueryServiceImplConfig queryServiceConfig2 = new QueryServiceImplConfig();
-    queryServiceConfig2.setTenantColumnName("   ");
-    queryServiceConfig2.setClients(List.of());
-
-    Assertions.assertThrows(
-        RuntimeException.class,
-        () -> new QueryServiceImpl(queryServiceConfig2),
-        "Tenant column name is not defined. Need to set service.config.tenantColumnName in the application config.");
+  public void testServiceImplInitWithUnhandledHandler() {
+    Config config = ConfigFactory.parseMap(Map.of("clients", List.of(),
+        "queryRequestHandlersConfig", List.of(
+            Map.of("name","test",
+            "type","invalid", "clientConfig", "test",
+            "requestHandlerInfo", Map.of())
+        )));
+    QueryServiceImplConfig queryServiceConfig = QueryServiceImplConfig.parse(config);
+    Assertions.assertThrows(UnsupportedOperationException.class,
+        () -> new QueryServiceImpl(queryServiceConfig));
   }
 
   // works with query service running at localhost
