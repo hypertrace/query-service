@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import org.apache.pinot.client.BrokerResponse;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.QueryContext;
@@ -163,9 +162,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     }
     final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
 
-    final BrokerResponse response;
+    final ResultSetGroup resultSetGroup;
     try {
-      response = pinotQueryExecutionTimer.recordCallable(
+      resultSetGroup = pinotQueryExecutionTimer.recordCallable(
           () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
@@ -174,9 +173,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       throw new RuntimeException(ex);
     }
 
-    ResultSetGroup resultSetGroup = ResultSetGroup.fromBrokerResponse(response);
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Query results: [ {} ]", response.toString());
+      LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
     }
     // need to merge data especially for Pinot. That's why we need to track the map columns
     convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
@@ -186,7 +184,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       try {
         LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}, status: {}",
             requestTimeMs, pql.getKey(), protoJsonPrinter.print(request),
-            response.getResponseStats());
+            resultSetGroup.getResponseStats());
       } catch (InvalidProtocolBufferException ignore) {
       }
     }
