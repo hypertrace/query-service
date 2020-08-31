@@ -21,9 +21,9 @@ public class StringToValueConverter implements ToValueConverter<String> {
     Value.Builder valueBuilder = Value.newBuilder();
     switch (valueType) {
       case BYTES:
-        String outValue = (StringUtils.isEmpty(value) ||
-            value.equals("null") ||
-            value.equals("''")) ? EMPTY : value;
+        String trimmed = StringUtils.trim(value);
+        String outValue = (StringUtils.isEmpty(trimmed) || trimmed.equals("null") ||
+                trimmed.equals("''")) || trimmed.equals("{}")? EMPTY : value;
         byte[] bytes = Hex.decodeHex(outValue);
         valueBuilder.setBytes(ByteString.copyFrom(bytes));
         valueBuilder.setValueType(ValueType.BYTES);
