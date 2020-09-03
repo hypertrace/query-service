@@ -1,7 +1,7 @@
 # Query Service
 The Query Service interfaces with Apache Pinot Data Store
 
-## How do we use query-service?
+## How do we use Query service?
 
 | ![space-1.jpg](https://hypertrace-docs.s3.amazonaws.com/HT-query-architecture.png) | 
 |:--:| 
