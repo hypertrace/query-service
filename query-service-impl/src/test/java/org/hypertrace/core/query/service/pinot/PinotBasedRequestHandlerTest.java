@@ -143,9 +143,9 @@ public class PinotBasedRequestHandlerTest {
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isAnomalous", "true"))
+                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
                 .build(),
-            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isAnomalous"));
+            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Wrong value in the filter.
@@ -155,9 +155,9 @@ public class PinotBasedRequestHandlerTest {
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isAnomalous", "false"))
+                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "false"))
                 .build(),
-            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isAnomalous"));
+            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Any query without filter should not be handled.
@@ -497,7 +497,7 @@ public class PinotBasedRequestHandlerTest {
           QueryRequest.newBuilder()
               .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
               .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-              .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isAnomalous", "true"))
+              .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
               .build(),
           testQueryResultCollector, mock(RequestAnalyzer.class));
       Assertions.assertNotNull(testQueryResultCollector.getResultSetChunk());
