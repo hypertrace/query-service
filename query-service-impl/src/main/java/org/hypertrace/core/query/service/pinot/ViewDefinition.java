@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.hypertrace.core.query.service.api.ValueType;
 
 public class ViewDefinition {
@@ -21,12 +22,15 @@ public class ViewDefinition {
   private final String viewName;
   private final Map<String, PinotColumnSpec> columnSpecMap;
   private final String tenantColumnName;
+  private final Map<String, ViewColumnFilter> columnFilterMap;
 
   public ViewDefinition(
-      String viewName, Map<String, PinotColumnSpec> columnSpecMap, String tenantColumnName) {
+      String viewName, Map<String, PinotColumnSpec> columnSpecMap, String tenantColumnName,
+      Map<String, ViewColumnFilter> filterMap) {
     this.viewName = viewName;
     this.columnSpecMap = columnSpecMap;
     this.tenantColumnName = tenantColumnName;
+    this.columnFilterMap = filterMap;
   }
 
   public static ViewDefinition parse(Config config, String tenantColumnName) {
@@ -70,7 +74,15 @@ public class ViewDefinition {
       }
       columnSpecMap.put(logicalName, spec);
     }
-    return new ViewDefinition(viewName, columnSpecMap, tenantColumnName);
+
+    final Map<String, ViewColumnFilter> filterMap = new HashMap<>();
+    if (config.hasPath("filters")) {
+      for (Config filterConfig: config.getConfigList("filters")) {
+        filterMap.put(filterConfig.getString("column"), ViewColumnFilter.from(filterConfig));
+      }
+    }
+
+    return new ViewDefinition(viewName, columnSpecMap, tenantColumnName, filterMap);
   }
 
   public String getViewName() {
@@ -82,7 +94,7 @@ public class ViewDefinition {
   }
 
   public boolean containsColumn(String referencedColumn) {
-    return columnSpecMap.containsKey(referencedColumn);
+    return columnSpecMap.containsKey(referencedColumn) || columnFilterMap.containsKey(referencedColumn);
   }
 
   public List<String> getPhysicalColumnNames(String logicalColumnName) {
@@ -113,5 +125,10 @@ public class ViewDefinition {
     return columnSpecMap.get(logicalName).getColumnNames().stream()
         .filter(e -> e.toUpperCase().endsWith(suffix))
         .collect(Collectors.toList());
+  }
+
+  @Nonnull
+  public Map<String, ViewColumnFilter> getColumnFilterMap() {
+    return this.columnFilterMap;
   }
 }

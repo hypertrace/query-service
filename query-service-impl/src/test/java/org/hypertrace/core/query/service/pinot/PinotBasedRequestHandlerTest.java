@@ -125,6 +125,56 @@ public class PinotBasedRequestHandlerTest {
   }
 
   @Test
+  public void testCanHandleWithViewFilter() {
+    Config fileConfig = ConfigFactory.parseFile(new File(
+        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
+            .getResource("application.conf").getFile()));
+    Config serviceConfig = fileConfig.getConfig("service.config");
+    for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
+      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      // Verify that the span event view handler can handle the query which has the filter
+      // on the column which has a view filter.
+      if (config.getString("name").equals("span-event-view-handler")) {
+        QueryCost cost = handler.canHandle(
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isAnomalous", "true"))
+                .build(),
+            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isAnomalous"));
+        Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Wrong value in the filter.
+        cost = handler.canHandle(
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isAnomalous", "false"))
+                .build(),
+            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isAnomalous"));
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Any query without filter should not be handled.
+        QueryCost negativeCost = handler.canHandle(
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                .build(),
+            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId"));
+        Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
+      }
+    }
+  }
+
+  @Test
   public void testConvertSimpleSelectionsQueryResultSet() throws IOException {
     String[][] resultTable =
         new String[][] {
@@ -340,7 +390,7 @@ public class PinotBasedRequestHandlerTest {
   }
 
   @Test
-  public void testWithMockPinotClient() throws Exception {
+  public void testWithMockPinotClient() {
     Config fileConfig = ConfigFactory.parseFile(new File(
         QueryRequestToPinotSQLConverterTest.class.getClassLoader()
             .getResource("application.conf").getFile()));
@@ -388,6 +438,66 @@ public class PinotBasedRequestHandlerTest {
           QueryRequest.newBuilder()
               .addSelection(QueryRequestBuilderUtils.createColumnExpression("col1"))
               .addSelection(QueryRequestBuilderUtils.createColumnExpression("col2"))
+              .build(),
+          testQueryResultCollector, mock(RequestAnalyzer.class));
+      Assertions.assertNotNull(testQueryResultCollector.getResultSetChunk());
+    }
+  }
+
+  @Test
+  public void testViewColumnFilterRemoval() {
+    Config fileConfig = ConfigFactory.parseFile(new File(
+        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
+            .getResource("application.conf").getFile()));
+    Config serviceConfig = fileConfig.getConfig("service.config");
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!config.getString("name").equals("span-event-view-handler")) {
+        continue;
+      }
+
+      // Mock the PinotClient
+      PinotClient pinotClient = mock(PinotClient.class);
+      PinotClientFactory factory = mock(PinotClientFactory.class);
+      when(factory.getPinotClient(any())).thenReturn(pinotClient);
+
+      String[][] resultTable =
+          new String[][] {
+              {"operation-name-0", "service-name-0", "70", "80"},
+              {"operation-name-1", "service-name-1", "71", "79"},
+              {"operation-name-2", "service-name-2", "72", "78"},
+              {"operation-name-3", "service-name-3", "73", "77"}
+          };
+      List<String> columnNames = List.of("operation_name", "service_name", "start_time_millis", "duration");
+      ResultSet resultSet = mockResultSet(4, 4, columnNames, resultTable);
+      ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
+
+      String expectedQuery = "Select  FROM spanEventView WHERE tenant_id = ?";
+      Params params = Params.newBuilder().addStringParam("__default").build();
+      System.out.println(params);
+      when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(new ResultSetTypePredicateProvider() {
+            @Override
+            public boolean isSelectionResultSetType(ResultSet resultSet) {
+              return true;
+            }
+
+            @Override
+            public boolean isResultTableResultSetType(ResultSet resultSet) {
+              return false;
+            }
+          }, factory);
+      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
+
+      QueryContext context = new QueryContext("__default");
+      handler.handleRequest(context,
+          QueryRequest.newBuilder()
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isAnomalous", "true"))
               .build(),
           testQueryResultCollector, mock(RequestAnalyzer.class));
       Assertions.assertNotNull(testQueryResultCollector.getResultSetChunk());

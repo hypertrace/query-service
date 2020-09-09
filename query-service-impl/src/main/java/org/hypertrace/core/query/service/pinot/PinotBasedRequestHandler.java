@@ -6,13 +6,20 @@ import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.QueryContext;
@@ -20,6 +27,9 @@ import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryResultCollector;
 import org.hypertrace.core.query.service.RequestAnalyzer;
 import org.hypertrace.core.query.service.RequestHandler;
+import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Filter;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
@@ -135,6 +145,33 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         break;
       }
     }
+
+    // If the view has any column filters, check if the query has those filters.
+    // If not, the view can't serve the query.
+    Map<String, ViewColumnFilter> filterMap = viewDefinition.getColumnFilterMap();
+    if (found && !filterMap.isEmpty()) {
+      // Check for the presence of every filter column first so that we can terminate early.
+      for (Map.Entry<String, ViewColumnFilter> entry: filterMap.entrySet()) {
+        if (!referencedColumns.contains(entry.getKey())) {
+          found = false;
+          break;
+        }
+      }
+
+      // Now verify the actual filter value.
+      if (found) {
+        Map<String, Filter> queryFilterMap = getQueryFilterMap(request);
+        for (Map.Entry<String, ViewColumnFilter> entry : filterMap.entrySet()) {
+          Filter filter = queryFilterMap.get(entry.getKey());
+          Objects.requireNonNull(filter, "Query filter shouldn't be null.");
+          if (!doesFiltersMatch(entry.getValue(), filter)) {
+            found = false;
+            break;
+          }
+        }
+      }
+    }
+
     // successfully found a view that can handle the request
     if (found) {
       // TODO: Come up with a way to compute the cost based on request and view definition
@@ -147,6 +184,124 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return queryCost;
   }
 
+  /**
+   * Method to check if the given ViewColumnFilter matches the given query filter. A match here
+   * means the view column is superset of what the query filter is looking for, not an exact match.
+   */
+  private boolean doesFiltersMatch(ViewColumnFilter viewColumnFilter, Filter queryFilter) {
+    // query filter must be a leaf filter always.
+    if (queryFilter.getChildFilterCount() > 0) {
+      return false;
+    }
+
+    switch (viewColumnFilter.getOperator()) {
+      case IN:
+        if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
+          return false;
+        }
+
+        return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
+      case EQ:
+        // query filter must be an equals filter in this case.
+        if (queryFilter.getOperator() != Operator.EQ) {
+          return false;
+        }
+
+        // Assert the values now.
+        return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
+    }
+
+    return false;
+  }
+
+  /**
+   * Checks that the values from the given expression are a subset of the given set.
+   */
+  private boolean isSubSet(Set<String> values, Expression expression) {
+    if (!expression.hasLiteral()) {
+      return false;
+    }
+
+    Set<String> expressionValues = new HashSet<>();
+    Value value = expression.getLiteral().getValue();
+    switch (value.getValueType()) {
+      case STRING:
+        expressionValues.add(value.getString());
+        break;
+      case STRING_ARRAY:
+        expressionValues.addAll(value.getStringArrayList());
+        break;
+      case INT:
+        expressionValues.add(String.valueOf(value.getInt()));
+        break;
+      case INT_ARRAY:
+        expressionValues.addAll(value.getIntArrayList().stream().map(Object::toString).collect(
+            Collectors.toSet()));
+        break;
+      case LONG:
+        expressionValues.add(String.valueOf(value.getLong()));
+        break;
+      case LONG_ARRAY:
+        expressionValues.addAll(value.getLongArrayList().stream().map(Object::toString).collect(
+            Collectors.toSet()));
+        break;
+      case DOUBLE:
+        expressionValues.add(String.valueOf(value.getDouble()));
+        break;
+      case DOUBLE_ARRAY:
+        expressionValues.addAll(value.getDoubleArrayList().stream().map(Object::toString).collect(
+            Collectors.toSet()));
+        break;
+      case FLOAT:
+        expressionValues.add(String.valueOf(value.getFloat()));
+        break;
+      case FLOAT_ARRAY:
+        expressionValues.addAll(value.getFloatArrayList().stream().map(Object::toString).collect(
+            Collectors.toSet()));
+        break;
+      case BOOL:
+        expressionValues.add(String.valueOf(value.getBoolean()).toLowerCase());
+        break;
+      case BOOLEAN_ARRAY:
+        expressionValues.addAll(value.getBooleanArrayList().stream()
+            .map(b -> b.toString().toLowerCase()).collect(Collectors.toSet()));
+        break;
+      default:
+        // Ignore the rest of the types for now.
+        throw new IllegalArgumentException("Unsupported value type in subset check.");
+    }
+
+    return values.containsAll(expressionValues);
+  }
+
+  /**
+   * Returns a map from column name to the Filter that's received for that column in the
+   * given query.
+   */
+  @Nonnull
+  private Map<String, Filter> getQueryFilterMap(QueryRequest request) {
+    if (!request.hasFilter()) {
+      return Map.of();
+    }
+
+    Queue<Filter> filters = new ArrayDeque<>();
+    filters.add(request.getFilter());
+    Map<String, Filter> filterMap = new HashMap<>();
+
+    while (!filters.isEmpty()) {
+      Filter filter = filters.poll();
+
+      // Check if the filter is a leaf filter or not.
+      if (filter.getChildFilterCount() > 0) {
+        filters.addAll(filter.getChildFilterList());
+      } else {
+        filterMap.put(filter.getLhs().getColumnIdentifier().getColumnName(), filter);
+      }
+    }
+
+    return filterMap;
+  }
+
   @Override
   public void handleRequest(
       QueryContext queryContext,
@@ -155,6 +310,13 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       RequestAnalyzer requestAnalyzer) {
     long start = System.currentTimeMillis();
     validateQueryRequest(queryContext, request);
+
+    // Remove the filters which match the view column filters because they shouldn't be passed down
+    // to Pinot.
+    if (!viewDefinition.getColumnFilterMap().isEmpty()) {
+      request = removeViewColumnFilters(request, viewDefinition.getColumnFilterMap());
+    }
+
     Entry<String, Params> pql =
         request2PinotSqlConverter.toSQL(queryContext, request, requestAnalyzer.getAllSelections());
     if (LOG.isDebugEnabled()) {
@@ -186,6 +348,46 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
             requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
       } catch (InvalidProtocolBufferException ignore) {
       }
+    }
+  }
+
+  @Nonnull
+  private QueryRequest removeViewColumnFilters(QueryRequest request,
+      Map<String, ViewColumnFilter> columnFilterMap) {
+
+    Filter filter = request.getFilter();
+    for (String columnName: columnFilterMap.keySet()) {
+      filter = removeViewColumnFilter(filter, columnName);
+      if (filter == null) {
+        break;
+      }
+    }
+
+    QueryRequest.Builder builder = QueryRequest.newBuilder(request);
+    if (filter == null) {
+      return builder.clearFilter().build();
+    } else {
+      return builder.clearFilter().setFilter(filter).build();
+    }
+  }
+
+  @Nullable
+  private Filter removeViewColumnFilter(Filter filter, String columnName) {
+    if (filter.getChildFilterCount() > 0) {
+      // Recursively try to remove the filter and eliminate the null nodes.
+      List<Filter> newFilters = filter.getChildFilterList().stream()
+          .map(f -> removeViewColumnFilter(f, columnName))
+          .filter(Objects::nonNull).collect(Collectors.toList());
+      if (newFilters.size() == 1) {
+        return newFilters.get(0);
+      } else {
+        return Filter.newBuilder(filter).clearChildFilter().addAllChildFilter(newFilters).build();
+      }
+    } else {
+      if (filter.getLhs().getColumnIdentifier().getColumnName().equals(columnName)) {
+        return null;
+      }
+      return filter;
     }
   }
 
