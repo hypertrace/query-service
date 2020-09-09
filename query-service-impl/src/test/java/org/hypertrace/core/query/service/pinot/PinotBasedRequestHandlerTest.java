@@ -21,6 +21,8 @@ import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.QueryResultCollector;
 import org.hypertrace.core.query.service.RequestAnalyzer;
+import org.hypertrace.core.query.service.api.Filter;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Row;
@@ -143,7 +145,10 @@ public class PinotBasedRequestHandlerTest {
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
+                .setFilter(Filter.newBuilder().setOperator(Operator.AND)
+                    .addChildFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
+                    .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
+                    QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
                 .build(),
             Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);

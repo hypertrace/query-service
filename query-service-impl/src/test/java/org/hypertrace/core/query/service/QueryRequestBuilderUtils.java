@@ -35,12 +35,21 @@ public class QueryRequestBuilderUtils {
   }
 
   public static Filter createEqualsFilter(String column, String value) {
+    return createFilter(column, Operator.EQ, createStringLiteralValueExpression(value));
+  }
+
+  public static Filter createFilter(String column, Operator operator, Expression expression) {
     return Filter.newBuilder().setLhs(createColumnExpression(column))
-        .setOperator(Operator.EQ).setRhs(createStringLiteralValueExpression(value)).build();
+        .setOperator(operator).setRhs(expression).build();
   }
 
   public static Expression createStringLiteralValueExpression(String value) {
     return Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
         Value.newBuilder().setString(value))).build();
+  }
+
+  public static Expression createLongLiteralValueExpression(long value) {
+    return Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
+        Value.newBuilder().setLong(value))).build();
   }
 }
