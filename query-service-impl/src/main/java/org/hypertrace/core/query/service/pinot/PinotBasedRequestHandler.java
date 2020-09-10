@@ -29,6 +29,7 @@ import org.hypertrace.core.query.service.RequestAnalyzer;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
+import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
@@ -189,29 +190,21 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
    * means the view column is superset of what the query filter is looking for, not an exact match.
    */
   private boolean doesFiltersMatch(ViewColumnFilter viewColumnFilter, Filter queryFilter) {
-    // query filter must be a leaf filter always.
-    if (queryFilter.getChildFilterCount() > 0) {
-      return false;
+    if (viewColumnFilter.getOperator() == ViewColumnFilter.Operator.IN) {
+      if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
+        return false;
+      }
+
+      return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
+    } else {
+      // query filter must be an equals filter in this case.
+      if (queryFilter.getOperator() != Operator.EQ) {
+        return false;
+      }
+
+      // Assert the values now.
+      return isEquals(viewColumnFilter.getValues(), queryFilter.getRhs());
     }
-
-    switch (viewColumnFilter.getOperator()) {
-      case IN:
-        if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
-          return false;
-        }
-
-        return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
-      case EQ:
-        // query filter must be an equals filter in this case.
-        if (queryFilter.getOperator() != Operator.EQ) {
-          return false;
-        }
-
-        // Assert the values now.
-        return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
-    }
-
-    return false;
   }
 
   /**
@@ -222,8 +215,23 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       return false;
     }
 
+    return values.containsAll(getExpressionValues(expression.getLiteral()));
+  }
+
+  /**
+   * Checks that the values from the given expression are a subset of the given set.
+   */
+  private boolean isEquals(Set<String> values, Expression expression) {
+    if (!expression.hasLiteral()) {
+      return false;
+    }
+
+    return values.equals(getExpressionValues(expression.getLiteral()));
+  }
+
+  private Set<String> getExpressionValues(LiteralConstant literalConstant) {
     Set<String> expressionValues = new HashSet<>();
-    Value value = expression.getLiteral().getValue();
+    Value value = literalConstant.getValue();
     switch (value.getValueType()) {
       case STRING:
         expressionValues.add(value.getString());
@@ -270,8 +278,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         // Ignore the rest of the types for now.
         throw new IllegalArgumentException("Unsupported value type in subset check.");
     }
-
-    return values.containsAll(expressionValues);
+    return expressionValues;
   }
 
   /**

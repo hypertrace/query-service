@@ -153,7 +153,7 @@ public class PinotBasedRequestHandlerTest {
             Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
-        // Negative case. Wrong value in the filter.
+        // Entry span "false" filter.
         cost = handler.canHandle(
             QueryRequest.newBuilder()
                 .setDistinctSelections(true)
@@ -161,6 +161,31 @@ public class PinotBasedRequestHandlerTest {
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
                 .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "false"))
+                .build(),
+            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+        Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Wrong value in the filter.
+        cost = handler.canHandle(
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "dummy"))
+                .build(),
+            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Unsupported operator in the query filter.
+        cost = handler.canHandle(
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                .setFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.LIKE,
+                    QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
                 .build(),
             Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
@@ -175,7 +200,60 @@ public class PinotBasedRequestHandlerTest {
                 .build(),
             Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId"));
         Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
-      }
+      } else
+        // Verify that the entry span view handler can handle the query which has the filter
+        // on the column which has a view filter.
+        if (config.getString("name").equals("entry-span-view-handler")) {
+          QueryCost cost = handler.canHandle(
+              QueryRequest.newBuilder()
+                  .setDistinctSelections(true)
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                  .setFilter(Filter.newBuilder().setOperator(Operator.AND)
+                      .addChildFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
+                      .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
+                          QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
+                  .build(),
+              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+          Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+          // Negative case. Wrong value in the filter.
+          cost = handler.canHandle(
+              QueryRequest.newBuilder()
+                  .setDistinctSelections(true)
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                  .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "false"))
+                  .build(),
+              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+          Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+          // Negative case. Unsupported operator in the query filter.
+          cost = handler.canHandle(
+              QueryRequest.newBuilder()
+                  .setDistinctSelections(true)
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                  .setFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.IN,
+                      QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
+                  .build(),
+              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+          Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+          // Negative case. Any query without filter should not be handled.
+          QueryCost negativeCost = handler.canHandle(
+              QueryRequest.newBuilder()
+                  .setDistinctSelections(true)
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+                  .build(),
+              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId"));
+          Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
+        }
     }
   }
 
@@ -476,8 +554,8 @@ public class PinotBasedRequestHandlerTest {
       ResultSet resultSet = mockResultSet(4, 4, columnNames, resultTable);
       ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
-      String expectedQuery = "Select  FROM spanEventView WHERE tenant_id = ?";
-      Params params = Params.newBuilder().addStringParam("__default").build();
+      String expectedQuery = "Select  FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
+      Params params = Params.newBuilder().addStringParam("__default").addStringParam("1000").build();
       System.out.println(params);
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
@@ -502,7 +580,10 @@ public class PinotBasedRequestHandlerTest {
           QueryRequest.newBuilder()
               .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
               .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-              .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
+              .setFilter(Filter.newBuilder().setOperator(Operator.AND)
+                .addChildFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
+                .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
+                    QueryRequestBuilderUtils.createStringLiteralValueExpression("1000"))).build())
               .build(),
           testQueryResultCollector, mock(RequestAnalyzer.class));
       Assertions.assertNotNull(testQueryResultCollector.getResultSetChunk());
