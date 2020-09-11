@@ -1,9 +1,9 @@
 # Query Service
 The Query Service interfaces with Apache Pinot Data Store
 
-## How do we use Query service?
+## Description
 
-| ![space-1.jpg](https://hypertrace-docs.s3.amazonaws.com/HT-query-arch.png) | 
+| ![space-1.jpg](https://hypertrace-docs.s3.amazonaws.com/hypertrace-query-arch.png) | 
 |:--:| 
 | *Hypertrace Query Architecture* |
 
@@ -15,8 +15,34 @@ The Query Service interfaces with Apache Pinot Data Store
 The Query service uses gradlew to compile/install/distribute. Gradle wrapper is already part of the source code. To build Query Service, run:
 
 ```
-./gradlew clean build dockerBuildImages
+./gradlew dockerBuildImages
 ```
+## Testing
+
+### Running unit tests
+Run `./gradlew test` to execute unit tests. 
+
+
+### Testing image
+
+To test your image using the docker-compose setup follow the steps:
+
+- Commit you changes to a branch say `query-service-test`.
+- Go to [hypertrace-service](https://github.com/hypertrace/gateway-service) and checkout the above branch in the submodule.
+```
+cd query-service && git checkout query-service-test && cd ..
+```
+- Change tag for `hypertrace-service` from `:main` to `:test` in [docker-compose file](https://github.com/hypertrace/hypertrace/blob/main/docker/docker-compose.yml) like this.
+
+```yaml
+  hypertrace-service:
+    image: hypertrace/hypertrace-service:test
+    container_name: hypertrace-service
+    ...
+```
+- and then run `docker-compose up` to test the setup.
+
+and then run `docker-compose up` to test the setup.
 
 ## Docker Image Source:
 - [DockerHub > Query service](https://hub.docker.com/r/hypertrace/Query-service)
