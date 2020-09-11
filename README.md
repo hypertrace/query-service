@@ -25,14 +25,14 @@ Run `./gradlew test` to execute unit tests.
 
 ### Testing image
 
-You can test the image you built after modification by running docker-compose or helm setup. 
+To test your image using the docker-compose setup follow the steps:
 
-#### docker-compose
-
-`Note:` 
-- For docker-compose setup we use [hypertrace-service](https://github.com/hypertrace/hypertrace-service) which contains `query-service`. So to test changes with docker-compose you can checkout branch with your changes for `query-service` in [hypertrace-service](https://github.com/hypertrace/hypertrace-service) repo and build a new image to use with docker-compose setup. [This issue will be gone ones we switch to using macro-repo]
-
-After that just Change the tag for `hypertrace-service` from `:main` to `:test` in [docker-compose file](https://github.com/hypertrace/hypertrace/blob/main/docker/docker-compose.yml) like this.
+- Commit you changes to a branch say `query-service-test`.
+- Go to [hypertrace-service](https://github.com/hypertrace/gateway-service) and checkout the above branch in the submodule.
+```
+cd query-service && git checkout query-service-test && cd ..
+```
+- Change tag for `hypertrace-service` from `:main` to `:test` in [docker-compose file](https://github.com/hypertrace/hypertrace/blob/main/docker/docker-compose.yml) like this.
 
 ```yaml
   hypertrace-service:
@@ -40,6 +40,7 @@ After that just Change the tag for `hypertrace-service` from `:main` to `:test` 
     container_name: hypertrace-service
     ...
 ```
+- and then run `docker-compose up` to test the setup.
 
 and then run `docker-compose up` to test the setup.
 
