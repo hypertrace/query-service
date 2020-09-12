@@ -6,7 +6,6 @@ import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -135,8 +133,10 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   }
 
   @Override
-  public QueryCost canHandle(
-      QueryRequest request, Set<String> referencedSources, Set<String> referencedColumns) {
+  public QueryCost canHandle(QueryRequest request, Set<String> referencedSources,
+      RequestAnalyzer analyzer) {
+    Set<String> referencedColumns = analyzer.getReferencedColumns();
+
     Preconditions.checkArgument(!referencedColumns.isEmpty());
     double cost = -1;
     boolean found = true;
@@ -147,30 +147,11 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       }
     }
 
-    // If the view has any column filters, check if the query has those filters.
-    // If not, the view can't serve the query.
+    // If the view has any column filters, check if the query has those filters as **mandatory**
+    // filters. If not, the view can't serve the query.
     Map<String, ViewColumnFilter> filterMap = viewDefinition.getColumnFilterMap();
     if (found && !filterMap.isEmpty()) {
-      // Check for the presence of every filter column first so that we can terminate early.
-      for (Map.Entry<String, ViewColumnFilter> entry: filterMap.entrySet()) {
-        if (!referencedColumns.contains(entry.getKey())) {
-          found = false;
-          break;
-        }
-      }
-
-      // Now verify the actual filter value.
-      if (found) {
-        Map<String, Filter> queryFilterMap = getQueryFilterMap(request);
-        for (Map.Entry<String, ViewColumnFilter> entry : filterMap.entrySet()) {
-          Filter filter = queryFilterMap.get(entry.getKey());
-          Objects.requireNonNull(filter, "Query filter shouldn't be null.");
-          if (!doesFiltersMatch(entry.getValue(), filter)) {
-            found = false;
-            break;
-          }
-        }
-      }
+      found = doViewFiltersMatch(analyzer);
     }
 
     // successfully found a view that can handle the request
@@ -185,11 +166,47 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return queryCost;
   }
 
+  private boolean doViewFiltersMatch(RequestAnalyzer analyzer) {
+    Map<String, ViewColumnFilter> filterMap = viewDefinition.getColumnFilterMap();
+
+    // Check for the presence of every view filter column in query's referenced columns
+    // so that we can terminate early.
+    for (Map.Entry<String, ViewColumnFilter> entry : filterMap.entrySet()) {
+      if (!analyzer.getReferencedColumns().contains(entry.getKey())) {
+        return false;
+      }
+    }
+
+    // Next verify that there is a leaf filter in the query, which matches the view filter.
+    Map<String, Filter> queryFilterMap = analyzer.getColumnToLeafFilter();
+    for (Map.Entry<String, ViewColumnFilter> entry : filterMap.entrySet()) {
+      Filter filter = queryFilterMap.get(entry.getKey());
+      Objects.requireNonNull(filter, "Query filter shouldn't be null.");
+      if (!doFiltersMatch(entry.getValue(), filter)) {
+        return false;
+      }
+
+      // Filter values match but is the filter a mandatory filter? The filter is mandatory only
+      // if all the ancestor filters of this leaf filter are doing 'AND' operation.
+      Map<Filter, Filter> childToParentFilter = analyzer.getChildToParentFilter();
+      Filter parent = childToParentFilter.get(filter);
+      while (parent != null) {
+        if (parent.getOperator() != Operator.AND) {
+          return false;
+        }
+        parent = childToParentFilter.get(parent);
+      }
+    }
+
+    return true;
+  }
+
   /**
    * Method to check if the given ViewColumnFilter matches the given query filter. A match here
-   * means the view column is superset of what the query filter is looking for, not an exact match.
+   * means the view column is superset of what the query filter is looking for, need not be
+   * an exact match.
    */
-  private boolean doesFiltersMatch(ViewColumnFilter viewColumnFilter, Filter queryFilter) {
+  private boolean doFiltersMatch(ViewColumnFilter viewColumnFilter, Filter queryFilter) {
     if (viewColumnFilter.getOperator() == ViewColumnFilter.Operator.IN) {
       if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
         return false;
@@ -279,34 +296,6 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         throw new IllegalArgumentException("Unsupported value type in subset check.");
     }
     return expressionValues;
-  }
-
-  /**
-   * Returns a map from column name to the Filter that's received for that column in the
-   * given query.
-   */
-  @Nonnull
-  private Map<String, Filter> getQueryFilterMap(QueryRequest request) {
-    if (!request.hasFilter()) {
-      return Map.of();
-    }
-
-    Queue<Filter> filters = new ArrayDeque<>();
-    filters.add(request.getFilter());
-    Map<String, Filter> filterMap = new HashMap<>();
-
-    while (!filters.isEmpty()) {
-      Filter filter = filters.poll();
-
-      // Check if the filter is a leaf filter or not.
-      if (filter.getChildFilterCount() > 0) {
-        filters.addAll(filter.getChildFilterList());
-      } else {
-        filterMap.put(filter.getLhs().getColumnIdentifier().getColumnName(), filter);
-      }
-    }
-
-    return filterMap;
   }
 
   @Override

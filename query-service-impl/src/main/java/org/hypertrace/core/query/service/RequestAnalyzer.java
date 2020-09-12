@@ -1,10 +1,12 @@
 package org.hypertrace.core.query.service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
@@ -19,9 +21,9 @@ import org.hypertrace.core.query.service.api.ValueType;
 
 public class RequestAnalyzer {
 
-  private QueryRequest request;
+  private final QueryRequest request;
   private Set<String> referencedColumns;
-  private LinkedHashSet<String> selectedColumns;
+  private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
@@ -32,10 +34,15 @@ public class RequestAnalyzer {
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
 
+  private final Map<String, Filter> columnToLeafFilter;
+  private final Map<Filter, Filter> childToParentFilter;
+
   public RequestAnalyzer(QueryRequest request) {
     this.request = request;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
+    this.columnToLeafFilter = new HashMap<>();
+    this.childToParentFilter = new HashMap<>();
   }
 
   public void analyze() {
@@ -45,12 +52,14 @@ public class RequestAnalyzer {
     while (!filterQueue.isEmpty()) {
       Filter filter = filterQueue.pop();
       if (filter.getChildFilterCount() > 0) {
-        for (Filter childFilter : filter.getChildFilterList()) {
-          filterQueue.add(childFilter);
-        }
+        filterQueue.addAll(filter.getChildFilterList());
+        filter.getChildFilterList().forEach(f -> childToParentFilter.put(f, filter));
       } else {
         extractColumns(filterColumns, filter.getLhs());
         extractColumns(filterColumns, filter.getRhs());
+
+        // This is a leaf filter so add it to the leaf filter map.
+        addColumnToLeafFilter(filter);
       }
     }
     List<String> postFilterColumns = new ArrayList<>();
@@ -89,6 +98,14 @@ public class RequestAnalyzer {
     selectedColumns.addAll(selectedList);
   }
 
+  private void addColumnToLeafFilter(Filter filter) {
+    if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+      columnToLeafFilter.put(filter.getLhs().getColumnIdentifier().getColumnName(), filter);
+    } else if (filter.getRhs().getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+      columnToLeafFilter.put(filter.getRhs().getColumnIdentifier().getColumnName(), filter);
+    }
+  }
+
   private ColumnMetadata toColumnMetadata(Expression expression) {
     ColumnMetadata.Builder builder = ColumnMetadata.newBuilder();
     ValueCase valueCase = expression.getValueCase();
@@ -104,8 +121,6 @@ public class RequestAnalyzer {
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
-      case LITERAL:
-        break;
       case FUNCTION:
         Function function = expression.getFunction();
         alias = function.getAlias();
@@ -119,8 +134,8 @@ public class RequestAnalyzer {
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
+      case LITERAL:
       case ORDERBY:
-        break;
       case VALUE_NOT_SET:
         break;
     }
@@ -166,5 +181,21 @@ public class RequestAnalyzer {
 
   public LinkedHashSet<Expression> getAllSelections() {
     return this.allSelections;
+  }
+
+  /**
+   * Returns a map from column name to the leaf Filter that's received for that column in the
+   * given query.
+   */
+  public Map<String, Filter> getColumnToLeafFilter() {
+    return this.columnToLeafFilter;
+  }
+
+  /**
+   * Returns a map from child filter to the parent filter, which can be used for easier
+   * navigation of filter tree bottom up.
+   */
+  public Map<Filter, Filter> getChildToParentFilter() {
+    return this.childToParentFilter;
   }
 }

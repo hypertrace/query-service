@@ -90,15 +90,16 @@ public class PinotBasedRequestHandlerTest {
 
       // Verify that the traces handler can traces query.
       if (config.getString("name").equals("trace-view-handler")) {
-        QueryCost cost = handler.canHandle(
-            QueryRequest.newBuilder()
-                .setDistinctSelections(true)
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("col1"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("col2"))
-                .addGroupBy(QueryRequestBuilderUtils.createColumnExpression("col3"))
-                .build(),
-            Set.of(), Set.of("Trace.start_time_millis", "Trace.end_time_millis", "Trace.duration_millis",
-                "Trace.id", "Trace.tags"));
+        QueryRequest request = QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.duration_millis"))
+            .setFilter(QueryRequestBuilderUtils.createFilter("Trace.end_time_millis", Operator.GT,
+                QueryRequestBuilderUtils.createLongLiteralValueExpression(10)))
+            .build();
+        RequestAnalyzer analyzer = new RequestAnalyzer(request);
+        analyzer.analyze();
+        QueryCost cost = handler.canHandle(request, Set.of(), analyzer);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
       }
     }
@@ -116,15 +117,15 @@ public class PinotBasedRequestHandlerTest {
 
       // Verify that the traces handler can traces query.
       if (config.getString("name").equals("trace-view-handler")) {
-        QueryCost cost = handler.canHandle(
-            QueryRequest.newBuilder()
-                .setDistinctSelections(true)
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("col1"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("col2"))
-                .addGroupBy(QueryRequestBuilderUtils.createColumnExpression("col3"))
-                .build(),
-            Set.of(), Set.of("Trace.does_not_exist", "Trace.end_time_millis",
-                "Trace.duration_millis", "Trace.id", "Trace.tags"));
+        QueryRequest request = QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.does_not_exist"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.end_time_millis"))
+            .addGroupBy(QueryRequestBuilderUtils.createColumnExpression("Trace.tags"))
+            .build();
+        RequestAnalyzer analyzer = new RequestAnalyzer(request);
+        analyzer.analyze();
+        QueryCost cost = handler.canHandle(request, Set.of(), analyzer);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
       }
     }
@@ -143,136 +144,196 @@ public class PinotBasedRequestHandlerTest {
       // Verify that the span event view handler can handle the query which has the filter
       // on the column which has a view filter.
       if (config.getString("name").equals("span-event-view-handler")) {
-        QueryCost cost = handler.canHandle(
-            QueryRequest.newBuilder()
-                .setDistinctSelections(true)
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                .setFilter(Filter.newBuilder().setOperator(Operator.AND)
-                    .addChildFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
-                    .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
+        QueryRequest request = QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+            .setFilter(Filter.newBuilder().setOperator(Operator.AND)
+                .addChildFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
+                .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
                     QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
-                .build(),
-            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+            .build();
+        RequestAnalyzer analyzer = new RequestAnalyzer(request);
+        analyzer.analyze();
+        QueryCost cost = handler.canHandle(request, Set.of(), analyzer);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Entry span "false" filter.
-        cost = handler.canHandle(
-            QueryRequest.newBuilder()
-                .setDistinctSelections(true)
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "false"))
-                .build(),
-            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+        request = QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+            .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "false"))
+            .build();
+        analyzer = new RequestAnalyzer(request);
+        analyzer.analyze();
+        cost = handler.canHandle(request, Set.of(), analyzer);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Wrong value in the filter.
-        cost = handler.canHandle(
-            QueryRequest.newBuilder()
-                .setDistinctSelections(true)
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "dummy"))
-                .build(),
-            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+        request = QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+            .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "dummy"))
+            .build();
+
+        analyzer = new RequestAnalyzer(request);
+        analyzer.analyze();
+        cost = handler.canHandle(request, Set.of(), analyzer);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Unsupported operator in the query filter.
-        cost = handler.canHandle(
-            QueryRequest.newBuilder()
-                .setDistinctSelections(true)
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                .setFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.LIKE,
-                    QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
-                .build(),
-            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+        request = QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+            .setFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.LIKE,
+                QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
+            .build();
+
+        analyzer = new RequestAnalyzer(request);
+        analyzer.analyze();
+        cost = handler.canHandle(request, Set.of(), analyzer);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Any query without filter should not be handled.
-        QueryCost negativeCost = handler.canHandle(
-            QueryRequest.newBuilder()
-                .setDistinctSelections(true)
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                .build(),
-            Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId"));
+        request = QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+            .build();
+
+        analyzer = new RequestAnalyzer(request);
+        analyzer.analyze();
+        QueryCost negativeCost = handler.canHandle(request, Set.of(), analyzer);
         Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
       } else
         // Verify that the entry span view handler can handle the query which has the filter
         // on the column which has a view filter.
         if (config.getString("name").equals("entry-span-view-handler")) {
-          QueryCost cost = handler.canHandle(
-              QueryRequest.newBuilder()
-                  .setDistinctSelections(true)
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                  .setFilter(Filter.newBuilder().setOperator(Operator.AND)
-                      .addChildFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
-                      .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
-                          QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
-                  .build(),
-              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+          QueryRequest request = QueryRequest.newBuilder()
+              .setDistinctSelections(true)
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(Filter.newBuilder().setOperator(Operator.AND)
+                  .addChildFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
+                  .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
+                      QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
+              .build();
+
+          RequestAnalyzer analyzer = new RequestAnalyzer(request);
+          analyzer.analyze();
+          QueryCost cost = handler.canHandle(request, Set.of(), analyzer);
           Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
           // Positive case with boolean filter.
-          cost = handler.canHandle(
-              QueryRequest.newBuilder()
-                  .setDistinctSelections(true)
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                  .setFilter(Filter.newBuilder().setOperator(Operator.AND)
-                      .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.EQ,
-                          Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
-                              Value.newBuilder().setBoolean(true).setValueType(ValueType.BOOL))).build()))
-                      .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
-                          QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
-                  .build(),
-              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+          request = QueryRequest.newBuilder()
+              .setDistinctSelections(true)
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(Filter.newBuilder().setOperator(Operator.AND)
+                  .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.EQ,
+                      Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
+                          Value.newBuilder().setBoolean(true).setValueType(ValueType.BOOL))).build()))
+                  .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
+                      QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
+              .build();
+
+          analyzer = new RequestAnalyzer(request);
+          analyzer.analyze();
+          cost = handler.canHandle(request, Set.of(), analyzer);
           Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
-          // Negative case. Wrong value in the filter.
-          cost = handler.canHandle(
-              QueryRequest.newBuilder()
-                  .setDistinctSelections(true)
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                  .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "false"))
-                  .build(),
-              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+          // Negative case with boolean filter but 'OR' operation.
+          request = QueryRequest.newBuilder()
+              .setDistinctSelections(true)
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(Filter.newBuilder().setOperator(Operator.OR)
+                  .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.EQ,
+                      Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
+                          Value.newBuilder().setBoolean(true).setValueType(ValueType.BOOL))).build()))
+                  .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
+                      QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
+              .build();
+
+          analyzer = new RequestAnalyzer(request);
+          analyzer.analyze();
+          cost = handler.canHandle(request, Set.of(), analyzer);
+          Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+          // Negative case with a complex filter but 'OR' at the root level, hence shouldn't match.
+          Filter filter = Filter.newBuilder().setOperator(Operator.AND)
+              .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.EQ,
+                  Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
+                      Value.newBuilder().setBoolean(true).setValueType(ValueType.BOOL))).build()))
+              .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.duration_millis", Operator.GT,
+                  QueryRequestBuilderUtils.createLongLiteralValueExpression(10L))).build();
+          request = QueryRequest.newBuilder()
+              .setDistinctSelections(true)
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(Filter.newBuilder().setOperator(Operator.OR)
+                  .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.EQ,
+                      Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
+                          Value.newBuilder().setBoolean(false).setValueType(ValueType.BOOL))).build()))
+                  .addChildFilter(filter))
+              .build();
+
+          analyzer = new RequestAnalyzer(request);
+          analyzer.analyze();
+          cost = handler.canHandle(request, Set.of(), analyzer);
+          Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+          // Negative case. Value in query filter is different from the value in view filter
+          request = QueryRequest.newBuilder()
+              .setDistinctSelections(true)
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "false"))
+              .build();
+
+          analyzer = new RequestAnalyzer(request);
+          analyzer.analyze();
+          cost = handler.canHandle(request, Set.of(), analyzer);
           Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
           // Negative case. Unsupported operator in the query filter.
-          cost = handler.canHandle(
-              QueryRequest.newBuilder()
-                  .setDistinctSelections(true)
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                  .setFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.IN,
-                      QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
-                  .build(),
-              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId", "EVENT.isEntrySpan"));
+          request = QueryRequest.newBuilder()
+              .setDistinctSelections(true)
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.IN,
+                  QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
+              .build();
+
+          analyzer = new RequestAnalyzer(request);
+          analyzer.analyze();
+          cost = handler.canHandle(request, Set.of(), analyzer);
           Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
           // Negative case. Any query without filter should not be handled.
-          QueryCost negativeCost = handler.canHandle(
-              QueryRequest.newBuilder()
-                  .setDistinctSelections(true)
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
-                  .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
-                  .build(),
-              Set.of(), Set.of("EVENT.startTime", "EVENT.id", "EVENT.traceId"));
+          request = QueryRequest.newBuilder()
+              .setDistinctSelections(true)
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .build();
+          analyzer = new RequestAnalyzer(request);
+          analyzer.analyze();
+          QueryCost negativeCost = handler.canHandle(request, Set.of(), analyzer);
           Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
         }
     }

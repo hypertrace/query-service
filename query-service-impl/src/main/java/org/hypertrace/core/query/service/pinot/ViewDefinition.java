@@ -75,6 +75,8 @@ public class ViewDefinition {
       columnSpecMap.put(logicalName, spec);
     }
 
+    // Check if there are any view filters. If there are multiple filters, they all will
+    // be AND'ed together.
     final Map<String, ViewColumnFilter> filterMap = new HashMap<>();
     if (config.hasPath("filters")) {
       for (Config filterConfig: config.getConfigList("filters")) {

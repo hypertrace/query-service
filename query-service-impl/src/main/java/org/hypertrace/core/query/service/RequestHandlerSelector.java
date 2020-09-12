@@ -44,7 +44,7 @@ public class RequestHandlerSelector {
     Set<String> referencedColumns = analyzer.getReferencedColumns();
     Set<String> referencedSources = new HashSet<>(request.getSourceList());
     for (RequestHandler requestHandler : requestHandlers) {
-      QueryCost queryCost = requestHandler.canHandle(request, referencedSources, referencedColumns);
+      QueryCost queryCost = requestHandler.canHandle(request, referencedSources, analyzer);
       double cost = queryCost.getCost();
       if (LOG.isDebugEnabled()) {
         LOG.debug("Request handler: {}, query cost: {}", requestHandler.getName(), cost);
