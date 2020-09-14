@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -168,11 +167,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         return new QueryCost(-1);
       }
 
-      if (viewFilterMap.size() == 1) {
-        found = doesSingleViewFilterMatch(analyzer.getOptimizedFilter(), viewFilterMap);
-      } else {
-        found = doMultipleViewFiltersMatch(analyzer.getOptimizedFilter(), viewFilterMap);
-      }
+      found = doViewFiltersMatch(analyzer.getOptimizedFilter(), viewFilterMap);
     }
 
     // TODO: Come up with a way to compute the cost based on request and view definition
@@ -181,12 +176,26 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return new QueryCost(found ? 0.5 : -1);
   }
 
-  private boolean doMultipleViewFiltersMatch(Filter filter,
-      Map<String, ViewColumnFilter> viewFilterMap) {
+  private boolean doViewFiltersMatch(Filter filter, Map<String, ViewColumnFilter> viewFilterMap) {
     // Navigate the entire filter tree to check if every query filter which has the
     // view filter columns has all matching view filters. If not, return false since
     // this view can't handle such query.
     if (filter.getChildFilterCount() == 0) {
+      if (viewFilterMap.size() != 1) {
+        return false;
+      }
+
+      // If the column names of query filter and view filter match but the filters
+      // don't match, we can exit here.
+      String viewFilterColumnName = viewFilterMap.keySet().stream().findFirst().get();
+      if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER &&
+          StringUtils.equals(viewFilterColumnName,
+              filter.getLhs().getColumnIdentifier().getColumnName()))
+      {
+        return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap.get(viewFilterColumnName),
+            filter);
+      }
+
       return false;
     }
 
@@ -199,7 +208,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
             .toMap(f -> f.getLhs().getColumnIdentifier().getColumnName(), f -> f));
     if (childLeafFilterMap.isEmpty()) {
       long matchCount = filter.getChildFilterList().stream()
-          .map(f -> doMultipleViewFiltersMatch(f, viewFilterMap))
+          .map(f -> doViewFiltersMatch(f, viewFilterMap))
           .filter(b -> b).count();
       if (filter.getOperator() == Operator.AND && matchCount > 0) {
         return true;
@@ -225,68 +234,24 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return true;
   }
 
-  private boolean doesSingleViewFilterMatch(Filter requestFilter,
-      Map<String, ViewColumnFilter> viewFilterMap) {
-    LinkedList<Filter> filterQueue = new LinkedList<>();
-    filterQueue.add(requestFilter);
-
-    // Navigate the entire filter tree to check if every query filter which has the
-    // view filter columns has all matching view filters. If not, return false since
-    // this view can't handle such query.
-    List<Filter> matchedFilters = new ArrayList<>();
-    while (!filterQueue.isEmpty()) {
-      Filter filter = filterQueue.pop();
-      if (filter.getChildFilterCount() > 0) {
-        if (filter.getOperator() != Operator.AND) {
-          // Is it a failure or a path that needn't be pursued because of 'OR' operator?
-          if (matchedFilters.isEmpty()) {
-            return false;
-          } else {
-            continue;
-          }
-        }
-
-        // Add all children to the queue
-        filterQueue.addAll(filter.getChildFilterList());
-      } else {
-        // If the column names of query filter and view filter match but the filters
-        // don't match, we can exit here.
-        String viewFilterColumnName = viewFilterMap.keySet().stream().findFirst().get();
-        if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER &&
-            StringUtils.equals(viewFilterColumnName,
-                filter.getLhs().getColumnIdentifier().getColumnName())) {
-          if (!doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap.get(viewFilterColumnName), filter)) {
-            return false;
-          }
-
-          matchedFilters.add(filter);
-        }
-      }
-    }
-
-    return !matchedFilters.isEmpty();
-  }
-
   /**
    * Method to check if the given ViewColumnFilter matches the given query filter. A match here
    * means the view column is superset of what the query filter is looking for, need not be an exact
    * match.
    */
   private boolean doesSingleViewFilterMatchLeafQueryFilter(ViewColumnFilter viewColumnFilter, Filter queryFilter) {
-    if (viewColumnFilter.getOperator() == ViewColumnFilter.Operator.IN) {
-      if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
-        return false;
-      }
+    if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
+      return false;
+    }
 
-      return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
-    } else {
-      // query filter must be an equals filter in this case.
-      if (queryFilter.getOperator() != Operator.EQ) {
-        return false;
-      }
-
-      // Assert the values now.
-      return isEquals(viewColumnFilter.getValues(), queryFilter.getRhs());
+    switch(viewColumnFilter.getOperator()) {
+      case IN:
+        return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
+      case EQ:
+        return isEquals(viewColumnFilter.getValues(), queryFilter.getRhs());
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported view filter operator: " + viewColumnFilter.getOperator());
     }
   }
 
