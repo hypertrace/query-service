@@ -48,7 +48,7 @@ public class QueryServiceImplConfigTest {
     assertEquals("query-service", appConfig.getString("service.name"));
     assertEquals(8091, appConfig.getInt("service.admin.port"));
     assertEquals(8090, appConfig.getInt("service.port"));
-    assertEquals(3, queryServiceConfig.getQueryRequestHandlersConfig().size());
+    assertEquals(4, queryServiceConfig.getQueryRequestHandlersConfig().size());
     assertEquals(2, queryServiceConfig.getClients().size());
 
     LOGGER.info("{}", queryServiceConfig.getQueryRequestHandlersConfig());

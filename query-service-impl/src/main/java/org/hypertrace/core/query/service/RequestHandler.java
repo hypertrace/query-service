@@ -9,7 +9,7 @@ public interface RequestHandler<T, R> {
   /** Get the name of Request Handler */
   String getName();
 
-  QueryCost canHandle(T request, Set<String> referencedSources, Set<String> referencedColumns);
+  QueryCost canHandle(T request, Set<String> referencedSources, RequestAnalyzer analyzer);
 
   /** Handle the request and add rows to the collector. */
   void handleRequest(

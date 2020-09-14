@@ -1,11 +1,14 @@
 package org.hypertrace.core.query.service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
 import org.hypertrace.core.query.service.api.Expression;
@@ -19,9 +22,9 @@ import org.hypertrace.core.query.service.api.ValueType;
 
 public class RequestAnalyzer {
 
-  private QueryRequest request;
+  private final QueryRequest request;
   private Set<String> referencedColumns;
-  private LinkedHashSet<String> selectedColumns;
+  private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
@@ -32,10 +35,16 @@ public class RequestAnalyzer {
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
 
+  private final Map<String, List<Filter>> columnToLeafFilters;
+  private final Map<Filter, Filter> childToParentFilter;
+  private Filter optimizedFilter;
+
   public RequestAnalyzer(QueryRequest request) {
     this.request = request;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
+    this.columnToLeafFilters = new HashMap<>();
+    this.childToParentFilter = new HashMap<>();
   }
 
   public void analyze() {
@@ -45,12 +54,14 @@ public class RequestAnalyzer {
     while (!filterQueue.isEmpty()) {
       Filter filter = filterQueue.pop();
       if (filter.getChildFilterCount() > 0) {
-        for (Filter childFilter : filter.getChildFilterList()) {
-          filterQueue.add(childFilter);
-        }
+        filterQueue.addAll(filter.getChildFilterList());
+        filter.getChildFilterList().forEach(f -> childToParentFilter.put(f, filter));
       } else {
         extractColumns(filterColumns, filter.getLhs());
         extractColumns(filterColumns, filter.getRhs());
+
+        // This is a leaf filter so add it to the leaf filters map.
+        addColumnToLeafFilters(filter);
       }
     }
     List<String> postFilterColumns = new ArrayList<>();
@@ -87,6 +98,46 @@ public class RequestAnalyzer {
     resultSetMetadata =
         ResultSetMetadata.newBuilder().addAllColumnMetadata(columnMetadataSet).build();
     selectedColumns.addAll(selectedList);
+
+    this.optimizedFilter = optimizeFilter(request.getFilter());
+  }
+
+  private Filter optimizeFilter(Filter filter) {
+    // An optimization that can be done is to reduce the depth of the filter when the operation that's applied at
+    // two consecutive levels of the filter tree is the same. For example, ((a = 1 OR b = 2) OR (d = 4 OR e = 5))
+    // can be rewritten as (a = 1 OR b = 2 OR d = 4 OR e = 5). The same can be done with AND operation as well.
+    if (filter.getChildFilterCount() > 0) {
+      // This is a parent node. Optimize children separately and then optimize this node.
+      List<Filter> optimizedChildren = filter.getChildFilterList().stream()
+          .map(this::optimizeFilter).collect(Collectors.toList());
+
+      // Use a Set here to dedup the filters.
+      Set<Filter> children = new HashSet<>();
+      for (Filter child: optimizedChildren) {
+        if (child.getChildFilterCount() > 0 && child.getOperator() != filter.getOperator()) {
+          return filter;
+        } else if (child.getChildFilterCount() > 0) {
+          children.addAll(child.getChildFilterList());
+        } else {
+          children.add(child);
+        }
+      }
+
+      // Create a new filter with all the leaf children and grand-children filters.
+      return Filter.newBuilder().setOperator(filter.getOperator()).addAllChildFilter(children).build();
+    } else {
+      return filter;
+    }
+  }
+
+  private void addColumnToLeafFilters(Filter filter) {
+    if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+      columnToLeafFilters.computeIfAbsent(
+          filter.getLhs().getColumnIdentifier().getColumnName(), e -> new ArrayList<>()).add(filter);
+    } else if (filter.getRhs().getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+      columnToLeafFilters.computeIfAbsent(
+          filter.getRhs().getColumnIdentifier().getColumnName(), e -> new ArrayList<>()).add(filter);
+    }
   }
 
   private ColumnMetadata toColumnMetadata(Expression expression) {
@@ -104,8 +155,6 @@ public class RequestAnalyzer {
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
-      case LITERAL:
-        break;
       case FUNCTION:
         Function function = expression.getFunction();
         alias = function.getAlias();
@@ -119,8 +168,8 @@ public class RequestAnalyzer {
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
+      case LITERAL:
       case ORDERBY:
-        break;
       case VALUE_NOT_SET:
         break;
     }
@@ -166,5 +215,25 @@ public class RequestAnalyzer {
 
   public LinkedHashSet<Expression> getAllSelections() {
     return this.allSelections;
+  }
+
+  /**
+   * Returns a map from column name to the leaf Filter that's received for that column in the
+   * given query.
+   */
+  public Map<String, List<Filter>> getColumnToLeafFilters() {
+    return this.columnToLeafFilters;
+  }
+
+  /**
+   * Returns a map from child filter to the parent filter, which can be used for easier
+   * navigation of filter tree bottom up.
+   */
+  public Map<Filter, Filter> getChildToParentFilter() {
+    return this.childToParentFilter;
+  }
+
+  public Filter getOptimizedFilter() {
+    return this.optimizedFilter;
   }
 }

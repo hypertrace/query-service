@@ -14,6 +14,15 @@ public class QueryCost {
    */
   Object context;
 
+  public QueryCost(double cost) {
+    this(cost, null);
+  }
+
+  public QueryCost(double cost, Object context) {
+    this.cost = cost;
+    this.context = context;
+  }
+
   public double getCost() {
     return cost;
   }
