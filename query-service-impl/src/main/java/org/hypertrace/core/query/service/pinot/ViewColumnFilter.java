@@ -10,6 +10,19 @@ import java.util.Set;
  * data store.
  *
  * <p>Currently, we only support EQ and IN operators in these filters.</p>
+ * Example EQ filter:
+ * {
+ *   column: "EVENT.isEntrySpan"
+ *   operator: "EQ"
+ *   value: "true"
+ * }
+ *
+ * Example IN filter:
+ * {
+ *   column: "EVENT.statusCode"
+ *   operator: "IN"
+ *   values: ["500", "401"]
+ * }
  */
 class ViewColumnFilter {
   private final Operator operator;
@@ -26,7 +39,11 @@ class ViewColumnFilter {
 
   public static ViewColumnFilter from(Config filterConfig) {
     Operator operator = Operator.valueOf(filterConfig.getString("operator"));
-    return new ViewColumnFilter(operator, new HashSet<>(filterConfig.getStringList("values")));
+    if (operator == Operator.EQ) {
+      return new ViewColumnFilter(operator, Set.of(filterConfig.getString("value")));
+    } else {
+      return new ViewColumnFilter(operator, new HashSet<>(filterConfig.getStringList("values")));
+    }
   }
 
   public Operator getOperator() {

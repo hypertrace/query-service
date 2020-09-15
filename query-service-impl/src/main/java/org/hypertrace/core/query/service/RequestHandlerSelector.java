@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service;
 
+import com.google.common.collect.ImmutableList;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,14 +16,15 @@ public class RequestHandlerSelector {
 
   private static final Logger LOG = LoggerFactory.getLogger(RequestHandlerSelector.class);
 
-  private final List<RequestHandler> requestHandlers = new ArrayList<>();
+  private final List<RequestHandler> requestHandlers;
 
   public RequestHandlerSelector(List<RequestHandler> requestHandlers) {
-    this.requestHandlers.addAll(requestHandlers);
+    this.requestHandlers = ImmutableList.copyOf(requestHandlers);
   }
 
   public RequestHandlerSelector(RequestHandlerRegistry registry) {
     Collection<RequestHandlerInfo> requestHandlerInfoList = registry.getAll();
+    requestHandlers = new ArrayList<>();
     for (RequestHandlerInfo requestHandlerInfo : requestHandlerInfoList) {
       try {
         Constructor<? extends RequestHandler> constructor =
