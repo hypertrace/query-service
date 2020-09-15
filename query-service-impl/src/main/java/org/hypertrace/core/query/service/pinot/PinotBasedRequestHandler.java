@@ -16,7 +16,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -147,10 +146,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
 
     // If the view has any column filters, check if the query has those filters as **mandatory**
     // filters. If not, the view can't serve the query.
-    Map<String, ViewColumnFilter> filterMap = viewDefinition.getColumnFilterMap();
-    if (found && !filterMap.isEmpty()) {
-      Map<String, ViewColumnFilter> viewFilterMap = viewDefinition.getColumnFilterMap();
-
+    Map<String, ViewColumnFilter> viewFilterMap = viewDefinition.getColumnFilterMap();
+    if (found && !viewFilterMap.isEmpty()) {
       // Check for the presence of every view filter column in query's referenced columns
       // so that we can terminate early.
       for (Map.Entry<String, ViewColumnFilter> entry : viewFilterMap.entrySet()) {
@@ -171,61 +168,42 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return new QueryCost(found ? 0.5 : -1);
   }
 
+  /**
+   * Method to check if at least one Filter node matches all the view filters given in the
+   * viewFilterMap.
+   *
+   * @return True if the given filter node matches all the view filters from the given map, False
+   * otherwise.
+   */
   private boolean doViewFiltersMatch(Filter filter, Map<String, ViewColumnFilter> viewFilterMap) {
-    // Navigate the entire filter tree to check if every query filter which has the
-    // view filter columns has all matching view filters. If not, return false since
-    // this view can't handle such query.
+    // 1. Basic case: Filter is a leaf node. This will be a match only if there is only one
+    // view filter and that matches the leaf filter.
     if (filter.getChildFilterCount() == 0) {
-      if (viewFilterMap.size() != 1) {
-        return false;
-      }
-
-      // If the column names of query filter and view filter match but the filters
-      // don't match, we can exit here.
-      String viewFilterColumnName = viewFilterMap.keySet().stream().findFirst().get();
-      if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER &&
-          StringUtils.equals(viewFilterColumnName,
-              filter.getLhs().getColumnIdentifier().getColumnName()))
-      {
-        return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap.get(viewFilterColumnName),
-            filter);
-      }
-
-      return false;
+      return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap, filter);
     } else {
       Map<String, Filter> childLeafFilterMap = filter.getChildFilterList().stream()
-          .filter(f -> f.getChildFilterCount() == 0 &&
-              f.getLhs().getValueCase() == Expression.ValueCase.COLUMNIDENTIFIER)
-          .filter(
-              f -> viewFilterMap.containsKey(f.getLhs().getColumnIdentifier().getColumnName()))
+          .filter(f -> f.getChildFilterCount() == 0)
           .collect(Collectors
               .toMap(f -> f.getLhs().getColumnIdentifier().getColumnName(), f -> f));
+
+      // 2. An internal filter node which doesn't have any leaves but other internal nodes:
+      // Parent is a match if all the OR'ed children match or at least one of AND'ed children match.
       if (childLeafFilterMap.isEmpty()) {
         long matchCount = filter.getChildFilterList().stream()
             .map(f -> doViewFiltersMatch(f, viewFilterMap))
             .filter(b -> b).count();
-        if (filter.getOperator() == Operator.AND && matchCount > 0) {
-          return true;
-        }
 
-        // When children are being OR'ed, all the children must match the view filters.
-        return filter.getOperator() == Operator.OR && matchCount == filter.getChildFilterCount();
+        return (filter.getOperator() == Operator.AND && matchCount > 0) ||
+            (filter.getOperator() == Operator.OR && matchCount == filter.getChildFilterCount());
+      } else {
+        // 3. An internal filter with children which are leaves: All the view filters
+        // should be matched and AND'ed, otherwise it's not a match.
+        long matchCount = filter.getChildFilterList().stream()
+            .map(f -> doViewFiltersMatch(f, viewFilterMap))
+            .filter(b -> b).count();
+
+        return filter.getOperator() == Operator.AND && matchCount == viewFilterMap.size();
       }
-
-      if (filter.getOperator() != Operator.AND)
-        return false;
-
-      for (Map.Entry<String, ViewColumnFilter> entry : viewFilterMap.entrySet()) {
-        // Make sure all view filters match.
-        Filter queryFilter = childLeafFilterMap.get(entry.getKey());
-        if (queryFilter == null || !doesSingleViewFilterMatchLeafQueryFilter(entry.getValue(), queryFilter)) {
-          // Few columns matched but others didn't match.
-          return false;
-        }
-      }
-
-      // Perfect match.
-      return true;
     }
   }
 
@@ -234,12 +212,22 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
    * means the view column is superset of what the query filter is looking for, need not be an exact
    * match.
    */
-  private boolean doesSingleViewFilterMatchLeafQueryFilter(ViewColumnFilter viewColumnFilter, Filter queryFilter) {
+  private boolean doesSingleViewFilterMatchLeafQueryFilter(
+      Map<String, ViewColumnFilter> viewFilterMap, Filter queryFilter) {
+    if (queryFilter.getLhs().getValueCase() != ValueCase.COLUMNIDENTIFIER) {
+      return false;
+    }
     if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
       return false;
     }
 
-    switch(viewColumnFilter.getOperator()) {
+    String columnName = queryFilter.getLhs().getColumnIdentifier().getColumnName();
+    ViewColumnFilter viewColumnFilter = viewFilterMap.get(columnName);
+    if (viewColumnFilter == null) {
+      return false;
+    }
+
+    switch (viewColumnFilter.getOperator()) {
       case IN:
         return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
       case EQ:
@@ -335,14 +323,14 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     // Remove the filters which match the view column filters because they shouldn't be passed down
     // to Pinot.
     if (!viewDefinition.getColumnFilterMap().isEmpty() &&
-        !Filter.getDefaultInstance().equals(request.getFilter()))
-    {
+        !Filter.getDefaultInstance().equals(request.getFilter())) {
       request = rewriteRequestWithViewFiltersApplied(request,
           viewDefinition.getColumnFilterMap());
     }
 
     Entry<String, Params> pql =
-        request2PinotSqlConverter.toSQL(executionContext, request, executionContext.getAllSelections());
+        request2PinotSqlConverter
+            .toSQL(executionContext, request, executionContext.getAllSelections());
     if (LOG.isDebugEnabled()) {
       LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
     }
@@ -408,7 +396,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     }
   }
 
-  private Filter rewriteLeafFilter(Filter queryFilter, Map<String, ViewColumnFilter> columnFilterMap) {
+  private Filter rewriteLeafFilter(Filter queryFilter,
+      Map<String, ViewColumnFilter> columnFilterMap) {
     ViewColumnFilter viewColumnFilter =
         columnFilterMap.get(queryFilter.getLhs().getColumnIdentifier().getColumnName());
     if (viewColumnFilter == null) {
