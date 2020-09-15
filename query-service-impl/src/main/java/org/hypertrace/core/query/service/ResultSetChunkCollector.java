@@ -9,12 +9,12 @@ import org.hypertrace.core.query.service.api.Row;
 
 public class ResultSetChunkCollector implements QueryResultCollector<Row> {
 
-  private static int DEFAULT_CHUNK_SIZE = 10000; // 10k rows
-  private StreamObserver<ResultSetChunk> grpcObserver;
-  private int maxChunkSize;
+  private static final int DEFAULT_CHUNK_SIZE = 10000; // 10k rows
+  private final StreamObserver<ResultSetChunk> grpcObserver;
+  private final int maxChunkSize;
   private int currentChunkSize;
   private int chunkId;
-  private ResultSetChunk.Builder currentBuilder;
+  private final ResultSetChunk.Builder currentBuilder;
 
   public ResultSetChunkCollector(StreamObserver<ResultSetChunk> grpcObserver) {
     this(grpcObserver, DEFAULT_CHUNK_SIZE);

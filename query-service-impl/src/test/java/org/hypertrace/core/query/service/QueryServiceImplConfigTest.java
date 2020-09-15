@@ -98,9 +98,8 @@ public class QueryServiceImplConfigTest {
     RequestHandlerSelector selector = new RequestHandlerSelector(RequestHandlerRegistry.get());
 
     QueryRequest queryRequest = buildSimpleQuery();
-    RequestAnalyzer analyzer = new RequestAnalyzer(queryRequest);
-    analyzer.analyze();
-    RequestHandler handler = selector.select(queryRequest, analyzer);
+    ExecutionContext executionContext = new ExecutionContext("test", queryRequest);
+    RequestHandler handler = selector.select(queryRequest, executionContext);
     assertEquals("span-event-view-handler", handler.getName());
   }
 

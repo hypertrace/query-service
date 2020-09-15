@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.google.common.collect.ImmutableSet;
 import java.util.Iterator;
 import java.util.Set;
-import org.hypertrace.core.query.service.RequestAnalyzer;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RequestAnalyzerTest {
-  private static final Logger LOGGER = LoggerFactory.getLogger(RequestAnalyzerTest.class);
+public class ExecutionContextTest {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionContextTest.class);
 
   @Test
   public void testRepeatedColumns() {
@@ -66,9 +66,8 @@ public class RequestAnalyzerTest {
                 ColumnIdentifier.newBuilder().setColumnName("Trace.transaction_name")));
     QueryRequest queryRequest = builder.build();
 
-    RequestAnalyzer analyzer = new RequestAnalyzer(queryRequest);
-    analyzer.analyze();
-    ResultSetMetadata resultSetMetadata = analyzer.getResultSetMetadata();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
+    ResultSetMetadata resultSetMetadata = context.getResultSetMetadata();
     System.out.println("resultSetMetadata = " + resultSetMetadata);
 
     assertNotNull(resultSetMetadata);
@@ -79,8 +78,8 @@ public class RequestAnalyzerTest {
 
     // Selections should correspond in size and order to the
     // resultSetMetadata.getColumnMetadataList()
-    assertEquals(3, analyzer.getAllSelections().size());
-    Iterator<Expression> selectionsIterator = analyzer.getAllSelections().iterator();
+    assertEquals(3, context.getAllSelections().size());
+    Iterator<Expression> selectionsIterator = context.getAllSelections().iterator();
     assertEquals(
         Expression.newBuilder()
             .setColumnIdentifier(
@@ -114,9 +113,8 @@ public class RequestAnalyzerTest {
 
     QueryRequest queryRequest = builder.build();
 
-    RequestAnalyzer analyzer = new RequestAnalyzer(queryRequest);
-    analyzer.analyze();
-    ResultSetMetadata resultSetMetadata = analyzer.getResultSetMetadata();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
+    ResultSetMetadata resultSetMetadata = context.getResultSetMetadata();
     LOGGER.info("resultSetMetadata = " + resultSetMetadata);
 
     assertNotNull(resultSetMetadata);
@@ -125,8 +123,8 @@ public class RequestAnalyzerTest {
 
     // Selections should correspond in size and order to the
     // resultSetMetadata.getColumnMetadataList()
-    assertEquals(1, analyzer.getAllSelections().size());
-    Iterator<Expression> selectionsIterator = analyzer.getAllSelections().iterator();
+    assertEquals(1, context.getAllSelections().size());
+    Iterator<Expression> selectionsIterator = context.getAllSelections().iterator();
     assertEquals(
         Expression.newBuilder()
             .setColumnIdentifier(
@@ -173,15 +171,14 @@ public class RequestAnalyzerTest {
 
     QueryRequest queryRequest = builder.build();
 
-    RequestAnalyzer analyzer = new RequestAnalyzer(queryRequest);
-    analyzer.analyze();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
 
-    Set<String> selectedColumns = analyzer.getSelectedColumns();
+    Set<String> selectedColumns = context.getSelectedColumns();
     assertNotNull(selectedColumns);
     assertEquals(1, selectedColumns.size());
     assertEquals("Trace.transaction_name", selectedColumns.iterator().next());
 
-    Set<String> referencedColumns = analyzer.getReferencedColumns();
+    Set<String> referencedColumns = context.getReferencedColumns();
     assertNotNull(referencedColumns);
     assertEquals(4, referencedColumns.size());
     assertEquals(
@@ -192,15 +189,15 @@ public class RequestAnalyzerTest {
             "Trace.end_time_millis"),
         referencedColumns);
 
-    ResultSetMetadata resultSetMetadata = analyzer.getResultSetMetadata();
+    ResultSetMetadata resultSetMetadata = context.getResultSetMetadata();
     assertNotNull(resultSetMetadata);
     assertEquals(1, resultSetMetadata.getColumnMetadataCount());
     assertEquals("Trace.transaction_name", resultSetMetadata.getColumnMetadata(0).getColumnName());
 
     // Selections should correspond in size and order to the
     // resultSetMetadata.getColumnMetadataList()
-    assertEquals(1, analyzer.getAllSelections().size());
-    Iterator<Expression> selectionsIterator = analyzer.getAllSelections().iterator();
+    assertEquals(1, context.getAllSelections().size());
+    Iterator<Expression> selectionsIterator = context.getAllSelections().iterator();
     assertEquals(
         Expression.newBuilder()
             .setColumnIdentifier(
@@ -265,12 +262,11 @@ public class RequestAnalyzerTest {
                 ColumnIdentifier.newBuilder().setColumnName("Trace.service_name")));
     QueryRequest queryRequest = builder.build();
 
-    RequestAnalyzer analyzer = new RequestAnalyzer(queryRequest);
-    analyzer.analyze();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
 
     // The order in resultSetMetadata.getColumnMetadataList() and selections is group bys,
     // selections then aggregations
-    ResultSetMetadata resultSetMetadata = analyzer.getResultSetMetadata();
+    ResultSetMetadata resultSetMetadata = context.getResultSetMetadata();
 
     assertNotNull(resultSetMetadata);
     assertEquals(7, resultSetMetadata.getColumnMetadataCount());
@@ -284,8 +280,8 @@ public class RequestAnalyzerTest {
 
     // Selections should correspond in size and order to the
     // resultSetMetadata.getColumnMetadataList()
-    assertEquals(7, analyzer.getAllSelections().size());
-    Iterator<Expression> selectionsIterator = analyzer.getAllSelections().iterator();
+    assertEquals(7, context.getAllSelections().size());
+    Iterator<Expression> selectionsIterator = context.getAllSelections().iterator();
     assertEquals(
         Expression.newBuilder()
             .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName("Trace.api_name"))

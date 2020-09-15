@@ -36,16 +36,16 @@ public class RequestHandlerSelector {
     }
   }
 
-  public RequestHandler select(QueryRequest request, RequestAnalyzer analyzer) {
+  public RequestHandler select(QueryRequest request, ExecutionContext executionContext) {
 
     // check if each of the requestHandler can handle the request and return the cost of serving
     // that query
     double minCost = Double.MAX_VALUE;
     RequestHandler selectedHandler = null;
-    Set<String> referencedColumns = analyzer.getReferencedColumns();
+    Set<String> referencedColumns = executionContext.getReferencedColumns();
     Set<String> referencedSources = new HashSet<>(request.getSourceList());
     for (RequestHandler requestHandler : requestHandlers) {
-      QueryCost queryCost = requestHandler.canHandle(request, referencedSources, analyzer);
+      QueryCost queryCost = requestHandler.canHandle(request, referencedSources, executionContext);
       double cost = queryCost.getCost();
       if (LOG.isDebugEnabled()) {
         LOG.debug("Request handler: {}, query cost: {}", requestHandler.getName(), cost);

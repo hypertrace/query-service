@@ -9,14 +9,11 @@ public interface RequestHandler<T, R> {
   /** Get the name of Request Handler */
   String getName();
 
-  QueryCost canHandle(T request, Set<String> referencedSources, RequestAnalyzer analyzer);
+  QueryCost canHandle(T request, Set<String> referencedSources, ExecutionContext analyzer);
 
   /** Handle the request and add rows to the collector. */
-  void handleRequest(
-      QueryContext queryContext,
-      QueryRequest request,
-      QueryResultCollector<R> collector,
-      RequestAnalyzer requestAnalyzer);
+  void handleRequest(ExecutionContext executionContext, QueryRequest request,
+      QueryResultCollector<R> collector);
 
   void init(String name, Config config);
 }

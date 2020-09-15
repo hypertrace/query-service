@@ -12,7 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
-import org.hypertrace.core.query.service.QueryContext;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -43,7 +43,6 @@ public class QueryRequestToPinotSQLConverterTest {
   private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "request_handler.conf";
 
   private static ViewDefinition viewDefinition;
-  private static QueryContext queryContext;
   private Connection connection;
 
   @BeforeAll
@@ -55,7 +54,6 @@ public class QueryRequestToPinotSQLConverterTest {
     RequestHandlerConfig requestHandlerConfig = RequestHandlerConfig.parse(fileConfig);
     viewDefinition = ViewDefinition.parse(
         requestHandlerConfig.getRequestHandlerInfo().getConfig("viewDefinition"), TENANT_COLUMN_NAME);
-    queryContext = new QueryContext(TENANT_ID);
   }
 
   @BeforeEach
@@ -1097,7 +1095,8 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, "PERCENTILETDIGEST");
     Entry<String, Params> statementToParam =
-        converter.toSQL(queryContext, queryRequest, createSelectionsFromQueryRequest(queryRequest));
+        converter.toSQL(new ExecutionContext("__default", queryRequest), queryRequest,
+            createSelectionsFromQueryRequest(queryRequest));
     PinotClient pinotClient = new PinotClient(connection);
     pinotClient.executeQuery(statementToParam.getKey(), statementToParam.getValue());
     ArgumentCaptor<Request> statementCaptor = ArgumentCaptor.forClass(Request.class);
@@ -1112,7 +1111,8 @@ public class QueryRequestToPinotSQLConverterTest {
         new QueryRequestToPinotSQLConverter(viewDefinition, "PERCENTILETDIGEST");
 
     Throwable exception = Assertions.assertThrows(className, () -> converter
-        .toSQL(queryContext, queryRequest, createSelectionsFromQueryRequest(queryRequest)));
+        .toSQL(new ExecutionContext("__default", queryRequest), queryRequest,
+            createSelectionsFromQueryRequest(queryRequest)));
 
     String actualMessage = exception.getMessage();
     Assertions.assertTrue(actualMessage.contains(expectedMessage));

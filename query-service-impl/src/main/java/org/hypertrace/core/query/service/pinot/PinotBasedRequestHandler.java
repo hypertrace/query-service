@@ -13,18 +13,15 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
-import org.hypertrace.core.query.service.QueryContext;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryResultCollector;
-import org.hypertrace.core.query.service.RequestAnalyzer;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
@@ -136,8 +133,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
 
   @Override
   public QueryCost canHandle(QueryRequest request, Set<String> referencedSources,
-      RequestAnalyzer analyzer) {
-    Set<String> referencedColumns = analyzer.getReferencedColumns();
+      ExecutionContext executionContext) {
+    Set<String> referencedColumns = executionContext.getReferencedColumns();
 
     Preconditions.checkArgument(!referencedColumns.isEmpty());
     boolean found = true;
@@ -157,17 +154,15 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       // Check for the presence of every view filter column in query's referenced columns
       // so that we can terminate early.
       for (Map.Entry<String, ViewColumnFilter> entry : viewFilterMap.entrySet()) {
-        if (!analyzer.getReferencedColumns().contains(entry.getKey())) {
+        if (!executionContext.getReferencedColumns().contains(entry.getKey())) {
           found = false;
           break;
         }
       }
 
-      if (!found) {
-        return new QueryCost(-1);
+      if (found) {
+        found = doViewFiltersMatch(request.getFilter(), viewFilterMap);
       }
-
-      found = doViewFiltersMatch(analyzer.getOptimizedFilter(), viewFilterMap);
     }
 
     // TODO: Come up with a way to compute the cost based on request and view definition
@@ -197,41 +192,41 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       }
 
       return false;
-    }
+    } else {
+      Map<String, Filter> childLeafFilterMap = filter.getChildFilterList().stream()
+          .filter(f -> f.getChildFilterCount() == 0 &&
+              f.getLhs().getValueCase() == Expression.ValueCase.COLUMNIDENTIFIER)
+          .filter(
+              f -> viewFilterMap.containsKey(f.getLhs().getColumnIdentifier().getColumnName()))
+          .collect(Collectors
+              .toMap(f -> f.getLhs().getColumnIdentifier().getColumnName(), f -> f));
+      if (childLeafFilterMap.isEmpty()) {
+        long matchCount = filter.getChildFilterList().stream()
+            .map(f -> doViewFiltersMatch(f, viewFilterMap))
+            .filter(b -> b).count();
+        if (filter.getOperator() == Operator.AND && matchCount > 0) {
+          return true;
+        }
 
-    Map<String, Filter> childLeafFilterMap = filter.getChildFilterList().stream()
-        .filter(f -> f.getChildFilterCount() == 0 &&
-            f.getLhs().getValueCase() == Expression.ValueCase.COLUMNIDENTIFIER)
-        .filter(
-            f -> viewFilterMap.containsKey(f.getLhs().getColumnIdentifier().getColumnName()))
-        .collect(Collectors
-            .toMap(f -> f.getLhs().getColumnIdentifier().getColumnName(), f -> f));
-    if (childLeafFilterMap.isEmpty()) {
-      long matchCount = filter.getChildFilterList().stream()
-          .map(f -> doViewFiltersMatch(f, viewFilterMap))
-          .filter(b -> b).count();
-      if (filter.getOperator() == Operator.AND && matchCount > 0) {
-        return true;
+        // When children are being OR'ed, all the children must match the view filters.
+        return filter.getOperator() == Operator.OR && matchCount == filter.getChildFilterCount();
       }
 
-      // When children are being OR'ed, all the children must match the view filters.
-      return filter.getOperator() == Operator.OR && matchCount == filter.getChildFilterCount();
-    }
-
-    if (filter.getOperator() != Operator.AND) return false;
-
-    for (Map.Entry<String, ViewColumnFilter> entry : viewFilterMap.entrySet()) {
-      // Make sure all view filters match.
-      Filter queryFilter = childLeafFilterMap.get(entry.getKey());
-      Objects.requireNonNull(queryFilter);
-      if (!doesSingleViewFilterMatchLeafQueryFilter(entry.getValue(), queryFilter)) {
-        // Few columns matched but others didn't match.
+      if (filter.getOperator() != Operator.AND)
         return false;
-      }
-    }
 
-    // Perfect match.
-    return true;
+      for (Map.Entry<String, ViewColumnFilter> entry : viewFilterMap.entrySet()) {
+        // Make sure all view filters match.
+        Filter queryFilter = childLeafFilterMap.get(entry.getKey());
+        if (queryFilter == null || !doesSingleViewFilterMatchLeafQueryFilter(entry.getValue(), queryFilter)) {
+          // Few columns matched but others didn't match.
+          return false;
+        }
+      }
+
+      // Perfect match.
+      return true;
+    }
   }
 
   /**
@@ -331,21 +326,23 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
 
   @Override
   public void handleRequest(
-      QueryContext queryContext,
+      ExecutionContext executionContext,
       QueryRequest request,
-      QueryResultCollector<Row> collector,
-      RequestAnalyzer requestAnalyzer) {
+      QueryResultCollector<Row> collector) {
     long start = System.currentTimeMillis();
-    validateQueryRequest(queryContext, request);
+    validateQueryRequest(executionContext, request);
 
     // Remove the filters which match the view column filters because they shouldn't be passed down
     // to Pinot.
-    if (!viewDefinition.getColumnFilterMap().isEmpty()) {
-      request = removeViewColumnFilters(request, viewDefinition.getColumnFilterMap());
+    if (!viewDefinition.getColumnFilterMap().isEmpty() &&
+        !Filter.getDefaultInstance().equals(request.getFilter()))
+    {
+      request = rewriteRequestWithViewFiltersApplied(request,
+          viewDefinition.getColumnFilterMap());
     }
 
     Entry<String, Params> pql =
-        request2PinotSqlConverter.toSQL(queryContext, request, requestAnalyzer.getAllSelections());
+        request2PinotSqlConverter.toSQL(executionContext, request, executionContext.getAllSelections());
     if (LOG.isDebugEnabled()) {
       LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
     }
@@ -366,7 +363,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
     }
     // need to merge data especially for Pinot. That's why we need to track the map columns
-    convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
+    convert(resultSetGroup, collector, executionContext.getSelectedColumns());
 
     long requestTimeMs = System.currentTimeMillis() - start;
     if (requestTimeMs > slowQueryThreshold) {
@@ -379,42 +376,53 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   }
 
   @Nonnull
-  private QueryRequest removeViewColumnFilters(QueryRequest request,
+  private QueryRequest rewriteRequestWithViewFiltersApplied(QueryRequest request,
       Map<String, ViewColumnFilter> columnFilterMap) {
 
-    Filter filter = request.getFilter();
-    for (String columnName : columnFilterMap.keySet()) {
-      filter = removeViewColumnFilter(filter, columnName);
-      if (filter == null) {
-        break;
-      }
+    Filter newFilter = removeViewColumnFilter(request.getFilter(), columnFilterMap);
+    QueryRequest.Builder builder = QueryRequest.newBuilder(request).clearFilter();
+    if (!Filter.getDefaultInstance().equals(newFilter)) {
+      builder.setFilter(newFilter);
     }
-
-    QueryRequest.Builder builder = QueryRequest.newBuilder(request);
-    if (filter == null) {
-      return builder.clearFilter().build();
-    } else {
-      return builder.clearFilter().setFilter(filter).build();
-    }
+    return builder.build();
   }
 
-  @Nullable
-  private Filter removeViewColumnFilter(Filter filter, String columnName) {
+  private Filter removeViewColumnFilter(Filter filter,
+      Map<String, ViewColumnFilter> columnFilterMap) {
     if (filter.getChildFilterCount() > 0) {
       // Recursively try to remove the filter and eliminate the null nodes.
-      List<Filter> newFilters = filter.getChildFilterList().stream()
-          .map(f -> removeViewColumnFilter(f, columnName))
-          .filter(Objects::nonNull).collect(Collectors.toList());
-      if (newFilters.size() == 1) {
-        return newFilters.get(0);
+      Set<Filter> newFilters = filter.getChildFilterList().stream()
+          .map(f -> removeViewColumnFilter(f, columnFilterMap))
+          .filter(f -> !Filter.getDefaultInstance().equals(f))
+          .collect(Collectors.toCollection(LinkedHashSet::new));
+
+      if (newFilters.isEmpty()) {
+        return Filter.getDefaultInstance();
+      } else if (newFilters.size() == 1) {
+        return newFilters.stream().findFirst().get();
       } else {
         return Filter.newBuilder(filter).clearChildFilter().addAllChildFilter(newFilters).build();
       }
     } else {
-      if (filter.getLhs().getColumnIdentifier().getColumnName().equals(columnName)) {
-        return null;
+      return rewriteLeafFilter(filter, columnFilterMap);
+    }
+  }
+
+  private Filter rewriteLeafFilter(Filter queryFilter, Map<String, ViewColumnFilter> columnFilterMap) {
+    ViewColumnFilter viewColumnFilter =
+        columnFilterMap.get(queryFilter.getLhs().getColumnIdentifier().getColumnName());
+    if (viewColumnFilter == null) {
+      return queryFilter;
+    } else {
+
+      // The only case where we need to return non-null filter is when view filter is based on 'IN'
+      // and query filter is an 'EQ'
+      if (viewColumnFilter.getOperator() == ViewColumnFilter.Operator.IN &&
+          queryFilter.getOperator() == Operator.EQ) {
+        return queryFilter;
       }
-      return filter;
+
+      return Filter.getDefaultInstance();
     }
   }
 
@@ -554,10 +562,10 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     }
   }
 
-  private void validateQueryRequest(QueryContext queryContext, QueryRequest request) {
+  private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {
     // Validate QueryContext and tenant id presence
-    Preconditions.checkNotNull(queryContext);
-    Preconditions.checkNotNull(queryContext.getTenantId());
+    Preconditions.checkNotNull(executionContext);
+    Preconditions.checkNotNull(executionContext.getTenantId());
 
     // Validate DISTINCT selections
     if (request.getDistinctSelections()) {
