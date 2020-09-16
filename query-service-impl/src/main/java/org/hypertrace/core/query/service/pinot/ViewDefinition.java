@@ -14,6 +14,9 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.hypertrace.core.query.service.api.ValueType;
 
+/**
+ * Class holding the configuration for a Pinot view/table.
+ */
 public class ViewDefinition {
 
   static final String MAP_KEYS_SUFFIX = "__KEYS";
@@ -21,7 +24,18 @@ public class ViewDefinition {
 
   private final String viewName;
   private final Map<String, PinotColumnSpec> columnSpecMap;
+
+  /**
+   * The name of the column which should be used as tenant id. This is configurable so that
+   * each view can pick and choose what column is tenant id.
+   */
   private final String tenantColumnName;
+
+  /**
+   * Map from column name to the ViewColumnFilter that's applied to this view for that column.
+   * All the view filters are AND'ed and only the queries matching all the view filters
+   * will be routed to this view.
+   */
   private final Map<String, ViewColumnFilter> columnFilterMap;
 
   public ViewDefinition(

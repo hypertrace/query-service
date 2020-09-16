@@ -5,9 +5,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A column level filter that's applied for this view by default. Only the queries which have
- * these filters will be routed to this view and the filter isn't propagated to the actual
- * data store.
+ * A column level filter that's applied for a Pinot view by default. This is useful to build views
+ * which have a subset of data from another view (call it main view) after applying a few filters.
+ * The main view and filtered view can be optimized different for queries and only the queries
+ * matching the view filters will be routed to the filtered view.
  *
  * <p>Currently, we only support EQ and IN operators in these filters.</p>
  * Example EQ filter:
@@ -42,7 +43,7 @@ class ViewColumnFilter {
     if (operator == Operator.EQ) {
       return new ViewColumnFilter(operator, Set.of(filterConfig.getString("value")));
     } else {
-      return new ViewColumnFilter(operator, new HashSet<>(filterConfig.getStringList("values")));
+      return new ViewColumnFilter(operator, Set.copyOf(filterConfig.getStringList("values")));
     }
   }
 

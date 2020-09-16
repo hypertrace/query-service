@@ -36,6 +36,9 @@ import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * RequestHandler to handle queries by fetching data from Pinot.
+ */
 public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Row> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PinotBasedRequestHandler.class);
@@ -130,6 +133,14 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     initMetrics();
   }
 
+  /**
+   * Returns a QueryCost that is an indication of whether the given query can be handled by this
+   * handler and if so, how costly is it to handle that query.
+   *
+   * A query can usually be handled by Pinot handler if the Pinot view of this handler has all the
+   * columns that are referenced in the incoming query. If the Pinot view is a filtered view on
+   * some view column filters, the incoming query has to have those filters to match the view.
+   */
   @Override
   public QueryCost canHandle(QueryRequest request, Set<String> referencedSources,
       ExecutionContext executionContext) {
@@ -186,22 +197,18 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
           .collect(Collectors
               .toMap(f -> f.getLhs().getColumnIdentifier().getColumnName(), f -> f));
 
+      long matchCount = filter.getChildFilterList().stream()
+          .filter(f -> doViewFiltersMatch(f, viewFilterMap))
+          .count();
+
       // 2. An internal filter node which doesn't have any leaves but other internal nodes:
       // Parent is a match if all the OR'ed children match or at least one of AND'ed children match.
       if (childLeafFilterMap.isEmpty()) {
-        long matchCount = filter.getChildFilterList().stream()
-            .map(f -> doViewFiltersMatch(f, viewFilterMap))
-            .filter(b -> b).count();
-
         return (filter.getOperator() == Operator.AND && matchCount > 0) ||
             (filter.getOperator() == Operator.OR && matchCount == filter.getChildFilterCount());
       } else {
         // 3. An internal filter with children which are leaves: All the view filters
         // should be matched and AND'ed, otherwise it's not a match.
-        long matchCount = filter.getChildFilterList().stream()
-            .map(f -> doViewFiltersMatch(f, viewFilterMap))
-            .filter(b -> b).count();
-
         return filter.getOperator() == Operator.AND && matchCount == viewFilterMap.size();
       }
     }
@@ -320,8 +327,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     long start = System.currentTimeMillis();
     validateQueryRequest(executionContext, request);
 
-    // Remove the filters which match the view column filters because they shouldn't be passed down
-    // to Pinot.
+    // Rewrite the request filter after applying the view filters.
     if (!viewDefinition.getColumnFilterMap().isEmpty() &&
         !Filter.getDefaultInstance().equals(request.getFilter())) {
       request = rewriteRequestWithViewFiltersApplied(request,
