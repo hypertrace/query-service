@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
@@ -159,18 +160,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     // filters. If not, the view can't serve the query.
     Map<String, ViewColumnFilter> viewFilterMap = viewDefinition.getColumnFilterMap();
     if (found && !viewFilterMap.isEmpty()) {
-      // Check for the presence of every view filter column in query's referenced columns
-      // so that we can terminate early.
-      for (Map.Entry<String, ViewColumnFilter> entry : viewFilterMap.entrySet()) {
-        if (!executionContext.getReferencedColumns().contains(entry.getKey())) {
-          found = false;
-          break;
-        }
-      }
-
-      if (found) {
-        found = doViewFiltersMatch(request.getFilter(), viewFilterMap);
-      }
+        Set<String> columns = getMatchingViewFilterColumns(request.getFilter(), viewFilterMap);
+        found = columns.equals(viewFilterMap.keySet());
     }
 
     // TODO: Come up with a way to compute the cost based on request and view definition
@@ -186,31 +177,26 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
    * @return True if the given filter node matches all the view filters from the given map, False
    * otherwise.
    */
-  private boolean doViewFiltersMatch(Filter filter, Map<String, ViewColumnFilter> viewFilterMap) {
-    // 1. Basic case: Filter is a leaf node. This will be a match only if there is only one
-    // view filter and that matches the leaf filter.
+  private Set<String> getMatchingViewFilterColumns(Filter filter, Map<String,
+      ViewColumnFilter> viewFilterMap) {
+    // 1. Basic case: Filter is a leaf node. Check if the column exists in view filters and
+    // return it.
     if (filter.getChildFilterCount() == 0) {
-      return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap, filter);
+      return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap, filter) ?
+          Set.of(filter.getLhs().getColumnIdentifier().getColumnName()) : Set.of();
     } else {
-      Map<String, Filter> childLeafFilterMap = filter.getChildFilterList().stream()
-          .filter(f -> f.getChildFilterCount() == 0)
-          .collect(Collectors
-              .toMap(f -> f.getLhs().getColumnIdentifier().getColumnName(), f -> f));
+      // 2. Internal filter node. Recursively get the matching nodes from children.
+      List<Set<String>> results = filter.getChildFilterList().stream()
+          .map(f -> getMatchingViewFilterColumns(f, viewFilterMap)).collect(Collectors.toList());
 
-      long matchCount = filter.getChildFilterList().stream()
-          .filter(f -> doViewFiltersMatch(f, viewFilterMap))
-          .count();
-
-      // 2. An internal filter node which doesn't have any leaves but other internal nodes:
-      // Parent is a match if all the OR'ed children match or at least one of AND'ed children match.
-      if (childLeafFilterMap.isEmpty()) {
-        return (filter.getOperator() == Operator.AND && matchCount > 0) ||
-            (filter.getOperator() == Operator.OR && matchCount == filter.getChildFilterCount());
-      } else {
-        // 3. An internal filter with children which are leaves: All the view filters
-        // should be matched and AND'ed, otherwise it's not a match.
-        return filter.getOperator() == Operator.AND && matchCount == viewFilterMap.size();
+      Set<String> result = results.get(0);
+      for (Set<String> set : results.subList(1, results.size())) {
+        // If the operation is OR, we need to get intersection of columns from all the children.
+        // Otherwise, the operation should be AND and we can get union of all columns.
+        result = filter.getOperator() == Operator.OR ? Sets.intersection(result, set) :
+            Sets.union(result, set);
       }
+      return result;
     }
   }
 

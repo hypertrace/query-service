@@ -16,11 +16,10 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
-import org.hypertrace.core.query.service.QueryRequestFilterUtils;
 import org.hypertrace.core.query.service.QueryResultCollector;
-import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -402,14 +401,27 @@ public class PinotBasedRequestHandlerTest {
 
         executionContext = new ExecutionContext("__default", request);
 
-        // Optimize the filter
-        request = QueryRequest.newBuilder(request).clearFilter()
-            .setFilter(QueryRequestFilterUtils.optimizeFilter(request.getFilter())).build();
-
         cost = handler.canHandle(request, Set.of(), executionContext);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
-        // Negative case. Only one view filter is present in the query filters.
+        // Negative case. Query has only one leaf filter and it matches only one of the view
+        // filters
+        request = QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+            .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+            .setFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.EQ,
+                Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
+                    Value.newBuilder().setBoolean(true).setValueType(ValueType.BOOL)))
+                    .build()))
+            .build();
+
+        executionContext = new ExecutionContext("__default", request);
+        cost = handler.canHandle(request, Set.of(), executionContext);
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Only one view filter is present in the query filters
         request = QueryRequest.newBuilder()
             .setDistinctSelections(true)
             .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.startTime"))
@@ -576,9 +588,6 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        // Optimize the filter
-        request = QueryRequest.newBuilder(request).clearFilter()
-            .setFilter(QueryRequestFilterUtils.optimizeFilter(request.getFilter())).build();
 
         cost = handler.canHandle(request, Set.of(), context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);

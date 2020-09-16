@@ -64,12 +64,7 @@ public class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
     try {
       String tenantId = RequestContext.CURRENT.get().getTenantId().get();
       ExecutionContext context = new ExecutionContext(tenantId, queryRequest);
-
-      // Optimize the filter in the request and rewrite query request.
-      QueryRequest request = QueryRequest.newBuilder(queryRequest)
-          .setFilter(QueryRequestFilterUtils.optimizeFilter(queryRequest.getFilter())).build();
-
-      RequestHandler requestHandler = selector.select(request, context);
+      RequestHandler requestHandler = selector.select(queryRequest, context);
       if (requestHandler == null) {
         // An error is logged in the select() method
         responseObserver.onError(
@@ -82,7 +77,7 @@ public class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
       ResultSetChunkCollector collector = new ResultSetChunkCollector(responseObserver);
       collector.init(context.getResultSetMetadata());
 
-      requestHandler.handleRequest(context, request, collector);
+      requestHandler.handleRequest(context, queryRequest, collector);
     } catch (NoSuchElementException e) {
       LOG.error("TenantId is missing in the context.", e);
       responseObserver.onError(e);
