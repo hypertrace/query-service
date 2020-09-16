@@ -171,11 +171,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   }
 
   /**
-   * Method to check if at least one Filter node matches all the view filters given in the
-   * viewFilterMap.
-   *
-   * @return True if the given filter node matches all the view filters from the given map, False
-   * otherwise.
+   * Method to return the set of columns from the given filter which match the columns in
+   * the given viewFilterMap.
    */
   private Set<String> getMatchingViewFilterColumns(Filter filter, Map<String,
       ViewColumnFilter> viewFilterMap) {
