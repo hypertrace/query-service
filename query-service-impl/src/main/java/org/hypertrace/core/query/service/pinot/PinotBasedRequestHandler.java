@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -376,7 +377,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       if (newFilters.isEmpty()) {
         return Filter.getDefaultInstance();
       } else if (newFilters.size() == 1) {
-        return newFilters.stream().findFirst().get();
+        return Iterables.getOnlyElement(newFilters);
       } else {
         return Filter.newBuilder(filter).clearChildFilter().addAllChildFilter(newFilters).build();
       }
