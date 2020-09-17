@@ -9,7 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import org.apache.commons.codec.binary.Hex;
-import org.hypertrace.core.query.service.QueryContext;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
@@ -49,7 +49,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   Entry<String, Params> toSQL(
-      QueryContext queryContext, QueryRequest request, LinkedHashSet<Expression> allSelections) {
+      ExecutionContext executionContext, QueryRequest request, LinkedHashSet<Expression> allSelections) {
     Params.Builder paramsBuilder = Params.newBuilder();
     StringBuilder pqlBuilder = new StringBuilder("Select ");
     String delim = "";
@@ -72,7 +72,7 @@ class QueryRequestToPinotSQLConverter {
 
     // Add the tenantId filter
     pqlBuilder.append(" WHERE ").append(viewDefinition.getTenantIdColumn()).append(" = ?");
-    paramsBuilder.addStringParam(queryContext.getTenantId());
+    paramsBuilder.addStringParam(executionContext.getTenantId());
 
     if (request.hasFilter()) {
       pqlBuilder.append(" AND ");

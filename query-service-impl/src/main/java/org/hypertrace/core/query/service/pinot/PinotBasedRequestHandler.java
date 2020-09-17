@@ -1,6 +1,8 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
@@ -8,18 +10,25 @@ import io.micrometer.core.instrument.Timer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
-import org.hypertrace.core.query.service.QueryContext;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryResultCollector;
-import org.hypertrace.core.query.service.RequestAnalyzer;
 import org.hypertrace.core.query.service.RequestHandler;
+import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Expression.ValueCase;
+import org.hypertrace.core.query.service.api.Filter;
+import org.hypertrace.core.query.service.api.LiteralConstant;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
@@ -29,6 +38,9 @@ import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * RequestHandler to handle queries by fetching data from Pinot.
+ */
 public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Row> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PinotBasedRequestHandler.class);
@@ -41,8 +53,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
 
   /**
-   * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster
-   * and reasonably accurate, hence use that as the default.
+   * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster and
+   * reasonably accurate, hence use that as the default.
    */
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
 
@@ -123,11 +135,20 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     initMetrics();
   }
 
+  /**
+   * Returns a QueryCost that is an indication of whether the given query can be handled by this
+   * handler and if so, how costly is it to handle that query.
+   *
+   * A query can usually be handled by Pinot handler if the Pinot view of this handler has all the
+   * columns that are referenced in the incoming query. If the Pinot view is a filtered view on
+   * some view column filters, the incoming query has to have those filters to match the view.
+   */
   @Override
-  public QueryCost canHandle(
-      QueryRequest request, Set<String> referencedSources, Set<String> referencedColumns) {
+  public QueryCost canHandle(QueryRequest request, Set<String> referencedSources,
+      ExecutionContext executionContext) {
+    Set<String> referencedColumns = executionContext.getReferencedColumns();
+
     Preconditions.checkArgument(!referencedColumns.isEmpty());
-    double cost = -1;
     boolean found = true;
     for (String referencedColumn : referencedColumns) {
       if (!viewDefinition.containsColumn(referencedColumn)) {
@@ -135,28 +156,171 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         break;
       }
     }
-    // successfully found a view that can handle the request
-    if (found) {
-      // TODO: Come up with a way to compute the cost based on request and view definition
-      // Higher columns --> Higher cost,
-      // Finer the time granularity --> Higher the cost.
-      cost = 0.5;
+
+    // If the view has any column filters, check if the query has those filters as **mandatory**
+    // filters. If not, the view can't serve the query.
+    Map<String, ViewColumnFilter> viewFilterMap = viewDefinition.getColumnFilterMap();
+    if (found && !viewFilterMap.isEmpty()) {
+        Set<String> columns = getMatchingViewFilterColumns(request.getFilter(), viewFilterMap);
+        found = columns.equals(viewFilterMap.keySet());
     }
-    QueryCost queryCost = new QueryCost();
-    queryCost.setCost(cost);
-    return queryCost;
+
+    // TODO: Come up with a way to compute the cost based on request and view definition
+    // Higher columns --> Higher cost,
+    // Finer the time granularity --> Higher the cost.
+    return new QueryCost(found ? 0.5 : -1);
+  }
+
+  /**
+   * Method to return the set of columns from the given filter which match the columns in
+   * the given viewFilterMap.
+   */
+  private Set<String> getMatchingViewFilterColumns(Filter filter, Map<String,
+      ViewColumnFilter> viewFilterMap) {
+    // 1. Basic case: Filter is a leaf node. Check if the column exists in view filters and
+    // return it.
+    if (filter.getChildFilterCount() == 0) {
+      return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap, filter) ?
+          Set.of(filter.getLhs().getColumnIdentifier().getColumnName()) : Set.of();
+    } else {
+      // 2. Internal filter node. Recursively get the matching nodes from children.
+      List<Set<String>> results = filter.getChildFilterList().stream()
+          .map(f -> getMatchingViewFilterColumns(f, viewFilterMap)).collect(Collectors.toList());
+
+      Set<String> result = results.get(0);
+      for (Set<String> set : results.subList(1, results.size())) {
+        // If the operation is OR, we need to get intersection of columns from all the children.
+        // Otherwise, the operation should be AND and we can get union of all columns.
+        result = filter.getOperator() == Operator.OR ? Sets.intersection(result, set) :
+            Sets.union(result, set);
+      }
+      return result;
+    }
+  }
+
+  /**
+   * Method to check if the given ViewColumnFilter matches the given query filter. A match here
+   * means the view column is superset of what the query filter is looking for, need not be an exact
+   * match.
+   */
+  private boolean doesSingleViewFilterMatchLeafQueryFilter(
+      Map<String, ViewColumnFilter> viewFilterMap, Filter queryFilter) {
+    if (queryFilter.getLhs().getValueCase() != ValueCase.COLUMNIDENTIFIER) {
+      return false;
+    }
+    if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
+      return false;
+    }
+
+    String columnName = queryFilter.getLhs().getColumnIdentifier().getColumnName();
+    ViewColumnFilter viewColumnFilter = viewFilterMap.get(columnName);
+    if (viewColumnFilter == null) {
+      return false;
+    }
+
+    switch (viewColumnFilter.getOperator()) {
+      case IN:
+        return isSubSet(viewColumnFilter.getValues(), queryFilter.getRhs());
+      case EQ:
+        return isEquals(viewColumnFilter.getValues(), queryFilter.getRhs());
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported view filter operator: " + viewColumnFilter.getOperator());
+    }
+  }
+
+  /**
+   * Checks that the values from the given expression are a subset of the given set.
+   */
+  private boolean isSubSet(Set<String> values, Expression expression) {
+    if (!expression.hasLiteral()) {
+      return false;
+    }
+
+    return values.containsAll(getExpressionValues(expression.getLiteral()));
+  }
+
+  /**
+   * Checks that the values from the given expression are a subset of the given set.
+   */
+  private boolean isEquals(Set<String> values, Expression expression) {
+    if (!expression.hasLiteral()) {
+      return false;
+    }
+
+    return values.equals(getExpressionValues(expression.getLiteral()));
+  }
+
+  private Set<String> getExpressionValues(LiteralConstant literalConstant) {
+    Set<String> expressionValues = new HashSet<>();
+    Value value = literalConstant.getValue();
+    switch (value.getValueType()) {
+      case STRING:
+        expressionValues.add(value.getString());
+        break;
+      case STRING_ARRAY:
+        expressionValues.addAll(value.getStringArrayList());
+        break;
+      case INT:
+        expressionValues.add(String.valueOf(value.getInt()));
+        break;
+      case INT_ARRAY:
+        expressionValues.addAll(value.getIntArrayList().stream().map(Object::toString).collect(
+            Collectors.toSet()));
+        break;
+      case LONG:
+        expressionValues.add(String.valueOf(value.getLong()));
+        break;
+      case LONG_ARRAY:
+        expressionValues.addAll(value.getLongArrayList().stream().map(Object::toString).collect(
+            Collectors.toSet()));
+        break;
+      case DOUBLE:
+        expressionValues.add(String.valueOf(value.getDouble()));
+        break;
+      case DOUBLE_ARRAY:
+        expressionValues.addAll(value.getDoubleArrayList().stream().map(Object::toString).collect(
+            Collectors.toSet()));
+        break;
+      case FLOAT:
+        expressionValues.add(String.valueOf(value.getFloat()));
+        break;
+      case FLOAT_ARRAY:
+        expressionValues.addAll(value.getFloatArrayList().stream().map(Object::toString).collect(
+            Collectors.toSet()));
+        break;
+      case BOOL:
+        expressionValues.add(String.valueOf(value.getBoolean()).toLowerCase());
+        break;
+      case BOOLEAN_ARRAY:
+        expressionValues.addAll(value.getBooleanArrayList().stream()
+            .map(b -> b.toString().toLowerCase()).collect(Collectors.toSet()));
+        break;
+      default:
+        // Ignore the rest of the types for now.
+        throw new IllegalArgumentException("Unsupported value type in subset check.");
+    }
+    return expressionValues;
   }
 
   @Override
   public void handleRequest(
-      QueryContext queryContext,
+      ExecutionContext executionContext,
       QueryRequest request,
-      QueryResultCollector<Row> collector,
-      RequestAnalyzer requestAnalyzer) {
+      QueryResultCollector<Row> collector) {
     long start = System.currentTimeMillis();
-    validateQueryRequest(queryContext, request);
+    validateQueryRequest(executionContext, request);
+
+    // Rewrite the request filter after applying the view filters.
+    if (!viewDefinition.getColumnFilterMap().isEmpty() &&
+        !Filter.getDefaultInstance().equals(request.getFilter())) {
+      request = rewriteRequestWithViewFiltersApplied(request,
+          viewDefinition.getColumnFilterMap());
+    }
+
     Entry<String, Params> pql =
-        request2PinotSqlConverter.toSQL(queryContext, request, requestAnalyzer.getAllSelections());
+        request2PinotSqlConverter
+            .toSQL(executionContext, request, executionContext.getAllSelections());
     if (LOG.isDebugEnabled()) {
       LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
     }
@@ -177,7 +341,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
     }
     // need to merge data especially for Pinot. That's why we need to track the map columns
-    convert(resultSetGroup, collector, requestAnalyzer.getSelectedColumns());
+    convert(resultSetGroup, collector, executionContext.getSelectedColumns());
 
     long requestTimeMs = System.currentTimeMillis() - start;
     if (requestTimeMs > slowQueryThreshold) {
@@ -187,6 +351,52 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       } catch (InvalidProtocolBufferException ignore) {
       }
     }
+  }
+
+  @Nonnull
+  private QueryRequest rewriteRequestWithViewFiltersApplied(QueryRequest request,
+      Map<String, ViewColumnFilter> columnFilterMap) {
+
+    Filter newFilter = removeViewColumnFilter(request.getFilter(), columnFilterMap);
+    QueryRequest.Builder builder = QueryRequest.newBuilder(request).clearFilter();
+    if (!Filter.getDefaultInstance().equals(newFilter)) {
+      builder.setFilter(newFilter);
+    }
+    return builder.build();
+  }
+
+  private Filter removeViewColumnFilter(Filter filter,
+      Map<String, ViewColumnFilter> columnFilterMap) {
+    if (filter.getChildFilterCount() > 0) {
+      // Recursively try to remove the filter and eliminate the null nodes.
+      Set<Filter> newFilters = filter.getChildFilterList().stream()
+          .map(f -> removeViewColumnFilter(f, columnFilterMap))
+          .filter(f -> !Filter.getDefaultInstance().equals(f))
+          .collect(Collectors.toCollection(LinkedHashSet::new));
+
+      if (newFilters.isEmpty()) {
+        return Filter.getDefaultInstance();
+      } else if (newFilters.size() == 1) {
+        return Iterables.getOnlyElement(newFilters);
+      } else {
+        return Filter.newBuilder(filter).clearChildFilter().addAllChildFilter(newFilters).build();
+      }
+    } else {
+      return rewriteLeafFilter(filter, columnFilterMap);
+    }
+  }
+
+  private Filter rewriteLeafFilter(Filter queryFilter,
+      Map<String, ViewColumnFilter> columnFilterMap) {
+    ViewColumnFilter viewColumnFilter =
+        columnFilterMap.get(queryFilter.getLhs().getColumnIdentifier().getColumnName());
+    // If the RHS of both the view filter and query filter match, return empty filter.
+    if (viewColumnFilter != null && isEquals(viewColumnFilter.getValues(), queryFilter.getRhs())) {
+      return Filter.getDefaultInstance();
+    }
+
+    // In every other case, retain the query filter.
+    return queryFilter;
   }
 
   void convert(
@@ -325,10 +535,10 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     }
   }
 
-  private void validateQueryRequest(QueryContext queryContext, QueryRequest request) {
+  private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {
     // Validate QueryContext and tenant id presence
-    Preconditions.checkNotNull(queryContext);
-    Preconditions.checkNotNull(queryContext.getTenantId());
+    Preconditions.checkNotNull(executionContext);
+    Preconditions.checkNotNull(executionContext.getTenantId());
 
     // Validate DISTINCT selections
     if (request.getDistinctSelections()) {

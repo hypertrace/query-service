@@ -56,6 +56,58 @@ public class Params {
     return bytesStringParams;
   }
 
+  @Override
+  public String toString() {
+    return "Params{" +
+        "integerParams=" + integerParams +
+        ", longParams=" + longParams +
+        ", stringParams=" + stringParams +
+        ", floatParams=" + floatParams +
+        ", doubleParams=" + doubleParams +
+        ", bytesStringParams=" + bytesStringParams +
+        '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    Params params = (Params) o;
+
+    if (!integerParams.equals(params.integerParams)) {
+      return false;
+    }
+    if (!longParams.equals(params.longParams)) {
+      return false;
+    }
+    if (!stringParams.equals(params.stringParams)) {
+      return false;
+    }
+    if (!floatParams.equals(params.floatParams)) {
+      return false;
+    }
+    if (!doubleParams.equals(params.doubleParams)) {
+      return false;
+    }
+    return bytesStringParams.equals(params.bytesStringParams);
+  }
+
+  @Override
+  public int hashCode() {
+    int result = integerParams.hashCode();
+    result = 31 * result + longParams.hashCode();
+    result = 31 * result + stringParams.hashCode();
+    result = 31 * result + floatParams.hashCode();
+    result = 31 * result + doubleParams.hashCode();
+    result = 31 * result + bytesStringParams.hashCode();
+    return result;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }

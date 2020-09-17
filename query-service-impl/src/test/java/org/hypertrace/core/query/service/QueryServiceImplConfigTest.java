@@ -48,7 +48,7 @@ public class QueryServiceImplConfigTest {
     assertEquals("query-service", appConfig.getString("service.name"));
     assertEquals(8091, appConfig.getInt("service.admin.port"));
     assertEquals(8090, appConfig.getInt("service.port"));
-    assertEquals(2, queryServiceConfig.getQueryRequestHandlersConfig().size());
+    assertEquals(4, queryServiceConfig.getQueryRequestHandlersConfig().size());
     assertEquals(2, queryServiceConfig.getClients().size());
 
     LOGGER.info("{}", queryServiceConfig.getQueryRequestHandlersConfig());
@@ -98,9 +98,8 @@ public class QueryServiceImplConfigTest {
     RequestHandlerSelector selector = new RequestHandlerSelector(RequestHandlerRegistry.get());
 
     QueryRequest queryRequest = buildSimpleQuery();
-    RequestAnalyzer analyzer = new RequestAnalyzer(queryRequest);
-    analyzer.analyze();
-    RequestHandler handler = selector.select(queryRequest, analyzer);
+    ExecutionContext executionContext = new ExecutionContext("test", queryRequest);
+    RequestHandler handler = selector.select(queryRequest, executionContext);
     assertEquals("span-event-view-handler", handler.getName());
   }
 
@@ -119,32 +118,31 @@ public class QueryServiceImplConfigTest {
     ColumnIdentifier tags = ColumnIdentifier.newBuilder().setColumnName("EVENT.spanTags").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(tags).build());
 
-    Filter startTimeFilter =
-        createTimeFilter(
-            "EVENT.startTime", Operator.GT, System.currentTimeMillis() - 1000 * 60 * 60 * 24);
-    Filter endTimeFilter =
-        createTimeFilter("EVENT.endTime", Operator.LT, System.currentTimeMillis());
+    Filter startTimeFilter = createFilter("EVENT.startTime", Operator.GT,
+        String.valueOf(System.currentTimeMillis() - 1000 * 60 * 60 * 24));
+    Filter endTimeFilter = createFilter("EVENT.endTime", Operator.LT,
+        String.valueOf(System.currentTimeMillis()));
+    Filter entrySpanFilter = createFilter("EVENT.isEntrySpan", Operator.EQ, "true");
 
     Filter andFilter =
         Filter.newBuilder()
             .setOperator(Operator.AND)
             .addChildFilter(startTimeFilter)
             .addChildFilter(endTimeFilter)
+            .addChildFilter(entrySpanFilter)
             .build();
     builder.setFilter(andFilter);
     return builder.build();
   }
 
-  private Filter createTimeFilter(String columnName, Operator op, long value) {
+  private Filter createFilter(String columnName, Operator op, String value) {
 
     ColumnIdentifier startTimeColumn =
         ColumnIdentifier.newBuilder().setColumnName(columnName).build();
     Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
 
     LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setString(String.valueOf(value)).build())
-            .build();
+        LiteralConstant.newBuilder().setValue(Value.newBuilder().setString(value).build()).build();
     Expression rhs = Expression.newBuilder().setLiteral(constant).build();
     return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
   }

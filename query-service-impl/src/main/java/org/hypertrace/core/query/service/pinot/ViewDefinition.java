@@ -11,8 +11,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.hypertrace.core.query.service.api.ValueType;
 
+/**
+ * Class holding the configuration for a Pinot view/table.
+ */
 public class ViewDefinition {
 
   static final String MAP_KEYS_SUFFIX = "__KEYS";
@@ -20,13 +24,27 @@ public class ViewDefinition {
 
   private final String viewName;
   private final Map<String, PinotColumnSpec> columnSpecMap;
+
+  /**
+   * The name of the column which should be used as tenant id. This is configurable so that
+   * each view can pick and choose what column is tenant id.
+   */
   private final String tenantColumnName;
 
+  /**
+   * Map from column name to the ViewColumnFilter that's applied to this view for that column.
+   * All the view filters are AND'ed and only the queries matching all the view filters
+   * will be routed to this view.
+   */
+  private final Map<String, ViewColumnFilter> columnFilterMap;
+
   public ViewDefinition(
-      String viewName, Map<String, PinotColumnSpec> columnSpecMap, String tenantColumnName) {
+      String viewName, Map<String, PinotColumnSpec> columnSpecMap, String tenantColumnName,
+      Map<String, ViewColumnFilter> filterMap) {
     this.viewName = viewName;
     this.columnSpecMap = columnSpecMap;
     this.tenantColumnName = tenantColumnName;
+    this.columnFilterMap = filterMap;
   }
 
   public static ViewDefinition parse(Config config, String tenantColumnName) {
@@ -70,7 +88,17 @@ public class ViewDefinition {
       }
       columnSpecMap.put(logicalName, spec);
     }
-    return new ViewDefinition(viewName, columnSpecMap, tenantColumnName);
+
+    // Check if there are any view filters. If there are multiple filters, they all will
+    // be AND'ed together.
+    final Map<String, ViewColumnFilter> filterMap = new HashMap<>();
+    if (config.hasPath("filters")) {
+      for (Config filterConfig: config.getConfigList("filters")) {
+        filterMap.put(filterConfig.getString("column"), ViewColumnFilter.from(filterConfig));
+      }
+    }
+
+    return new ViewDefinition(viewName, columnSpecMap, tenantColumnName, filterMap);
   }
 
   public String getViewName() {
@@ -82,7 +110,7 @@ public class ViewDefinition {
   }
 
   public boolean containsColumn(String referencedColumn) {
-    return columnSpecMap.containsKey(referencedColumn);
+    return columnSpecMap.containsKey(referencedColumn) || columnFilterMap.containsKey(referencedColumn);
   }
 
   public List<String> getPhysicalColumnNames(String logicalColumnName) {
@@ -113,5 +141,10 @@ public class ViewDefinition {
     return columnSpecMap.get(logicalName).getColumnNames().stream()
         .filter(e -> e.toUpperCase().endsWith(suffix))
         .collect(Collectors.toList());
+  }
+
+  @Nonnull
+  public Map<String, ViewColumnFilter> getColumnFilterMap() {
+    return this.columnFilterMap;
   }
 }

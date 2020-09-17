@@ -1,27 +1,30 @@
 package org.hypertrace.core.query.service;
 
+import com.google.common.collect.ImmutableList;
+import org.hypertrace.core.query.service.api.QueryRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.hypertrace.core.query.service.api.QueryRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class RequestHandlerSelector {
 
   private static final Logger LOG = LoggerFactory.getLogger(RequestHandlerSelector.class);
 
-  List<RequestHandler> requestHandlers = new ArrayList<>();
+  private final List<RequestHandler> requestHandlers;
 
   public RequestHandlerSelector(List<RequestHandler> requestHandlers) {
-    this.requestHandlers = requestHandlers;
+    this.requestHandlers = ImmutableList.copyOf(requestHandlers);
   }
 
   public RequestHandlerSelector(RequestHandlerRegistry registry) {
     Collection<RequestHandlerInfo> requestHandlerInfoList = registry.getAll();
+    requestHandlers = new ArrayList<>();
     for (RequestHandlerInfo requestHandlerInfo : requestHandlerInfoList) {
       try {
         Constructor<? extends RequestHandler> constructor =
@@ -35,16 +38,16 @@ public class RequestHandlerSelector {
     }
   }
 
-  public RequestHandler select(QueryRequest request, RequestAnalyzer analyzer) {
+  public RequestHandler select(QueryRequest request, ExecutionContext executionContext) {
 
     // check if each of the requestHandler can handle the request and return the cost of serving
     // that query
     double minCost = Double.MAX_VALUE;
     RequestHandler selectedHandler = null;
-    Set<String> referencedColumns = analyzer.getReferencedColumns();
+    Set<String> referencedColumns = executionContext.getReferencedColumns();
     Set<String> referencedSources = new HashSet<>(request.getSourceList());
     for (RequestHandler requestHandler : requestHandlers) {
-      QueryCost queryCost = requestHandler.canHandle(request, referencedSources, referencedColumns);
+      QueryCost queryCost = requestHandler.canHandle(request, referencedSources, executionContext);
       double cost = queryCost.getCost();
       if (LOG.isDebugEnabled()) {
         LOG.debug("Request handler: {}, query cost: {}", requestHandler.getName(), cost);

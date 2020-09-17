@@ -45,10 +45,7 @@ public class PinotResultAnalyzerTest {
   @Mock private ViewDefinition viewDefinition;
 
   private PinotResultAnalyzer target;
-  private LinkedHashSet<String> selectedAttributes;
-  private Map<String, List<String>> viewDefinitionMap;
   private List<String> resultSetColumnNames;
-  private List<String> resultSetColumnValues;
   private PinotMapConverter pinotMapConverter;
 
   @BeforeEach
@@ -57,13 +54,12 @@ public class PinotResultAnalyzerTest {
     resultSet = mock(ResultSet.class);
 
     pinotMapConverter = new PinotMapConverter();
-    viewDefinitionMap =
-        ImmutableMap.<String, List<String>>builder()
-            .put(LOGICAL_COL1, Lists.newArrayList(PHYS_COL1))
-            .put(LOGICAL_COL2, Lists.newArrayList(PHYS_COL2))
-            .put(LOGICAL_MAP_NAME1, Lists.newArrayList(MAP1_KEY_NAME, MAP1_VAL_NAME))
-            .put(LOGICAL_MAP_NAME2, Lists.newArrayList(MAP2_KEY_NAME, MAP2_VAL_NAME))
-            .build();
+    Map<String, List<String>> viewDefinitionMap = ImmutableMap.<String, List<String>>builder()
+        .put(LOGICAL_COL1, Lists.newArrayList(PHYS_COL1))
+        .put(LOGICAL_COL2, Lists.newArrayList(PHYS_COL2))
+        .put(LOGICAL_MAP_NAME1, Lists.newArrayList(MAP1_KEY_NAME, MAP1_VAL_NAME))
+        .put(LOGICAL_MAP_NAME2, Lists.newArrayList(MAP2_KEY_NAME, MAP2_VAL_NAME))
+        .build();
     viewDefinitionMap.forEach(
         (k, v) -> {
           when(viewDefinition.getPhysicalColumnNames(k)).thenReturn(v);
@@ -78,21 +74,19 @@ public class PinotResultAnalyzerTest {
     when(viewDefinition.getKeyColumnNameForMap(LOGICAL_MAP_NAME2)).thenReturn(MAP2_KEY_NAME);
     when(viewDefinition.getValueColumnNameForMap(LOGICAL_MAP_NAME2)).thenReturn(MAP2_VAL_NAME);
 
-    selectedAttributes =
-        new LinkedHashSet<>(
-            ImmutableList.<String>builder()
-                .add(LOGICAL_COL1)
-                .add(LOGICAL_MAP_NAME1)
-                .add(LOGICAL_COL2)
-                .add(LOGICAL_MAP_NAME2)
-                .build());
+    LinkedHashSet<String> selectedAttributes = new LinkedHashSet<>(
+        ImmutableList.<String>builder()
+            .add(LOGICAL_COL1)
+            .add(LOGICAL_MAP_NAME1)
+            .add(LOGICAL_COL2)
+            .add(LOGICAL_MAP_NAME2)
+            .build());
     resultSetColumnNames =
         Lists.newArrayList(
             PHYS_COL1, MAP1_KEY_NAME, MAP1_VAL_NAME, PHYS_COL2, MAP2_KEY_NAME, MAP2_VAL_NAME);
 
-    resultSetColumnValues =
-        Lists.newArrayList(
-            VAL_COL1, MAP1_KEY_VAL, MAP1_VAL_VAL, VAL_COL2, MAP2_KEY_VAL, MAP2_VAL_VAL);
+    List<String> resultSetColumnValues = Lists.newArrayList(
+        VAL_COL1, MAP1_KEY_VAL, MAP1_VAL_VAL, VAL_COL2, MAP2_KEY_VAL, MAP2_VAL_VAL);
 
     mockResultSet(resultSetColumnNames, resultSetColumnValues);
     target = PinotResultAnalyzer.create(resultSet, selectedAttributes, viewDefinition);

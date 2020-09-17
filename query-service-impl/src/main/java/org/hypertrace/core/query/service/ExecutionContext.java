@@ -17,11 +17,19 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
 import org.hypertrace.core.query.service.api.ValueType;
 
-public class RequestAnalyzer {
+/**
+ * Wrapper class to hold the query execution context that is needed by different components
+ * during the life cycles of a request.
+ */
+public class ExecutionContext {
 
-  private QueryRequest request;
+  private final String tenantId;
+  /**
+   * Original request that was received.
+   */
+  private final QueryRequest request;
   private Set<String> referencedColumns;
-  private LinkedHashSet<String> selectedColumns;
+  private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
@@ -32,27 +40,28 @@ public class RequestAnalyzer {
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
 
-  public RequestAnalyzer(QueryRequest request) {
+  public ExecutionContext(String tenantId, QueryRequest request) {
+    this.tenantId = tenantId;
     this.request = request;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
+    analyze();
   }
 
-  public void analyze() {
+  private void analyze() {
     List<String> filterColumns = new ArrayList<>();
     LinkedList<Filter> filterQueue = new LinkedList<>();
     filterQueue.add(request.getFilter());
     while (!filterQueue.isEmpty()) {
       Filter filter = filterQueue.pop();
       if (filter.getChildFilterCount() > 0) {
-        for (Filter childFilter : filter.getChildFilterList()) {
-          filterQueue.add(childFilter);
-        }
+        filterQueue.addAll(filter.getChildFilterList());
       } else {
         extractColumns(filterColumns, filter.getLhs());
         extractColumns(filterColumns, filter.getRhs());
       }
     }
+
     List<String> postFilterColumns = new ArrayList<>();
     List<String> selectedList = new ArrayList<>();
     LinkedHashSet<ColumnMetadata> columnMetadataSet = new LinkedHashSet<>();
@@ -104,8 +113,6 @@ public class RequestAnalyzer {
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
-      case LITERAL:
-        break;
       case FUNCTION:
         Function function = expression.getFunction();
         alias = function.getAlias();
@@ -119,8 +126,8 @@ public class RequestAnalyzer {
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
+      case LITERAL:
       case ORDERBY:
-        break;
       case VALUE_NOT_SET:
         break;
     }
@@ -150,6 +157,10 @@ public class RequestAnalyzer {
       case VALUE_NOT_SET:
         break;
     }
+  }
+
+  public String getTenantId() {
+    return this.tenantId;
   }
 
   public Set<String> getReferencedColumns() {
