@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service;
 
+import java.util.List;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -39,6 +40,10 @@ public class QueryRequestBuilderUtils {
     return createFilter(column, Operator.EQ, createStringLiteralValueExpression(value));
   }
 
+  public static Filter createInFilter(String column, List<String> values) {
+    return createFilter(column, Operator.IN, createStringArrayLiteralValueExpression(values));
+  }
+
   public static Filter createEqualsFilter(String column, long value) {
     return createFilter(column, Operator.EQ, createLongLiteralValueExpression(value));
   }
@@ -55,6 +60,11 @@ public class QueryRequestBuilderUtils {
   public static Expression createStringLiteralValueExpression(String value) {
     return Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
         Value.newBuilder().setString(value).setValueType(ValueType.STRING))).build();
+  }
+
+  public static Expression createStringArrayLiteralValueExpression(List<String> values) {
+    return Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
+        Value.newBuilder().addAllStringArray(values).setValueType(ValueType.STRING_ARRAY))).build();
   }
 
   public static Expression createLongLiteralValueExpression(long value) {

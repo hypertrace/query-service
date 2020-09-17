@@ -390,19 +390,13 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       Map<String, ViewColumnFilter> columnFilterMap) {
     ViewColumnFilter viewColumnFilter =
         columnFilterMap.get(queryFilter.getLhs().getColumnIdentifier().getColumnName());
-    if (viewColumnFilter == null) {
-      return queryFilter;
-    } else {
-
-      // The only case where we need to return non-null filter is when view filter is based on 'IN'
-      // and query filter is an 'EQ'
-      if (viewColumnFilter.getOperator() == ViewColumnFilter.Operator.IN &&
-          queryFilter.getOperator() == Operator.EQ) {
-        return queryFilter;
-      }
-
+    // If the RHS of both the view filter and query filter match, return empty filter.
+    if (viewColumnFilter != null && isEquals(viewColumnFilter.getValues(), queryFilter.getRhs())) {
       return Filter.getDefaultInstance();
     }
+
+    // In every other case, retain the query filter.
+    return queryFilter;
   }
 
   void convert(

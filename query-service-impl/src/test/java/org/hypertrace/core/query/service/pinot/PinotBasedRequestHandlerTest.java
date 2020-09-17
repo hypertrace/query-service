@@ -972,7 +972,8 @@ public class PinotBasedRequestHandlerTest {
           .setFilter(Filter.newBuilder().setOperator(Operator.AND)
               .addChildFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "true"))
               .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.startTime", Operator.GT,
-                  QueryRequestBuilderUtils.createStringLiteralValueExpression("1000"))).build())
+                  QueryRequestBuilderUtils.createStringLiteralValueExpression("1000")))
+              .addChildFilter(QueryRequestBuilderUtils.createInFilter("EVENT.isEntrySpan", List.of("true", "false"))))
           .build();
       ExecutionContext context = new ExecutionContext("__default", request);
 
