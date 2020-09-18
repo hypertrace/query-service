@@ -1,8 +1,8 @@
 package org.hypertrace.core.query.service.pinot.converters;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang.StringUtils;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
@@ -21,9 +21,8 @@ public class StringToValueConverter implements ToValueConverter<String> {
     Value.Builder valueBuilder = Value.newBuilder();
     switch (valueType) {
       case BYTES:
-        String trimmed = StringUtils.trim(value);
-        String outValue = (StringUtils.isEmpty(trimmed) || trimmed.equals("null") ||
-                trimmed.equals("''")) || trimmed.equals("{}")? EMPTY : value;
+        String outValue = (Strings.isNullOrEmpty(value) || value.trim().equals("null") ||
+                value.trim().equals("''") || value.trim().equals("{}")) ? EMPTY : value;
         byte[] bytes = Hex.decodeHex(outValue);
         valueBuilder.setBytes(ByteString.copyFrom(bytes));
         valueBuilder.setValueType(ValueType.BYTES);
