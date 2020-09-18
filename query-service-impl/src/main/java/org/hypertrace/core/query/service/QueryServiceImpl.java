@@ -1,62 +1,26 @@
 package org.hypertrace.core.query.service;
 
-import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import org.hypertrace.core.grpcutils.context.RequestContext;
-import org.hypertrace.core.query.service.QueryServiceImplConfig.ClientConfig;
-import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryServiceGrpc;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
-import org.hypertrace.core.query.service.pinot.PinotBasedRequestHandler;
-import org.hypertrace.core.query.service.pinot.PinotClientFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
+@Singleton
+class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
 
-  private static final org.slf4j.Logger LOG =
-      org.slf4j.LoggerFactory.getLogger(QueryServiceImpl.class);
-
+  private static final Logger LOG = LoggerFactory.getLogger(QueryServiceImpl.class);
   private final RequestHandlerSelector selector;
 
-  public QueryServiceImpl(QueryServiceImplConfig config) {
-    Map<String, ClientConfig> clientConfigMap =
-        config.getClients().stream()
-            .map(ClientConfig::parse)
-            .collect(Collectors.toMap(ClientConfig::getType, clientConfig -> clientConfig));
-
-    for (Config requestHandlerConfig : config.getQueryRequestHandlersConfig()) {
-      initRequestHandler(
-          RequestHandlerConfig.parse(requestHandlerConfig), clientConfigMap);
-    }
-    selector = new RequestHandlerSelector(RequestHandlerRegistry.get());
-  }
-
-  private void initRequestHandler(RequestHandlerConfig config,
-      Map<String, ClientConfig> clientConfigMap) {
-
-    // Register Pinot RequestHandler
-    if ("pinot".equals(config.getType())) {
-      boolean registered = RequestHandlerRegistry.get().register(config.getName(),
-          new RequestHandlerInfo(
-              config.getName(), PinotBasedRequestHandler.class, config.getRequestHandlerInfo()));
-      if (!registered) {
-        throw new RuntimeException("Could not initialize the request handler: " + config.getName());
-      }
-    } else {
-      throw new UnsupportedOperationException(
-          "Unsupported RequestHandler type - " + config.getType());
-    }
-
-    // Register Pinot Client
-    ClientConfig clientConfig = clientConfigMap.get(config.getClientConfig());
-    Preconditions.checkNotNull(clientConfig);
-    PinotClientFactory.createPinotClient(
-        config.getName(), clientConfig.getType(), clientConfig.getConnectionString());
+  @Inject
+  public QueryServiceImpl(RequestHandlerSelector selector) {
+    this.selector = selector;
   }
 
   @Override

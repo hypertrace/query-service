@@ -28,19 +28,22 @@ dependencies {
     }
   }
   api(project(":query-service-api"))
+  api("com.typesafe:config:1.4.0")
   implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.1.4")
+  implementation("com.google.inject:guice:4.2.3")
   implementation("org.apache.pinot:pinot-java-client:0.3.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
     exclude("org.slf4j", "slf4j-log4j12")
   }
   implementation("org.slf4j:slf4j-api:1.7.30")
-  implementation("com.typesafe:config:1.4.0")
   implementation("commons-codec:commons-codec:1.13")
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.8")
   implementation("com.google.protobuf:protobuf-java-util:3.12.2")
+  implementation("com.google.guava:guava:29.0-jre")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
   testImplementation("org.mockito:mockito-core:3.3.3")
+  testImplementation("org.mockito:mockito-junit-jupiter:3.3.3")
   testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
 }

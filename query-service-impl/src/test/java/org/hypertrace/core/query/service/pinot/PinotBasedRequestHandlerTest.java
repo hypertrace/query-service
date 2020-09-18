@@ -3,17 +3,17 @@ package org.hypertrace.core.query.service.pinot;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.internal.util.collections.Iterables.firstOf;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -38,6 +38,13 @@ public class PinotBasedRequestHandlerTest {
   // Test subject
   private PinotBasedRequestHandler pinotBasedRequestHandler;
   private final ObjectMapper objectMapper = new ObjectMapper();
+  private final Config serviceConfig =
+      ConfigFactory.parseURL(
+              Objects.requireNonNull(
+                  QueryRequestToPinotSQLConverterTest.class
+                      .getClassLoader()
+                      .getResource("application.conf")))
+          .getConfig("service.config");
 
   @BeforeEach
   public void setUp() {
@@ -45,8 +52,14 @@ public class PinotBasedRequestHandlerTest {
     PinotClientFactory pinotClientFactoryMock = mock(PinotClientFactory.class);
     ResultSetTypePredicateProvider resultSetTypePredicateProviderMock = mock(
         ResultSetTypePredicateProvider.class);
+
+    Config handlerConfig = firstOf(serviceConfig.getConfigList("queryRequestHandlersConfig"));
     pinotBasedRequestHandler =
-        new PinotBasedRequestHandler(resultSetTypePredicateProviderMock, pinotClientFactoryMock);
+        new PinotBasedRequestHandler(
+            handlerConfig.getString("name"),
+            handlerConfig.getConfig("requestHandlerInfo"),
+            resultSetTypePredicateProviderMock,
+            pinotClientFactoryMock);
 
     // Test ResultTableResultSet result set format parsing
     when(resultSetTypePredicateProviderMock.isSelectionResultSetType(any(ResultSet.class)))
@@ -57,13 +70,9 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testInit() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
-    for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      new PinotBasedRequestHandler(
+          config.getString("name"), config.getConfig("requestHandlerInfo"));
     }
   }
 
@@ -72,20 +81,17 @@ public class PinotBasedRequestHandlerTest {
     Assertions.assertThrows(RuntimeException.class, () -> {
       Config config = ConfigFactory.parseMap(Map.of("name", "test",
           "requestHandlerInfo", Map.of()));
-      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+      new PinotBasedRequestHandler(
+          config.getString("name"), config.getConfig("requestHandlerInfo"));
     });
   }
 
   @Test
   public void testCanHandle() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
     for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
 
       // Verify that the traces handler can traces query.
       if (config.getString("name").equals("trace-view-handler")) {
@@ -97,7 +103,7 @@ public class PinotBasedRequestHandlerTest {
                 QueryRequestBuilderUtils.createLongLiteralValueExpression(10)))
             .build();
         ExecutionContext context = new ExecutionContext("__default", request);
-        QueryCost cost = handler.canHandle(request, Set.of(), context);
+        QueryCost cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
       }
     }
@@ -105,14 +111,8 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testCanHandleNegativeCase() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
     for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
-
+      PinotBasedRequestHandler handler = new PinotBasedRequestHandler(config.getString("name"), config.getConfig("requestHandlerInfo"));
       // Verify that the traces handler can traces query.
       if (config.getString("name").equals("trace-view-handler")) {
         QueryRequest request = QueryRequest.newBuilder()
@@ -122,7 +122,7 @@ public class PinotBasedRequestHandlerTest {
             .addGroupBy(QueryRequestBuilderUtils.createColumnExpression("Trace.tags"))
             .build();
         ExecutionContext context = new ExecutionContext("__default", request);
-        QueryCost cost = handler.canHandle(request, Set.of(), context);
+        QueryCost cost = handler.canHandle(request, context);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
       }
     }
@@ -130,13 +130,10 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testCanHandleWithInViewFilter() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
-    for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
 
       // Verify that the span event view handler can handle the query which has the filter
       // on the column which has a view filter.
@@ -152,7 +149,7 @@ public class PinotBasedRequestHandlerTest {
                     QueryRequestBuilderUtils.createLongLiteralValueExpression(System.currentTimeMillis()))).build())
             .build();
         ExecutionContext context = new ExecutionContext("__default", request);
-        QueryCost cost = handler.canHandle(request, Set.of(), context);
+        QueryCost cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Entry span "false" filter.
@@ -164,7 +161,7 @@ public class PinotBasedRequestHandlerTest {
             .setFilter(QueryRequestBuilderUtils.createEqualsFilter("EVENT.isEntrySpan", "false"))
             .build();
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Wrong value in the filter.
@@ -177,7 +174,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Unsupported operator in the query filter.
@@ -191,7 +188,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Any query without filter should not be handled.
@@ -203,7 +200,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        QueryCost negativeCost = handler.canHandle(request, Set.of(), context);
+        QueryCost negativeCost = handler.canHandle(request, context);
         Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
       }
     }
@@ -211,13 +208,10 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testCanHandleWithEqViewFilter() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
 
       // Verify that the entry span view handler can handle the query which has the filter
       // on the column which has a view filter.
@@ -237,7 +231,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         ExecutionContext context = new ExecutionContext("__default", request);
-        QueryCost cost = handler.canHandle(request, Set.of(), context);
+        QueryCost cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Positive case with boolean filter.
@@ -259,7 +253,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case with boolean filter but 'OR' operation.
@@ -281,7 +275,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case with a complex filter but 'OR' at the root level, hence shouldn't match.
@@ -307,7 +301,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Value in query filter is different from the value in view filter
@@ -320,7 +314,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Unsupported operator in the query filter.
@@ -334,7 +328,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Any query without filter should not be handled.
@@ -345,7 +339,7 @@ public class PinotBasedRequestHandlerTest {
             .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
             .build();
         context = new ExecutionContext("__default", request);
-        QueryCost negativeCost = handler.canHandle(request, Set.of(), context);
+        QueryCost negativeCost = handler.canHandle(request, context);
         Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
       }
     }
@@ -353,13 +347,10 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testCanHandleWithMultipleViewFilters() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
 
       // Verify that the entry span view handler can handle the query which has the filter
       // on the column which has a view filter.
@@ -378,7 +369,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         ExecutionContext executionContext = new ExecutionContext("__default", request);
-        QueryCost cost = handler.canHandle(request, Set.of(), executionContext);
+        QueryCost cost = handler.canHandle(request, executionContext);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Positive case but the filters are AND'ed in two different child filters.
@@ -401,7 +392,7 @@ public class PinotBasedRequestHandlerTest {
 
         executionContext = new ExecutionContext("__default", request);
 
-        cost = handler.canHandle(request, Set.of(), executionContext);
+        cost = handler.canHandle(request, executionContext);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Query has only one leaf filter and it matches only one of the view
@@ -418,7 +409,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         executionContext = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), executionContext);
+        cost = handler.canHandle(request, executionContext);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Only one view filter is present in the query filters
@@ -440,7 +431,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         executionContext = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), executionContext);
+        cost = handler.canHandle(request, executionContext);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case with correct filters but 'OR' operation.
@@ -459,7 +450,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         executionContext = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), executionContext);
+        cost = handler.canHandle(request, executionContext);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case with a complex filter but 'OR' at the root level, hence shouldn't match.
@@ -484,7 +475,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         executionContext = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), executionContext);
+        cost = handler.canHandle(request, executionContext);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Value in query filter is different from the value in view filter
@@ -501,7 +492,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         executionContext = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), executionContext);
+        cost = handler.canHandle(request, executionContext);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Unsupported operator in the query filter.
@@ -515,7 +506,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         executionContext = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), executionContext);
+        cost = handler.canHandle(request, executionContext);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Any query without filter should not be handled.
@@ -526,7 +517,7 @@ public class PinotBasedRequestHandlerTest {
             .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
             .build();
         executionContext = new ExecutionContext("__default", request);
-        QueryCost negativeCost = handler.canHandle(request, Set.of(), executionContext);
+        QueryCost negativeCost = handler.canHandle(request, executionContext);
         Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
       }
     }
@@ -534,13 +525,10 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testCanHandleWithMultipleViewFiltersAndRepeatedQueryFilters() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      PinotBasedRequestHandler handler = new PinotBasedRequestHandler();
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
 
       // Verify that the entry span view handler can handle the query which has the filter
       // on the column which has a view filter.
@@ -563,7 +551,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         ExecutionContext context = new ExecutionContext("__default", request);
-        QueryCost cost = handler.canHandle(request, Set.of(), context);
+        QueryCost cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Positive case
@@ -589,7 +577,7 @@ public class PinotBasedRequestHandlerTest {
 
         context = new ExecutionContext("__default", request);
 
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Negative case. Only one view filter is present in the query filters.
@@ -623,7 +611,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
 
         // Positive case with a complex filter and 'OR' at the root level, but both sides of 'OR'
@@ -650,7 +638,7 @@ public class PinotBasedRequestHandlerTest {
             .build();
 
         context = new ExecutionContext("__default", request);
-        cost = handler.canHandle(request, Set.of(), context);
+        cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
       }
     }
@@ -871,10 +859,6 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testWithMockPinotClient() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
       if (!config.getString("name").equals("trace-view-handler")) {
         continue;
@@ -898,18 +882,21 @@ public class PinotBasedRequestHandlerTest {
       when(pinotClient.executeQuery(any(), any())).thenReturn(resultSetGroup);
 
       PinotBasedRequestHandler handler =
-          new PinotBasedRequestHandler(new ResultSetTypePredicateProvider() {
-            @Override
-            public boolean isSelectionResultSetType(ResultSet resultSet) {
-              return true;
-            }
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return true;
+                }
 
-            @Override
-            public boolean isResultTableResultSetType(ResultSet resultSet) {
-              return false;
-            }
-          }, factory);
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+              },
+              factory);
 
       TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
 
@@ -925,10 +912,6 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testViewColumnFilterRemoval() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
       if (!config.getString("name").equals("span-event-view-handler")) {
         continue;
@@ -951,18 +934,21 @@ public class PinotBasedRequestHandlerTest {
       ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
       PinotBasedRequestHandler handler =
-          new PinotBasedRequestHandler(new ResultSetTypePredicateProvider() {
-            @Override
-            public boolean isSelectionResultSetType(ResultSet resultSet) {
-              return true;
-            }
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return true;
+                }
 
-            @Override
-            public boolean isResultTableResultSetType(ResultSet resultSet) {
-              return false;
-            }
-          }, factory);
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+              },
+              factory);
 
       TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
 
@@ -977,7 +963,7 @@ public class PinotBasedRequestHandlerTest {
           .build();
       ExecutionContext context = new ExecutionContext("__default", request);
 
-      QueryCost cost = handler.canHandle(request, Set.of(), context);
+      QueryCost cost = handler.canHandle(request, context);
       Assertions.assertTrue(cost.getCost() > 0.0d && cost.getCost() < 1d);
 
       // The query filter is based on both isEntrySpan and startTime. Since the viewFilter
@@ -994,10 +980,6 @@ public class PinotBasedRequestHandlerTest {
 
   @Test
   public void testViewColumnFilterRemovalComplexCase() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource("application.conf").getFile()));
-    Config serviceConfig = fileConfig.getConfig("service.config");
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
       if (!config.getString("name").equals("error-entry-span-view-handler")) {
         continue;
@@ -1020,18 +1002,21 @@ public class PinotBasedRequestHandlerTest {
       ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
       PinotBasedRequestHandler handler =
-          new PinotBasedRequestHandler(new ResultSetTypePredicateProvider() {
-            @Override
-            public boolean isSelectionResultSetType(ResultSet resultSet) {
-              return true;
-            }
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return true;
+                }
 
-            @Override
-            public boolean isResultTableResultSetType(ResultSet resultSet) {
-              return false;
-            }
-          }, factory);
-      handler.init(config.getString("name"), config.getConfig("requestHandlerInfo"));
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+              },
+              factory);
 
       TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
 
@@ -1050,7 +1035,7 @@ public class PinotBasedRequestHandlerTest {
               .addChildFilter(filter1).addChildFilter(Filter.newBuilder(filter1)))
           .build();
       ExecutionContext context = new ExecutionContext("__default", request);
-      QueryCost cost = handler.canHandle(request, Set.of(), context);
+      QueryCost cost = handler.canHandle(request, context);
       Assertions.assertTrue(cost.getCost() > 0.0d && cost.getCost() < 1d);
 
       // Though there is isEntrySpan and statusCode used in the filters, they both should be

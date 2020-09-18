@@ -1,15 +1,11 @@
 package org.hypertrace.core.query.service;
 
 import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -24,37 +20,12 @@ import org.hypertrace.core.query.service.api.QueryServiceGrpc.QueryServiceBlocki
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.util.QueryRequestUtil;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class QueryServiceImplTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(QueryServiceImplTest.class);
-
-  @Test
-  public void testQueryServiceImplInitialization() {
-    QueryServiceImplConfig queryServiceConfig = new QueryServiceImplConfig();
-    queryServiceConfig.setClients(List.of());
-    queryServiceConfig.setQueryRequestHandlersConfig(List.of());
-
-    QueryServiceImpl queryServiceImpl = new QueryServiceImpl(queryServiceConfig);
-    Assertions.assertNotNull(queryServiceImpl);
-  }
-  
-  @Test
-  public void testServiceImplInitWithUnhandledHandler() {
-    Config config = ConfigFactory.parseMap(Map.of("clients", List.of(),
-        "queryRequestHandlersConfig", List.of(
-            Map.of("name","test",
-            "type","invalid", "clientConfig", "test",
-            "requestHandlerInfo", Map.of())
-        )));
-    QueryServiceImplConfig queryServiceConfig = QueryServiceImplConfig.parse(config);
-    Assertions.assertThrows(UnsupportedOperationException.class,
-        () -> new QueryServiceImpl(queryServiceConfig));
-  }
 
   // works with query service running at localhost
   @Disabled
@@ -150,7 +121,8 @@ public class QueryServiceImplTest {
 
     builder.addGroupBy(
         Expression.newBuilder()
-            .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName("EVENT.displaySpanName").build()));
+            .setColumnIdentifier(
+                ColumnIdentifier.newBuilder().setColumnName("EVENT.displaySpanName").build()));
     return builder.build();
   }
 

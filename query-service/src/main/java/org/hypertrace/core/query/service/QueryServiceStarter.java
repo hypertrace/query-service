@@ -27,15 +27,13 @@ public class QueryServiceStarter extends PlatformService {
     this.serviceName = getAppConfig().getString(SERVICE_NAME_CONFIG);
     this.serverPort = getAppConfig().getInt(SERVICE_PORT_CONFIG);
 
-    final QueryServiceImplConfig queryServiceImplConfig =
-        QueryServiceImplConfig.parse(getAppConfig().getConfig(QUERY_SERVICE_CONFIG));
-
     LOG.info("Creating the Query Service Server on port {}", serverPort);
 
     queryServiceServer =
         ServerBuilder.forPort(serverPort)
             .addService(
-                InterceptorUtil.wrapInterceptors(new QueryServiceImpl(queryServiceImplConfig)))
+                InterceptorUtil.wrapInterceptors(
+                    QueryServiceFactory.build(getAppConfig().getConfig(QUERY_SERVICE_CONFIG))))
             .build();
   }
 

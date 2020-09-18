@@ -23,13 +23,11 @@ public interface RequestHandler<T, R> {
 
   String getName();
 
-  QueryCost canHandle(T request, Set<String> referencedSources, ExecutionContext analyzer);
+  QueryCost canHandle(T request, ExecutionContext context);
 
   /**
    * Handle the request and add rows to the collector.
    */
   void handleRequest(ExecutionContext executionContext, QueryRequest request,
       QueryResultCollector<R> collector);
-
-  void init(String name, Config config);
 }

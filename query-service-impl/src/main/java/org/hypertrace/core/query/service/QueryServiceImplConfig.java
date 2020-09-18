@@ -8,7 +8,7 @@ public class QueryServiceImplConfig {
   private List<Config> clients;
   private List<Config> queryRequestHandlersConfig;
 
-  public static QueryServiceImplConfig parse(Config config) {
+  static QueryServiceImplConfig parse(Config config) {
     return ConfigBeanFactory.create(config, QueryServiceImplConfig.class);
   }
 

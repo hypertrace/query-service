@@ -1,34 +1,42 @@
 package org.hypertrace.core.query.service;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import org.slf4j.LoggerFactory;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
 
+@Singleton
 public class RequestHandlerRegistry {
+  private final Set<RequestHandler<?, ?>> requestHandlerInfoList;
 
-  private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(RequestHandlerRegistry.class);
-
-  Map<String, RequestHandlerInfo> requestHandlerInfoMap = new HashMap<>();
-
-  private static final RequestHandlerRegistry INSTANCE = new RequestHandlerRegistry();
-
-  private RequestHandlerRegistry() {}
-
-  public boolean register(String handlerName, RequestHandlerInfo requestHandlerInfo) {
-    if (requestHandlerInfoMap.containsKey(handlerName)) {
-      LOG.error("RequestHandlerInfo registration failed. Duplicate Handler:{} ", handlerName);
-      return false;
-    }
-    requestHandlerInfoMap.put(handlerName, requestHandlerInfo);
-    return true;
+  @Inject
+  RequestHandlerRegistry(
+      QueryServiceImplConfig config, Set<RequestHandlerBuilder> requestHandlerInfoSet) {
+    this.requestHandlerInfoList =
+        config.getQueryRequestHandlersConfig().stream()
+            .map(RequestHandlerConfig::parse)
+            .map(handlerConfig -> buildFromMatchingHandler(requestHandlerInfoSet, handlerConfig))
+            .collect(
+                Collectors.collectingAndThen(
+                    Collectors.toCollection(LinkedHashSet::new), Collections::unmodifiableSet));
   }
 
-  public Collection<RequestHandlerInfo> getAll() {
-    return requestHandlerInfoMap.values();
+  public Set<RequestHandler<?, ?>> getAll() {
+    return requestHandlerInfoList;
   }
 
-  public static RequestHandlerRegistry get() {
-    return INSTANCE;
+  private RequestHandler<?, ?> buildFromMatchingHandler(
+      Set<RequestHandlerBuilder> handlerInfoBuilders, RequestHandlerConfig config) {
+    return handlerInfoBuilders.stream()
+        .filter(builder -> builder.canBuild(config))
+        .findFirst()
+        .map(builder -> builder.build(config))
+        .orElseThrow(
+            () ->
+                new UnsupportedOperationException(
+                    "No builder registered matching provided config: " + config.toString()));
   }
 }
