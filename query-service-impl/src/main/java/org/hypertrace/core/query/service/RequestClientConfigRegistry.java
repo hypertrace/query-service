@@ -8,7 +8,7 @@ import javax.inject.Inject;
 import org.hypertrace.core.query.service.QueryServiceImplConfig.ClientConfig;
 
 public class RequestClientConfigRegistry {
-  Map<String, ClientConfig> clientConfigMap;
+  private final Map<String, ClientConfig> clientConfigMap;
 
   @Inject
   RequestClientConfigRegistry(QueryServiceImplConfig queryServiceImplConfig) {
