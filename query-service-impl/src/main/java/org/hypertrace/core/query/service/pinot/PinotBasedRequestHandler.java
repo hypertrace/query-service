@@ -1,5 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.ConfigUtils.optionallyGet;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -15,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -34,6 +37,7 @@ import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
+import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,13 +54,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
 
-  /**
-   * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster and
-   * reasonably accurate, hence use that as the default.
-   */
-  private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
-
-  private String name;
+  private final String name;
   private ViewDefinition viewDefinition;
   private QueryRequestToPinotSQLConverter request2PinotSqlConverter;
   private final PinotMapConverter pinotMapConverter;
@@ -77,7 +75,6 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
 
   private Timer pinotQueryExecutionTimer;
   private int slowQueryThreshold = DEFAULT_SLOW_QUERY_THRESHOLD_MS;
-  private String percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
 
   PinotBasedRequestHandler(String name, Config config) {
     this(name, config, new DefaultResultSetTypePredicateProvider(), PinotClientFactory.get());
@@ -117,16 +114,19 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     this.viewDefinition =
         ViewDefinition.parse(config.getConfig(VIEW_DEFINITION_CONFIG_KEY), tenantColumnName);
 
-    if (config.hasPath(PERCENTILE_AGGREGATION_FUNCTION_CONFIG)) {
-      this.percentileAggFunction = config.getString(PERCENTILE_AGGREGATION_FUNCTION_CONFIG);
-    }
-    LOG.info(
-        "Using {} function for percentile aggregations of handler: {}",
-        this.percentileAggFunction,
-        name);
+    Optional<String> customPercentileFunction =
+        optionallyGet(() -> config.getString(PERCENTILE_AGGREGATION_FUNCTION_CONFIG));
 
+    customPercentileFunction.ifPresent(
+        function ->
+            LOG.info(
+                "Using {} function for percentile aggregations of handler: {}", function, name));
+    PinotFunctionConverter functionConverter =
+        customPercentileFunction
+            .map(PinotFunctionConverter::new)
+            .orElseGet(PinotFunctionConverter::new);
     this.request2PinotSqlConverter =
-        new QueryRequestToPinotSQLConverter(viewDefinition, this.percentileAggFunction);
+        new QueryRequestToPinotSQLConverter(viewDefinition, functionConverter);
 
     if (config.hasPath(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
       this.slowQueryThreshold = config.getInt(SLOW_QUERY_THRESHOLD_MS_CONFIG);

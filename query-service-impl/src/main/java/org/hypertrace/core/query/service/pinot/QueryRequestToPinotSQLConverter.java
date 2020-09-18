@@ -12,7 +12,6 @@ import org.apache.commons.codec.binary.Hex;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
-import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
@@ -20,6 +19,7 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
+import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.hypertrace.core.query.service.pinot.converters.StringToValueConverter;
 import org.hypertrace.core.query.service.pinot.converters.ToValueConverter;
 import org.slf4j.Logger;
@@ -37,19 +37,21 @@ class QueryRequestToPinotSQLConverter {
   private static final String MAP_VALUE = "mapValue";
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
-  private static final String PERCENTILE_PREFIX = "PERCENTILE";
 
   private final ViewDefinition viewDefinition;
-  private final String percentileAggFunction;
+  private final PinotFunctionConverter functionConverter;
   private final Joiner joiner = Joiner.on(", ").skipNulls();
 
-  QueryRequestToPinotSQLConverter(ViewDefinition viewDefinition, String percentileAggFunc) {
+  QueryRequestToPinotSQLConverter(
+      ViewDefinition viewDefinition, PinotFunctionConverter functionConverter) {
     this.viewDefinition = viewDefinition;
-    this.percentileAggFunction = percentileAggFunc;
+    this.functionConverter = functionConverter;
   }
 
   Entry<String, Params> toSQL(
-      ExecutionContext executionContext, QueryRequest request, LinkedHashSet<Expression> allSelections) {
+      ExecutionContext executionContext,
+      QueryRequest request,
+      LinkedHashSet<Expression> allSelections) {
     Params.Builder paramsBuilder = Params.newBuilder();
     StringBuilder pqlBuilder = new StringBuilder("Select ");
     String delim = "";
@@ -137,7 +139,8 @@ class QueryRequestToPinotSQLConverter {
       switch (filter.getOperator()) {
         case LIKE:
           // The like operation in PQL looks like `regexp_like(lhs, rhs)`
-          Expression rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+          Expression rhs =
+              handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(operator);
           builder.append("(");
           builder.append(convertExpression2String(filter.getLhs(), paramsBuilder));
@@ -203,14 +206,18 @@ class QueryRequestToPinotSQLConverter {
     ToValueConverter converter = getValueConverter(rhs.getLiteral().getValue().getValueType());
     if (converter != null) {
       try {
-        Value value = converter.convert(rhs.getLiteral().getValue().getString(),
+        Value value =
+            converter.convert(
+                rhs.getLiteral().getValue().getString(),
                 viewDefinition.getColumnType(lhsColumnName));
-        newRhs = Expression.newBuilder()
-            .setLiteral(LiteralConstant.newBuilder().setValue(value))
-            .build();
+        newRhs =
+            Expression.newBuilder()
+                .setLiteral(LiteralConstant.newBuilder().setValue(value))
+                .build();
       } catch (Exception e) {
         throw new IllegalArgumentException(
-            String.format("Invalid string input:{ %s } for bytes column:{ %s }",
+            String.format(
+                "Invalid string input:{ %s } for bytes column:{ %s }",
                 rhs.getLiteral().getValue().getString(),
                 viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
       }
@@ -279,22 +286,9 @@ class QueryRequestToPinotSQLConverter {
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
-        Function function = expression.getFunction();
-        String functionName = function.getFunctionName();
-        // For COUNT(column_name), Pinot sql format converts it to COUNT(*) and even only works with
-        // COUNT(*) for ORDER BY
-        if (functionName.equalsIgnoreCase("COUNT")) {
-          return functionName + "(*)";
-        } else if (functionName.startsWith(PERCENTILE_PREFIX) && !PERCENTILE_PREFIX.equals(functionName)) {
-          functionName = functionName.replaceFirst(PERCENTILE_PREFIX, percentileAggFunction);
-        }
-        List<Expression> argumentsList = function.getArgumentsList();
-        String[] args = new String[argumentsList.size()];
-        for (int i = 0; i < argumentsList.size(); i++) {
-          Expression expr = argumentsList.get(i);
-          args[i] = convertExpression2String(expr, paramsBuilder);
-        }
-        return functionName + "(" + joiner.join(args) + ")";
+        return this.functionConverter.convert(
+            expression.getFunction(),
+            argExpression -> convertExpression2String(argExpression, paramsBuilder));
       case ORDERBY:
         OrderByExpression orderBy = expression.getOrderBy();
         return convertExpression2String(orderBy.getExpression(), paramsBuilder);
