@@ -38,9 +38,7 @@ import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * RequestHandler to handle queries by fetching data from Pinot.
- */
+/** RequestHandler to handle queries by fetching data from Pinot. */
 public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Row> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PinotBasedRequestHandler.class);
@@ -81,22 +79,26 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   private int slowQueryThreshold = DEFAULT_SLOW_QUERY_THRESHOLD_MS;
   private String percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
 
-  public PinotBasedRequestHandler() {
-    this(new DefaultResultSetTypePredicateProvider(), PinotClientFactory.get());
+  PinotBasedRequestHandler(String name, Config config) {
+    this(name, config, new DefaultResultSetTypePredicateProvider(), PinotClientFactory.get());
   }
 
   PinotBasedRequestHandler(
+      String name,
+      Config config,
       ResultSetTypePredicateProvider resultSetTypePredicateProvider,
       PinotClientFactory pinotClientFactory) {
+    this.name = name;
     this.resultSetTypePredicateProvider = resultSetTypePredicateProvider;
     this.pinotClientFactory = pinotClientFactory;
     this.pinotMapConverter = new PinotMapConverter();
+    this.processConfig(config);
   }
 
   private void initMetrics() {
     // Registry the latency metric with handler as a tag.
-    this.pinotQueryExecutionTimer = PlatformMetricsRegistry.registerTimer(
-        "pinot.query.latency", Map.of("handler", name), true);
+    this.pinotQueryExecutionTimer =
+        PlatformMetricsRegistry.registerTimer("pinot.query.latency", Map.of("handler", name), true);
   }
 
   @Override
@@ -104,24 +106,24 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return name;
   }
 
-  @Override
-  public void init(String name, Config config) {
-    this.name = name;
+  private void processConfig(Config config) {
 
     if (!config.hasPath(TENANT_COLUMN_NAME_CONFIG_KEY)) {
-      throw new RuntimeException(TENANT_COLUMN_NAME_CONFIG_KEY +
-          " is not defined in the " + name + " request handler.");
+      throw new RuntimeException(
+          TENANT_COLUMN_NAME_CONFIG_KEY + " is not defined in the " + name + " request handler.");
     }
 
     String tenantColumnName = config.getString(TENANT_COLUMN_NAME_CONFIG_KEY);
-    this.viewDefinition = ViewDefinition.parse(
-        config.getConfig(VIEW_DEFINITION_CONFIG_KEY), tenantColumnName);
+    this.viewDefinition =
+        ViewDefinition.parse(config.getConfig(VIEW_DEFINITION_CONFIG_KEY), tenantColumnName);
 
     if (config.hasPath(PERCENTILE_AGGREGATION_FUNCTION_CONFIG)) {
       this.percentileAggFunction = config.getString(PERCENTILE_AGGREGATION_FUNCTION_CONFIG);
     }
-    LOG.info("Using {} function for percentile aggregations of handler: {}",
-        this.percentileAggFunction, name);
+    LOG.info(
+        "Using {} function for percentile aggregations of handler: {}",
+        this.percentileAggFunction,
+        name);
 
     this.request2PinotSqlConverter =
         new QueryRequestToPinotSQLConverter(viewDefinition, this.percentileAggFunction);
@@ -129,8 +131,10 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     if (config.hasPath(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
       this.slowQueryThreshold = config.getInt(SLOW_QUERY_THRESHOLD_MS_CONFIG);
     }
-    LOG.info("Using {}ms as the threshold for logging slow queries of handler: {}",
-        slowQueryThreshold, name);
+    LOG.info(
+        "Using {}ms as the threshold for logging slow queries of handler: {}",
+        slowQueryThreshold,
+        name);
 
     initMetrics();
   }
@@ -139,13 +143,12 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
    * Returns a QueryCost that is an indication of whether the given query can be handled by this
    * handler and if so, how costly is it to handle that query.
    *
-   * A query can usually be handled by Pinot handler if the Pinot view of this handler has all the
-   * columns that are referenced in the incoming query. If the Pinot view is a filtered view on
+   * <p>A query can usually be handled by Pinot handler if the Pinot view of this handler has all
+   * the columns that are referenced in the incoming query. If the Pinot view is a filtered view on
    * some view column filters, the incoming query has to have those filters to match the view.
    */
   @Override
-  public QueryCost canHandle(QueryRequest request, Set<String> referencedSources,
-      ExecutionContext executionContext) {
+  public QueryCost canHandle(QueryRequest request, ExecutionContext executionContext) {
     Set<String> referencedColumns = executionContext.getReferencedColumns();
 
     Preconditions.checkArgument(!referencedColumns.isEmpty());
@@ -161,8 +164,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     // filters. If not, the view can't serve the query.
     Map<String, ViewColumnFilter> viewFilterMap = viewDefinition.getColumnFilterMap();
     if (found && !viewFilterMap.isEmpty()) {
-        Set<String> columns = getMatchingViewFilterColumns(request.getFilter(), viewFilterMap);
-        found = columns.equals(viewFilterMap.keySet());
+      Set<String> columns = getMatchingViewFilterColumns(request.getFilter(), viewFilterMap);
+      found = columns.equals(viewFilterMap.keySet());
     }
 
     // TODO: Come up with a way to compute the cost based on request and view definition
@@ -172,27 +175,32 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   }
 
   /**
-   * Method to return the set of columns from the given filter which match the columns in
-   * the given viewFilterMap.
+   * Method to return the set of columns from the given filter which match the columns in the given
+   * viewFilterMap.
    */
-  private Set<String> getMatchingViewFilterColumns(Filter filter, Map<String,
-      ViewColumnFilter> viewFilterMap) {
+  private Set<String> getMatchingViewFilterColumns(
+      Filter filter, Map<String, ViewColumnFilter> viewFilterMap) {
     // 1. Basic case: Filter is a leaf node. Check if the column exists in view filters and
     // return it.
     if (filter.getChildFilterCount() == 0) {
-      return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap, filter) ?
-          Set.of(filter.getLhs().getColumnIdentifier().getColumnName()) : Set.of();
+      return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap, filter)
+          ? Set.of(filter.getLhs().getColumnIdentifier().getColumnName())
+          : Set.of();
     } else {
       // 2. Internal filter node. Recursively get the matching nodes from children.
-      List<Set<String>> results = filter.getChildFilterList().stream()
-          .map(f -> getMatchingViewFilterColumns(f, viewFilterMap)).collect(Collectors.toList());
+      List<Set<String>> results =
+          filter.getChildFilterList().stream()
+              .map(f -> getMatchingViewFilterColumns(f, viewFilterMap))
+              .collect(Collectors.toList());
 
       Set<String> result = results.get(0);
       for (Set<String> set : results.subList(1, results.size())) {
         // If the operation is OR, we need to get intersection of columns from all the children.
         // Otherwise, the operation should be AND and we can get union of all columns.
-        result = filter.getOperator() == Operator.OR ? Sets.intersection(result, set) :
-            Sets.union(result, set);
+        result =
+            filter.getOperator() == Operator.OR
+                ? Sets.intersection(result, set)
+                : Sets.union(result, set);
       }
       return result;
     }
@@ -229,9 +237,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     }
   }
 
-  /**
-   * Checks that the values from the given expression are a subset of the given set.
-   */
+  /** Checks that the values from the given expression are a subset of the given set. */
   private boolean isSubSet(Set<String> values, Expression expression) {
     if (!expression.hasLiteral()) {
       return false;
@@ -240,9 +246,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return values.containsAll(getExpressionValues(expression.getLiteral()));
   }
 
-  /**
-   * Checks that the values from the given expression are a subset of the given set.
-   */
+  /** Checks that the values from the given expression are a subset of the given set. */
   private boolean isEquals(Set<String> values, Expression expression) {
     if (!expression.hasLiteral()) {
       return false;
@@ -265,36 +269,38 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         expressionValues.add(String.valueOf(value.getInt()));
         break;
       case INT_ARRAY:
-        expressionValues.addAll(value.getIntArrayList().stream().map(Object::toString).collect(
-            Collectors.toSet()));
+        expressionValues.addAll(
+            value.getIntArrayList().stream().map(Object::toString).collect(Collectors.toSet()));
         break;
       case LONG:
         expressionValues.add(String.valueOf(value.getLong()));
         break;
       case LONG_ARRAY:
-        expressionValues.addAll(value.getLongArrayList().stream().map(Object::toString).collect(
-            Collectors.toSet()));
+        expressionValues.addAll(
+            value.getLongArrayList().stream().map(Object::toString).collect(Collectors.toSet()));
         break;
       case DOUBLE:
         expressionValues.add(String.valueOf(value.getDouble()));
         break;
       case DOUBLE_ARRAY:
-        expressionValues.addAll(value.getDoubleArrayList().stream().map(Object::toString).collect(
-            Collectors.toSet()));
+        expressionValues.addAll(
+            value.getDoubleArrayList().stream().map(Object::toString).collect(Collectors.toSet()));
         break;
       case FLOAT:
         expressionValues.add(String.valueOf(value.getFloat()));
         break;
       case FLOAT_ARRAY:
-        expressionValues.addAll(value.getFloatArrayList().stream().map(Object::toString).collect(
-            Collectors.toSet()));
+        expressionValues.addAll(
+            value.getFloatArrayList().stream().map(Object::toString).collect(Collectors.toSet()));
         break;
       case BOOL:
         expressionValues.add(String.valueOf(value.getBoolean()).toLowerCase());
         break;
       case BOOLEAN_ARRAY:
-        expressionValues.addAll(value.getBooleanArrayList().stream()
-            .map(b -> b.toString().toLowerCase()).collect(Collectors.toSet()));
+        expressionValues.addAll(
+            value.getBooleanArrayList().stream()
+                .map(b -> b.toString().toLowerCase())
+                .collect(Collectors.toSet()));
         break;
       default:
         // Ignore the rest of the types for now.
@@ -312,15 +318,14 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     validateQueryRequest(executionContext, request);
 
     // Rewrite the request filter after applying the view filters.
-    if (!viewDefinition.getColumnFilterMap().isEmpty() &&
-        !Filter.getDefaultInstance().equals(request.getFilter())) {
-      request = rewriteRequestWithViewFiltersApplied(request,
-          viewDefinition.getColumnFilterMap());
+    if (!viewDefinition.getColumnFilterMap().isEmpty()
+        && !Filter.getDefaultInstance().equals(request.getFilter())) {
+      request = rewriteRequestWithViewFiltersApplied(request, viewDefinition.getColumnFilterMap());
     }
 
     Entry<String, Params> pql =
-        request2PinotSqlConverter
-            .toSQL(executionContext, request, executionContext.getAllSelections());
+        request2PinotSqlConverter.toSQL(
+            executionContext, request, executionContext.getAllSelections());
     if (LOG.isDebugEnabled()) {
       LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
     }
@@ -328,8 +333,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
 
     final ResultSetGroup resultSetGroup;
     try {
-      resultSetGroup = pinotQueryExecutionTimer.recordCallable(
-          () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
+      resultSetGroup =
+          pinotQueryExecutionTimer.recordCallable(
+              () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
       LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
@@ -346,16 +352,19 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     long requestTimeMs = System.currentTimeMillis() - start;
     if (requestTimeMs > slowQueryThreshold) {
       try {
-        LOG.warn("Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
-            requestTimeMs, pql.getKey(), protoJsonPrinter.print(request));
+        LOG.warn(
+            "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
+            requestTimeMs,
+            pql.getKey(),
+            protoJsonPrinter.print(request));
       } catch (InvalidProtocolBufferException ignore) {
       }
     }
   }
 
   @Nonnull
-  private QueryRequest rewriteRequestWithViewFiltersApplied(QueryRequest request,
-      Map<String, ViewColumnFilter> columnFilterMap) {
+  private QueryRequest rewriteRequestWithViewFiltersApplied(
+      QueryRequest request, Map<String, ViewColumnFilter> columnFilterMap) {
 
     Filter newFilter = removeViewColumnFilter(request.getFilter(), columnFilterMap);
     QueryRequest.Builder builder = QueryRequest.newBuilder(request).clearFilter();
@@ -365,14 +374,15 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return builder.build();
   }
 
-  private Filter removeViewColumnFilter(Filter filter,
-      Map<String, ViewColumnFilter> columnFilterMap) {
+  private Filter removeViewColumnFilter(
+      Filter filter, Map<String, ViewColumnFilter> columnFilterMap) {
     if (filter.getChildFilterCount() > 0) {
       // Recursively try to remove the filter and eliminate the null nodes.
-      Set<Filter> newFilters = filter.getChildFilterList().stream()
-          .map(f -> removeViewColumnFilter(f, columnFilterMap))
-          .filter(f -> !Filter.getDefaultInstance().equals(f))
-          .collect(Collectors.toCollection(LinkedHashSet::new));
+      Set<Filter> newFilters =
+          filter.getChildFilterList().stream()
+              .map(f -> removeViewColumnFilter(f, columnFilterMap))
+              .filter(f -> !Filter.getDefaultInstance().equals(f))
+              .collect(Collectors.toCollection(LinkedHashSet::new));
 
       if (newFilters.isEmpty()) {
         return Filter.getDefaultInstance();
@@ -386,8 +396,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     }
   }
 
-  private Filter rewriteLeafFilter(Filter queryFilter,
-      Map<String, ViewColumnFilter> columnFilterMap) {
+  private Filter rewriteLeafFilter(
+      Filter queryFilter, Map<String, ViewColumnFilter> columnFilterMap) {
     ViewColumnFilter viewColumnFilter =
         columnFilterMap.get(queryFilter.getLhs().getColumnIdentifier().getColumnName());
     // If the RHS of both the view filter and query filter match, return empty filter.
