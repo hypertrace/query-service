@@ -1,9 +1,10 @@
 package org.hypertrace.core.query.service;
 
-import org.hypertrace.core.query.service.api.Expression;
-import org.hypertrace.core.query.service.api.Function;
 
-/** A converter from the canonical format received in a query to the appropriate dat */
+/**
+ * Canonical query function names received in requests. These should be converted to data-store
+ * specific names when handling a request.
+ */
 public interface QueryFunctionConstants {
   String QUERY_FUNCTION_SUM = "SUM";
   String QUERY_FUNCTION_AVG = "AVG";
