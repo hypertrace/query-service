@@ -27,6 +27,7 @@ import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
+import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.hypertrace.core.query.service.util.QueryRequestUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -1093,7 +1094,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private void assertPQLQuery(QueryRequest queryRequest, String expectedQuery) {
     QueryRequestToPinotSQLConverter converter =
-        new QueryRequestToPinotSQLConverter(viewDefinition, "PERCENTILETDIGEST");
+        new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
     Entry<String, Params> statementToParam =
         converter.toSQL(new ExecutionContext("__default", queryRequest), queryRequest,
             createSelectionsFromQueryRequest(queryRequest));
@@ -1108,7 +1109,7 @@ public class QueryRequestToPinotSQLConverterTest {
   private void assertExceptionOnPQLQuery(QueryRequest queryRequest, Class className,
       String expectedMessage) {
     QueryRequestToPinotSQLConverter converter =
-        new QueryRequestToPinotSQLConverter(viewDefinition, "PERCENTILETDIGEST");
+        new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
 
     Throwable exception = Assertions.assertThrows(className, () -> converter
         .toSQL(new ExecutionContext("__default", queryRequest), queryRequest,
