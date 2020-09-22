@@ -24,7 +24,7 @@ public class PinotRequestHandlerBuilder implements RequestHandlerBuilder {
   }
 
   @Override
-  public RequestHandler<QueryRequest, Row> build(RequestHandlerConfig config) {
+  public RequestHandler build(RequestHandlerConfig config) {
 
     ClientConfig clientConfig =
         this.clientConfigRegistry

@@ -1,12 +1,27 @@
 package org.hypertrace.core.query.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+
 import com.google.common.collect.Lists;
+import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusException;
+import io.grpc.stub.ServerCallStreamObserver;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.Single;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import org.hypertrace.core.grpcutils.context.RequestContext;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -18,14 +33,99 @@ import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.QueryServiceGrpc;
 import org.hypertrace.core.query.service.api.QueryServiceGrpc.QueryServiceBlockingStub;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
+import org.hypertrace.core.query.service.api.ResultSetMetadata;
+import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.util.QueryRequestUtil;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@ExtendWith(MockitoExtension.class)
 public class QueryServiceImplTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(QueryServiceImplTest.class);
+
+  @Mock ServerCallStreamObserver<ResultSetChunk> mockObserver;
+  @Mock RequestContext mockContext;
+
+  @Test
+  void propagatesErrorIfNoTenantId() {
+    QueryRequest originalRequest = QueryRequest.getDefaultInstance();
+    RequestHandlerSelector mockSelector = mock(RequestHandlerSelector.class);
+    QueryTransformationPipeline mockTransformationPipeline =
+        mock(QueryTransformationPipeline.class);
+    when(mockContext.getTenantId()).thenReturn(Optional.empty());
+    Context.current()
+        .withValue(RequestContext.CURRENT, mockContext)
+        .run(
+            () ->
+                new QueryServiceImpl(mockSelector, mockTransformationPipeline)
+                    .execute(originalRequest, mockObserver));
+    verify(mockObserver).setOnCancelHandler(any());
+    verify(mockObserver).onError(any(UnsupportedOperationException.class));
+    verifyNoMoreInteractions(mockObserver);
+  }
+
+  @Test
+  void propagatesErrorIfNoMatchingHandler() {
+    QueryRequest originalRequest = QueryRequest.getDefaultInstance();
+    RequestHandlerSelector mockSelector = mock(RequestHandlerSelector.class);
+    when(mockSelector.select(same(originalRequest), any())).thenReturn(Optional.empty());
+    QueryTransformationPipeline mockTransformationPipeline =
+        mock(QueryTransformationPipeline.class);
+    when(mockContext.getTenantId()).thenReturn(Optional.of("test-tenant"));
+    when(mockTransformationPipeline.transform(originalRequest, "test-tenant"))
+        .thenReturn(Single.just(originalRequest));
+    Context.current()
+        .withValue(RequestContext.CURRENT, mockContext)
+        .run(
+            () ->
+                new QueryServiceImpl(mockSelector, mockTransformationPipeline)
+                    .execute(originalRequest, mockObserver));
+
+    verify(mockObserver).setOnCancelHandler(any());
+    verify(mockObserver).onError(any(StatusException.class));
+    verifyNoMoreInteractions(mockObserver);
+  }
+
+  @Test
+  void invokesHandlerAndPropagatesResults() {
+    QueryRequest originalRequest = QueryRequest.getDefaultInstance();
+    RequestHandlerSelector mockSelector = mock(RequestHandlerSelector.class);
+    RequestHandler mockHandler = mock(RequestHandler.class);
+    Row mockRow = Row.getDefaultInstance();
+    when(mockHandler.handleRequest(eq(originalRequest), any(ExecutionContext.class)))
+        .thenReturn(Observable.just(mockRow));
+    when(mockSelector.select(same(originalRequest), any())).thenReturn(Optional.of(mockHandler));
+    QueryTransformationPipeline mockTransformationPipeline =
+        mock(QueryTransformationPipeline.class);
+    when(mockContext.getTenantId()).thenReturn(Optional.of("test-tenant"));
+    when(mockTransformationPipeline.transform(originalRequest, "test-tenant"))
+        .thenReturn(Single.just(originalRequest));
+    Context.current()
+        .withValue(RequestContext.CURRENT, mockContext)
+        .run(
+            () ->
+                new QueryServiceImpl(mockSelector, mockTransformationPipeline)
+                    .execute(originalRequest, mockObserver));
+
+    ResultSetChunk expectedChunk =
+        ResultSetChunk.newBuilder()
+            .setChunkId(0)
+            .setIsLastChunk(true)
+            .addRow(mockRow)
+            .setResultSetMetadata(ResultSetMetadata.getDefaultInstance())
+            .build();
+
+    verify(mockObserver).setOnCancelHandler(any());
+    verify(mockObserver).onNext(expectedChunk);
+    verify(mockObserver).onCompleted();
+    verifyNoMoreInteractions(mockObserver);
+  }
 
   // works with query service running at localhost
   @Disabled

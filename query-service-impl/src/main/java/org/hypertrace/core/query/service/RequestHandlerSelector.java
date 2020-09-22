@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service;
 
+import java.util.Optional;
 import javax.inject.Inject;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.slf4j.Logger;
@@ -16,7 +17,7 @@ public class RequestHandlerSelector {
     this.registry = registry;
   }
 
-  public RequestHandler select(QueryRequest request, ExecutionContext executionContext) {
+  public Optional<RequestHandler> select(QueryRequest request, ExecutionContext executionContext) {
 
     // check if each of the requestHandler can handle the request and return the cost of serving
     // that query
@@ -50,6 +51,6 @@ public class RequestHandlerSelector {
           executionContext.getReferencedColumns(),
           minCost);
     }
-    return selectedHandler;
+    return Optional.ofNullable(selectedHandler);
   }
 }
