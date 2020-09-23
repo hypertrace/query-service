@@ -5,8 +5,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
-import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
-import org.hypertrace.core.query.service.RequestClientConfigRegistry;
+import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerConfig;
+import org.hypertrace.core.query.service.RequestHandlerClientConfigRegistry;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +15,8 @@ class PinotRequestHandlerBuilderTest {
   @Test
   void testThrowsIfNoMatchingConfig() {
     RequestHandlerConfig mockConfig = mock(RequestHandlerConfig.class);
-    RequestClientConfigRegistry mockConfigRegistry = mock(RequestClientConfigRegistry.class);
+    RequestHandlerClientConfigRegistry mockConfigRegistry =
+        mock(RequestHandlerClientConfigRegistry.class);
     when(mockConfigRegistry.get(any())).thenReturn(Optional.empty());
 
     Assertions.assertThrows(

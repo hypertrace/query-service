@@ -8,15 +8,15 @@ import org.hypertrace.core.query.service.pinot.PinotModule;
 
 class QueryServiceModule extends AbstractModule {
 
-  private final QueryServiceImplConfig config;
+  private final QueryServiceConfig config;
 
   QueryServiceModule(Config config) {
-    this.config = QueryServiceImplConfig.parse(config);
+    this.config = new QueryServiceConfig(config);
   }
 
   @Override
   protected void configure() {
-    bind(QueryServiceImplConfig.class).toInstance(this.config);
+    bind(QueryServiceConfig.class).toInstance(this.config);
     bind(QueryServiceImplBase.class).to(QueryServiceImpl.class);
     Multibinder.newSetBinder(binder(), QueryTransformation.class);
     install(new PinotModule());

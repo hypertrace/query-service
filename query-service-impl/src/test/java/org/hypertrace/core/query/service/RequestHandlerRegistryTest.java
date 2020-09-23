@@ -6,13 +6,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableMap;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
+import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,20 +18,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class RequestHandlerRegistryTest {
 
-  @Mock QueryServiceImplConfig mockConfig;
+  @Mock QueryServiceConfig mockConfig;
   @Mock RequestHandlerBuilder mockBuilder;
-  Config testConfig =
-      ConfigFactory.parseMap(
-          ImmutableMap.<String, Object>builder()
-              .put("clientConfig", "testClient")
-              .put("name", "testName")
-              .put("type", "testType")
-              .put("requestHandlerInfo", Map.of())
-              .build());
+  @Mock RequestHandlerConfig mockHandlerConfig;
 
   @BeforeEach
   void beforeEach() {
-    when(mockConfig.getQueryRequestHandlersConfig()).thenReturn(List.of(testConfig));
+    when(this.mockConfig.getQueryRequestHandlersConfigs())
+        .thenReturn(List.of(this.mockHandlerConfig));
   }
 
   @Test
@@ -45,7 +35,8 @@ class RequestHandlerRegistryTest {
     when(this.mockBuilder.build(any(RequestHandlerConfig.class))).thenReturn(mockHandler);
 
     assertIterableEquals(
-        Set.of(mockHandler), new RequestHandlerRegistry(mockConfig, Set.of(mockBuilder)).getAll());
+        Set.of(mockHandler),
+        new RequestHandlerRegistry(this.mockConfig, Set.of(this.mockBuilder)).getAll());
   }
 
   @Test

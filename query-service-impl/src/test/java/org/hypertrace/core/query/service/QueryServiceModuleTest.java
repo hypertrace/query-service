@@ -16,7 +16,7 @@ class QueryServiceModuleTest {
         ConfigFactory.parseFile(
                 new File(
                     requireNonNull(
-                            QueryServiceImplConfigTest.class
+                            QueryServiceConfigTest.class
                                 .getClassLoader()
                                 .getResource("application.conf"))
                         .getPath()))

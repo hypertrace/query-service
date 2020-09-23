@@ -8,9 +8,9 @@ import java.util.Objects;
 import org.hypertrace.core.query.service.pinot.QueryRequestToPinotSQLConverterTest;
 import org.junit.jupiter.api.Test;
 
-class RequestClientConfigRegistryTest {
-  private final QueryServiceImplConfig config =
-      QueryServiceImplConfig.parse(
+class RequestHandlerClientConfigRegistryTest {
+  private final QueryServiceConfig config =
+      new QueryServiceConfig(
           ConfigFactory.parseURL(
                   Objects.requireNonNull(
                       QueryRequestToPinotSQLConverterTest.class
@@ -20,7 +20,7 @@ class RequestClientConfigRegistryTest {
 
   @Test
   void returnsClientConfigForMatch() {
-    assertTrue(new RequestClientConfigRegistry(config).get("broker").isPresent());
-    assertFalse(new RequestClientConfigRegistry(config).get("non-existent").isPresent());
+    assertTrue(new RequestHandlerClientConfigRegistry(config).get("broker").isPresent());
+    assertFalse(new RequestHandlerClientConfigRegistry(config).get("non-existent").isPresent());
   }
 }
