@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service;
 
-import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
+import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerConfig;
 
 public interface RequestHandlerBuilder {
 

@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
+import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerConfig;
 
 @Singleton
 public class RequestHandlerRegistry {
@@ -14,10 +14,9 @@ public class RequestHandlerRegistry {
 
   @Inject
   RequestHandlerRegistry(
-      QueryServiceImplConfig config, Set<RequestHandlerBuilder> requestHandlerInfoSet) {
+      QueryServiceConfig config, Set<RequestHandlerBuilder> requestHandlerInfoSet) {
     this.requestHandlers =
-        config.getQueryRequestHandlersConfig().stream()
-            .map(RequestHandlerConfig::parse)
+        config.getQueryRequestHandlersConfigs().stream()
             .map(handlerConfig -> buildFromMatchingHandler(requestHandlerInfoSet, handlerConfig))
             .collect(
                 Collectors.collectingAndThen(

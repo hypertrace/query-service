@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
@@ -7,13 +8,11 @@ import static org.mockito.ArgumentMatchers.any;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.io.File;
 import java.util.LinkedHashSet;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
-import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerConfig;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -48,13 +47,15 @@ public class QueryRequestToPinotSQLConverterTest {
 
   @BeforeAll
   public static void setUp() {
-    Config fileConfig = ConfigFactory.parseFile(new File(
-        QueryRequestToPinotSQLConverterTest.class.getClassLoader()
-            .getResource(TEST_REQUEST_HANDLER_CONFIG_FILE)
-            .getFile()));
-    RequestHandlerConfig requestHandlerConfig = RequestHandlerConfig.parse(fileConfig);
-    viewDefinition = ViewDefinition.parse(
-        requestHandlerConfig.getRequestHandlerInfo().getConfig("viewDefinition"), TENANT_COLUMN_NAME);
+    Config fileConfig =
+        ConfigFactory.parseURL(
+            requireNonNull(
+                QueryRequestToPinotSQLConverterTest.class
+                    .getClassLoader()
+                    .getResource(TEST_REQUEST_HANDLER_CONFIG_FILE)));
+    viewDefinition =
+        ViewDefinition.parse(
+            fileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
   }
 
   @BeforeEach
@@ -1106,12 +1107,12 @@ public class QueryRequestToPinotSQLConverterTest {
         expectedQuery.toLowerCase(), statementCaptor.getValue().getQuery().toLowerCase());
   }
 
-  private void assertExceptionOnPQLQuery(QueryRequest queryRequest, Class className,
+  private void assertExceptionOnPQLQuery(QueryRequest queryRequest, Class<? extends Throwable> exceptionClass,
       String expectedMessage) {
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
 
-    Throwable exception = Assertions.assertThrows(className, () -> converter
+    Throwable exception = Assertions.assertThrows(exceptionClass, () -> converter
         .toSQL(new ExecutionContext("__default", queryRequest), queryRequest,
             createSelectionsFromQueryRequest(queryRequest)));
 
