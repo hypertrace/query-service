@@ -1,53 +1,64 @@
 package org.hypertrace.core.query.service;
 
+import static org.hypertrace.core.query.service.RowChunkingOperator.chunkRows;
+
 import io.grpc.Status;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import java.util.NoSuchElementException;
+import io.reactivex.rxjava3.core.Maybe;
+import io.reactivex.rxjava3.core.Observable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import org.hypertrace.core.grpcutils.context.RequestContext;
+import org.hypertrace.core.grpcutils.server.rx.ServerCallStreamRxObserver;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryServiceGrpc;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Singleton
 class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
-
-  private static final Logger LOG = LoggerFactory.getLogger(QueryServiceImpl.class);
-  private final RequestHandlerSelector selector;
+  private final RequestHandlerSelector handlerSelector;
+  private final QueryTransformationPipeline queryTransformationPipeline;
 
   @Inject
-  public QueryServiceImpl(RequestHandlerSelector selector) {
-    this.selector = selector;
+  public QueryServiceImpl(
+      RequestHandlerSelector handlerSelector,
+      QueryTransformationPipeline queryTransformationPipeline) {
+    this.handlerSelector = handlerSelector;
+    this.queryTransformationPipeline = queryTransformationPipeline;
   }
 
   @Override
-  public void execute(QueryRequest queryRequest, StreamObserver<ResultSetChunk> responseObserver) {
-    try {
-      String tenantId = RequestContext.CURRENT.get().getTenantId().get();
-      ExecutionContext context = new ExecutionContext(tenantId, queryRequest);
-      RequestHandler requestHandler = selector.select(queryRequest, context);
-      if (requestHandler == null) {
-        // An error is logged in the select() method
-        responseObserver.onError(
-            Status.NOT_FOUND
-                .withDescription("Could not find any handler to handle the request")
-                .asException());
-        return;
-      }
+  public void execute(
+      QueryRequest originalRequest, StreamObserver<ResultSetChunk> callStreamObserver) {
+    Maybe.fromOptional(RequestContext.CURRENT.get().getTenantId())
+        .switchIfEmpty(
+            Maybe.error(new UnsupportedOperationException("Tenant ID missing in request context")))
+        .flatMapObservable(tenantId -> this.transformAndExecute(originalRequest, tenantId))
+        .subscribe(
+            new ServerCallStreamRxObserver<>(
+                (ServerCallStreamObserver<ResultSetChunk>) callStreamObserver));
+  }
 
-      ResultSetChunkCollector collector = new ResultSetChunkCollector(responseObserver);
-      collector.init(context.getResultSetMetadata());
+  private Observable<ResultSetChunk> transformAndExecute(
+      QueryRequest originalRequest, String tenantId) {
+    return this.queryTransformationPipeline
+        .transform(originalRequest, tenantId)
+        .flatMapObservable(
+            transformedRequest ->
+                this.executeTransformedRequest(
+                    transformedRequest, new ExecutionContext(tenantId, transformedRequest)));
+  }
 
-      requestHandler.handleRequest(context, queryRequest, collector);
-    } catch (NoSuchElementException e) {
-      LOG.error("TenantId is missing in the context.", e);
-      responseObserver.onError(e);
-    } catch (Exception e) {
-      LOG.error("Error processing request: {}", queryRequest, e);
-      responseObserver.onError(e);
-    }
+  private Observable<ResultSetChunk> executeTransformedRequest(
+      QueryRequest transformedRequest, ExecutionContext context) {
+    return Maybe.fromOptional(this.handlerSelector.select(transformedRequest, context))
+        .switchIfEmpty(
+            Maybe.error(
+                Status.FAILED_PRECONDITION
+                    .withDescription("No handler available matching request")
+                    .asException()))
+        .flatMapObservable(handler -> handler.handleRequest(transformedRequest, context))
+        .lift(chunkRows(context.getResultSetMetadata()));
   }
 }

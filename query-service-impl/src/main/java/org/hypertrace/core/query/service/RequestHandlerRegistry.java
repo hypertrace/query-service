@@ -10,7 +10,7 @@ import org.hypertrace.core.query.service.QueryServiceImplConfig.RequestHandlerCo
 
 @Singleton
 public class RequestHandlerRegistry {
-  private final Set<RequestHandler<?, ?>> requestHandlers;
+  private final Set<RequestHandler> requestHandlers;
 
   @Inject
   RequestHandlerRegistry(
@@ -24,11 +24,11 @@ public class RequestHandlerRegistry {
                     Collectors.toCollection(LinkedHashSet::new), Collections::unmodifiableSet));
   }
 
-  public Set<RequestHandler<?, ?>> getAll() {
+  public Set<RequestHandler> getAll() {
     return requestHandlers;
   }
 
-  private RequestHandler<?, ?> buildFromMatchingHandler(
+  private RequestHandler buildFromMatchingHandler(
       Set<RequestHandlerBuilder> handlerInfoBuilders, RequestHandlerConfig config) {
     return handlerInfoBuilders.stream()
         .filter(builder -> builder.canBuild(config))

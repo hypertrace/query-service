@@ -6,5 +6,5 @@ public interface RequestHandlerBuilder {
 
   boolean canBuild(RequestHandlerConfig config);
 
-  RequestHandler<?, ?> build(RequestHandlerConfig config);
+  RequestHandler build(RequestHandlerConfig config);
 }

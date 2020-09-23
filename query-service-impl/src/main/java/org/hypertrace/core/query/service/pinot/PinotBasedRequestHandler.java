@@ -3,12 +3,14 @@ package org.hypertrace.core.query.service.pinot;
 import static org.hypertrace.core.query.service.ConfigUtils.optionallyGet;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
+import io.reactivex.rxjava3.core.Observable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,13 +21,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
-import org.hypertrace.core.query.service.QueryResultCollector;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
@@ -43,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** RequestHandler to handle queries by fetching data from Pinot. */
-public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Row> {
+public class PinotBasedRequestHandler implements RequestHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(PinotBasedRequestHandler.class);
 
@@ -152,26 +154,28 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     Set<String> referencedColumns = executionContext.getReferencedColumns();
 
     Preconditions.checkArgument(!referencedColumns.isEmpty());
-    boolean found = true;
     for (String referencedColumn : referencedColumns) {
       if (!viewDefinition.containsColumn(referencedColumn)) {
-        found = false;
-        break;
+        return QueryCost.UNSUPPORTED;
       }
     }
 
-    // If the view has any column filters, check if the query has those filters as **mandatory**
-    // filters. If not, the view can't serve the query.
-    Map<String, ViewColumnFilter> viewFilterMap = viewDefinition.getColumnFilterMap();
-    if (found && !viewFilterMap.isEmpty()) {
-      Set<String> columns = getMatchingViewFilterColumns(request.getFilter(), viewFilterMap);
-      found = columns.equals(viewFilterMap.keySet());
+    if (!this.viewDefinitionSupportsFilter(viewDefinition, request.getFilter())) {
+      return QueryCost.UNSUPPORTED;
     }
 
     // TODO: Come up with a way to compute the cost based on request and view definition
     // Higher columns --> Higher cost,
     // Finer the time granularity --> Higher the cost.
-    return new QueryCost(found ? 0.5 : -1);
+    return new QueryCost(0.5);
+  }
+
+  private boolean viewDefinitionSupportsFilter(ViewDefinition viewDefinition, Filter filter) {
+    // If the view has any column filters, check if the query has those filters as **mandatory**
+    // filters. If not, the view can't serve the query.
+    Map<String, ViewColumnFilter> viewFilterMap = viewDefinition.getColumnFilterMap();
+    return viewFilterMap.isEmpty()
+        || viewFilterMap.keySet().equals(this.getMatchingViewFilterColumns(filter, viewFilterMap));
   }
 
   /**
@@ -310,55 +314,64 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
   }
 
   @Override
-  public void handleRequest(
-      ExecutionContext executionContext,
-      QueryRequest request,
-      QueryResultCollector<Row> collector) {
-    long start = System.currentTimeMillis();
-    validateQueryRequest(executionContext, request);
-
-    // Rewrite the request filter after applying the view filters.
-    if (!viewDefinition.getColumnFilterMap().isEmpty()
-        && !Filter.getDefaultInstance().equals(request.getFilter())) {
-      request = rewriteRequestWithViewFiltersApplied(request, viewDefinition.getColumnFilterMap());
-    }
-
-    Entry<String, Params> pql =
-        request2PinotSqlConverter.toSQL(
-            executionContext, request, executionContext.getAllSelections());
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
-    }
-    final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
-
-    final ResultSetGroup resultSetGroup;
+  public Observable<Row> handleRequest(
+      QueryRequest originalRequest, ExecutionContext executionContext) {
     try {
-      resultSetGroup =
-          pinotQueryExecutionTimer.recordCallable(
-              () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
-    } catch (Exception ex) {
-      // Catch this exception to log the Pinot SQL query that caused the issue
-      LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
-      // Rethrow for the caller to return an error.
-      throw new RuntimeException(ex);
-    }
+      Stopwatch stopwatch = Stopwatch.createStarted();
+      validateQueryRequest(executionContext, originalRequest);
 
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
-    }
-    // need to merge data especially for Pinot. That's why we need to track the map columns
-    convert(resultSetGroup, collector, executionContext.getSelectedColumns());
-
-    long requestTimeMs = System.currentTimeMillis() - start;
-    if (requestTimeMs > slowQueryThreshold) {
-      try {
-        LOG.warn(
-            "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
-            requestTimeMs,
-            pql.getKey(),
-            protoJsonPrinter.print(request));
-      } catch (InvalidProtocolBufferException ignore) {
+      QueryRequest request;
+      // Rewrite the request filter after applying the view filters.
+      if (!viewDefinition.getColumnFilterMap().isEmpty()
+          && !Filter.getDefaultInstance().equals(originalRequest.getFilter())) {
+        request =
+            rewriteRequestWithViewFiltersApplied(
+                originalRequest, viewDefinition.getColumnFilterMap());
+      } else {
+        request = originalRequest;
       }
+
+      Entry<String, Params> pql =
+          request2PinotSqlConverter.toSQL(
+              executionContext, request, executionContext.getAllSelections());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
+      }
+      final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
+
+      final ResultSetGroup resultSetGroup;
+      try {
+        resultSetGroup =
+            pinotQueryExecutionTimer.recordCallable(
+                () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
+      } catch (Exception ex) {
+        // Catch this exception to log the Pinot SQL query that caused the issue
+        LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
+        // Rethrow for the caller to return an error.
+        throw new RuntimeException(ex);
+      }
+
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
+      }
+      // need to merge data especially for Pinot. That's why we need to track the map columns
+      return this.convert(resultSetGroup, executionContext.getSelectedColumns())
+          .doOnComplete(
+              () -> {
+                long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
+                if (requestTimeMs > slowQueryThreshold) {
+                  try {
+                    LOG.warn(
+                        "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
+                        requestTimeMs,
+                        pql.getKey(),
+                        protoJsonPrinter.print(request));
+                  } catch (InvalidProtocolBufferException ignore) {
+                  }
+                }
+              });
+    } catch (Throwable error) {
+      return Observable.error(error);
     }
   }
 
@@ -409,9 +422,8 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     return queryFilter;
   }
 
-  void convert(
+  Observable<Row> convert(
       ResultSetGroup resultSetGroup,
-      QueryResultCollector<Row> collector,
       LinkedHashSet<String> selectedAttributes) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
@@ -427,12 +439,9 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
         handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
       }
     }
-    for (Row.Builder builder : rowBuilderList) {
-      final Row row = builder.build();
-      LOG.debug("collect a row: {}", row);
-      collector.collect(row);
-    }
-    collector.finish();
+    return Observable.fromIterable(rowBuilderList)
+        .map(Builder::build)
+        .doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
   private void handleSelection(

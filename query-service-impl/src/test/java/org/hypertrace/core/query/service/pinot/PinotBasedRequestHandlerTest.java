@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import io.reactivex.rxjava3.core.Observable;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -19,13 +20,11 @@ import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
-import org.hypertrace.core.query.service.QueryResultCollector;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
-import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
@@ -656,12 +655,9 @@ public class PinotBasedRequestHandlerTest {
     List<String> columnNames = List.of("operation_name", "service_name", "start_time_millis", "duration");
     ResultSet resultSet = mockResultSet(4, 4, columnNames, resultTable);
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
-    TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
 
-    pinotBasedRequestHandler.convert(
-        resultSetGroup, testQueryResultCollector, new LinkedHashSet<>());
-
-    verifyResponseRows(testQueryResultCollector, resultTable);
+    verifyResponseRows(
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), resultTable);
   }
 
   @Test
@@ -676,12 +672,9 @@ public class PinotBasedRequestHandlerTest {
     List<String> columnNames = List.of("operation_name", "avg(duration)", "count(*)", "max(duration)");
     ResultSet resultSet = mockResultSet(4, 4, columnNames, resultTable);
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
-    TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
 
-    pinotBasedRequestHandler.convert(
-        resultSetGroup, testQueryResultCollector, new LinkedHashSet<>());
-
-    verifyResponseRows(testQueryResultCollector, resultTable);
+    verifyResponseRows(
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), resultTable);
   }
 
   @Test
@@ -723,10 +716,6 @@ public class PinotBasedRequestHandlerTest {
             "tags2" + ViewDefinition.MAP_VALUES_SUFFIX);
     ResultSet resultSet = mockResultSet(3, 6, columnNames, resultTable);
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
-    TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
-
-    pinotBasedRequestHandler.convert(
-        resultSetGroup, testQueryResultCollector, new LinkedHashSet<>());
 
     String[][] expectedRows =
         new String[][] {
@@ -745,7 +734,8 @@ public class PinotBasedRequestHandlerTest {
           {"operation-name-13", stringify(Map.of()), "service-3", stringify(Map.of("e15", "f15"))}
         };
 
-    verifyResponseRows(testQueryResultCollector, expectedRows);
+    verifyResponseRows(
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), expectedRows);
   }
 
   @Test
@@ -767,10 +757,6 @@ public class PinotBasedRequestHandlerTest {
         };
     ResultSet resultSet2 = mockResultSet(2, 4, columnNames, resultTable2);
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet1, resultSet2));
-    TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
-
-    pinotBasedRequestHandler.convert(
-        resultSetGroup, testQueryResultCollector, new LinkedHashSet<>());
 
     String[][] expectedRows =
         new String[][] {
@@ -782,27 +768,28 @@ public class PinotBasedRequestHandlerTest {
           {"operation-name-22", "220", "420", "22000"}
         };
 
-    verifyResponseRows(testQueryResultCollector, expectedRows);
+    verifyResponseRows(
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), expectedRows);
   }
 
   @Test
-  public void testNullQueryRequestContextThrowsNPE() {
+  public void testNullExecutionContextEmitsNPE() {
     Assertions.assertThrows(
         NullPointerException.class,
-        () -> pinotBasedRequestHandler.handleRequest(
-            mock(ExecutionContext.class),
-            QueryRequest.newBuilder().build(),
-            mock(QueryResultCollector.class)));
+        () ->
+            pinotBasedRequestHandler
+                .handleRequest(QueryRequest.newBuilder().build(), mock(ExecutionContext.class))
+                .blockingSubscribe());
   }
 
   @Test
   public void testNullTenantIdQueryRequestContextThrowsNPE() {
     Assertions.assertThrows(
         NullPointerException.class,
-        () -> pinotBasedRequestHandler.handleRequest(
-            mock(ExecutionContext.class),
-            QueryRequest.newBuilder().build(),
-            mock(QueryResultCollector.class)));
+        () ->
+            pinotBasedRequestHandler
+                .handleRequest(QueryRequest.newBuilder().build(), mock(ExecutionContext.class))
+                .blockingSubscribe());
   }
 
   @Test
@@ -818,9 +805,8 @@ public class PinotBasedRequestHandlerTest {
     Assertions.assertThrows(
         IllegalArgumentException.class,
         () -> pinotBasedRequestHandler.handleRequest(
-            new ExecutionContext("test-tenant-id", request),
             request,
-            mock(QueryResultCollector.class)));
+            new ExecutionContext("test-tenant-id", request)).blockingSubscribe());
 
     // Setting distinct selections and mixing selections and aggregations should throw exception
     QueryRequest request2 = QueryRequest.newBuilder()
@@ -833,10 +819,10 @@ public class PinotBasedRequestHandlerTest {
         .build();
     Assertions.assertThrows(
         IllegalArgumentException.class,
-        () -> pinotBasedRequestHandler.handleRequest(
-            new ExecutionContext("test-tenant-id", request2),
-            request2,
-            mock(QueryResultCollector.class)));
+        () ->
+            pinotBasedRequestHandler
+                .handleRequest(request2, new ExecutionContext("test-tenant-id", request2))
+                .blockingSubscribe());
 
     // Setting distinct selections and mixing selections, group bys and aggregations should throw
     // exception
@@ -851,14 +837,14 @@ public class PinotBasedRequestHandlerTest {
         .build();
     Assertions.assertThrows(
         IllegalArgumentException.class,
-        () -> pinotBasedRequestHandler.handleRequest(
-            new ExecutionContext("test-tenant-id", request3),
-            request3,
-            mock(QueryResultCollector.class)));
+        () ->
+            pinotBasedRequestHandler
+                .handleRequest(request3, new ExecutionContext("test-tenant-id", request3))
+                .blockingSubscribe());
   }
 
   @Test
-  public void testWithMockPinotClient() {
+  public void testWithMockPinotClient() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
       if (!config.getString("name").equals("trace-view-handler")) {
         continue;
@@ -898,20 +884,17 @@ public class PinotBasedRequestHandlerTest {
               },
               factory);
 
-      TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
-
       QueryRequest request = QueryRequest.newBuilder()
           .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
           .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.duration_millis"))
           .build();
       ExecutionContext context = new ExecutionContext("__default", request);
-      handler.handleRequest(context, request, testQueryResultCollector);
-      Assertions.assertNotNull(testQueryResultCollector.getResultSetChunk());
+      verifyResponseRows(handler.handleRequest(request, context), resultTable);
     }
   }
 
   @Test
-  public void testViewColumnFilterRemoval() {
+  public void testViewColumnFilterRemoval() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
       if (!config.getString("name").equals("span-event-view-handler")) {
         continue;
@@ -950,8 +933,6 @@ public class PinotBasedRequestHandlerTest {
               },
               factory);
 
-      TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
-
       QueryRequest request = QueryRequest.newBuilder()
           .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
           .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
@@ -973,13 +954,12 @@ public class PinotBasedRequestHandlerTest {
       Params params = Params.newBuilder().addStringParam("__default").addStringParam("true").addStringParam("1000").build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
-      handler.handleRequest(context, request, testQueryResultCollector);
-      Assertions.assertNotNull(testQueryResultCollector.getResultSetChunk());
+      verifyResponseRows(handler.handleRequest(request, context), resultTable);
     }
   }
 
   @Test
-  public void testViewColumnFilterRemovalComplexCase() {
+  public void testViewColumnFilterRemovalComplexCase() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
       if (!config.getString("name").equals("error-entry-span-view-handler")) {
         continue;
@@ -1018,8 +998,6 @@ public class PinotBasedRequestHandlerTest {
               },
               factory);
 
-      TestQueryResultCollector testQueryResultCollector = new TestQueryResultCollector();
-
       Filter filter1 = Filter.newBuilder().setOperator(Operator.AND)
           .addChildFilter(QueryRequestBuilderUtils.createFilter("EVENT.isEntrySpan", Operator.EQ,
               Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(
@@ -1044,8 +1022,7 @@ public class PinotBasedRequestHandlerTest {
       Params params = Params.newBuilder().addStringParam("__default").addStringParam("401").build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
-      handler.handleRequest(context, request, testQueryResultCollector);
-      Assertions.assertNotNull(testQueryResultCollector.getResultSetChunk());
+      verifyResponseRows(handler.handleRequest(request, context), resultTable);
     }
   }
 
@@ -1078,10 +1055,9 @@ public class PinotBasedRequestHandlerTest {
     return resultSetGroup;
   }
 
-  private void verifyResponseRows(
-      TestQueryResultCollector testQueryResultCollector, String[][] expectedResultTable)
+  private void verifyResponseRows(Observable<Row> rowObservable, String[][] expectedResultTable)
       throws IOException {
-    List<Row> rows = testQueryResultCollector.getResultSetChunk().getRowList();
+    List<Row> rows = rowObservable.toList().blockingGet();
     Assertions.assertEquals(expectedResultTable.length, rows.size());
     for (int rowIdx = 0; rowIdx < rows.size(); rowIdx++) {
       Row row = rows.get(rowIdx);
@@ -1103,21 +1079,5 @@ public class PinotBasedRequestHandlerTest {
 
   private String stringify(Object obj) throws JsonProcessingException {
     return objectMapper.writeValueAsString(obj);
-  }
-
-  static class TestQueryResultCollector implements QueryResultCollector<Row> {
-    private final ResultSetChunk.Builder resultSetChunkBuilder = ResultSetChunk.newBuilder();
-
-    @Override
-    public void collect(Row row) {
-      resultSetChunkBuilder.addRow(row);
-    }
-
-    @Override
-    public void finish() {}
-
-    public ResultSetChunk getResultSetChunk() {
-      return resultSetChunkBuilder.build();
-    }
   }
 }

@@ -24,10 +24,6 @@ import org.hypertrace.core.query.service.api.ValueType;
 public class ExecutionContext {
 
   private final String tenantId;
-  /**
-   * Original request that was received.
-   */
-  private final QueryRequest request;
   private Set<String> referencedColumns;
   private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
@@ -42,13 +38,12 @@ public class ExecutionContext {
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
-    this.request = request;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
-    analyze();
+    analyze(request);
   }
 
-  private void analyze() {
+  private void analyze(QueryRequest request) {
     List<String> filterColumns = new ArrayList<>();
     LinkedList<Filter> filterQueue = new LinkedList<>();
     filterQueue.add(request.getFilter());
