@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Iterator;
 import java.util.Set;
 import org.hypertrace.core.query.service.ExecutionContext;
+import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -17,7 +18,6 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
 import org.hypertrace.core.query.service.api.Value;
-import org.hypertrace.core.query.service.util.QueryRequestUtil;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,12 +152,12 @@ public class ExecutionContextTest {
             .setRhs(expression)
             .setOperator(Operator.EQ);
     Filter startTimeFilter =
-        QueryRequestUtil.createTimeFilter(
+        QueryRequestBuilderUtils.createTimeFilter(
             "Trace.start_time_millis",
             Operator.GT,
             System.currentTimeMillis() - 1000 * 60 * 60 * 24);
     Filter endTimeFilter =
-        QueryRequestUtil.createTimeFilter(
+        QueryRequestBuilderUtils.createTimeFilter(
             "Trace.end_time_millis", Operator.LT, System.currentTimeMillis());
 
     Filter andFilter =

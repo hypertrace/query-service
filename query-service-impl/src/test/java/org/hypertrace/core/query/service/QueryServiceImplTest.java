@@ -36,7 +36,6 @@ import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Value;
-import org.hypertrace.core.query.service.util.QueryRequestUtil;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -201,7 +200,7 @@ public class QueryServiceImplTest {
 
   private QueryRequest buildGroupByAggQuery() {
     Builder builder = QueryRequest.newBuilder();
-    builder.addAggregation(QueryRequestUtil.createCountByColumnSelection("EVENT.id"));
+    builder.addAggregation(QueryRequestBuilderUtils.createCountByColumnSelection("EVENT.id"));
 
     Filter startTimeFilter =
         createTimeFilter(
@@ -228,7 +227,7 @@ public class QueryServiceImplTest {
 
   private QueryRequest buildGroupByTimeRollupAggQuery() {
     Builder builder = QueryRequest.newBuilder();
-    builder.addAggregation(QueryRequestUtil.createCountByColumnSelection("EVENT.id"));
+    builder.addAggregation(QueryRequestBuilderUtils.createCountByColumnSelection("EVENT.id"));
 
     Filter startTimeFilter =
         createTimeFilter(
