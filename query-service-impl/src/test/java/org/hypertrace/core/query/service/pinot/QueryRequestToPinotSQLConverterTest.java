@@ -13,6 +13,7 @@ import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
+import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -27,7 +28,6 @@ import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
-import org.hypertrace.core.query.service.util.QueryRequestUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -566,7 +566,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestUtil
+    Filter parentIdFilter = QueryRequestBuilderUtils
         .createColumnValueFilter("Span.attributes.parent_span_id",
             Operator.EQ, "042e5523ff6b2506").build();
 
@@ -600,7 +600,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestUtil
+    Filter parentIdFilter = QueryRequestBuilderUtils
         .createColumnValueFilter("Span.attributes.parent_span_id",
             Operator.EQ, "042e5523ff6b250L").build();
 
@@ -625,7 +625,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestUtil
+    Filter parentIdFilter = QueryRequestBuilderUtils
         .createColumnValueFilter("Span.attributes.parent_span_id",
             Operator.NEQ, "null").build();
 
@@ -659,7 +659,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestUtil
+    Filter parentIdFilter = QueryRequestBuilderUtils
         .createColumnValueFilter("Span.attributes.parent_span_id",
             Operator.NEQ, "''").build();
 
@@ -725,7 +725,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestUtil
+    Filter parentIdFilter = QueryRequestBuilderUtils
         .createColumnValueFilter("Span.id",
             Operator.NEQ, "null").build();
 
@@ -1005,7 +1005,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private QueryRequest buildMultipleGroupByMultipleAggQuery() {
     Builder builder = QueryRequest.newBuilder();
-    builder.addAggregation(QueryRequestUtil.createCountByColumnSelection("Span.id"));
+    builder.addAggregation(QueryRequestBuilderUtils.createCountByColumnSelection("Span.id"));
     Function.Builder avg =
         Function.newBuilder()
             .setFunctionName("AVG")
@@ -1040,7 +1040,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private QueryRequest buildMultipleGroupByMultipleAggAndOrderByQuery() {
     Builder builder = QueryRequest.newBuilder();
-    builder.addAggregation(QueryRequestUtil.createCountByColumnSelection("Span.id"));
+    builder.addAggregation(QueryRequestBuilderUtils.createCountByColumnSelection("Span.id"));
     Function.Builder avg =
         Function.newBuilder()
             .setFunctionName("AVG")

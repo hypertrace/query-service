@@ -20,6 +20,7 @@ import org.hypertrace.core.query.service.api.ValueType;
  * Utility methods to easily create {@link org.hypertrace.core.query.service.api.QueryRequest} its
  * selections and filters.
  */
+@Deprecated
 public class QueryRequestUtil {
 
   public static Filter createTimeFilter(String columnName, Operator op, long value) {
@@ -129,23 +130,17 @@ public class QueryRequestUtil {
             Expression.newBuilder()
                 .setLiteral(
                     LiteralConstant.newBuilder()
-                        .setValue(
-                            org.hypertrace.core.query.service.api.Value.newBuilder()
-                                .setString("1:MILLISECONDS:EPOCH"))))
+                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
         .addArguments(
             Expression.newBuilder()
                 .setLiteral(
                     LiteralConstant.newBuilder()
-                        .setValue(
-                            org.hypertrace.core.query.service.api.Value.newBuilder()
-                                .setString("1:MILLISECONDS:EPOCH"))))
+                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
         .addArguments(
             Expression.newBuilder()
                 .setLiteral(
                     LiteralConstant.newBuilder()
-                        .setValue(
-                            org.hypertrace.core.query.service.api.Value.newBuilder()
-                                .setString(periodSecs + ":SECONDS"))));
+                        .setValue(Value.newBuilder().setString(periodSecs + ":SECONDS"))));
   }
 
   public static Filter createValueEQFilter(List<String> idColumns, List<String> idColumnsValues) {
