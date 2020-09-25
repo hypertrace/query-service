@@ -59,6 +59,9 @@ queryServiceConfig:
   data:
     zookeeperConnectionString: zookeeper:2181/pinot/my-views
     tenantColumnName: tenant_id
+    attributeClient:
+      host: attribute-service
+      port: 9012
 handlers: []
 
 extraHandlers: []
