@@ -8,6 +8,10 @@ data:
   application.conf: |-
     service.config = {
       tenantColumnName = "{{ .Values.queryServiceConfig.data.tenantColumnName }}"
+      attribute.client = {
+        host = {{ .Values.queryServiceConfig.data.attributeClient.host }}
+        port = {{ .Values.queryServiceConfig.data.attributeClient.port }}
+      }
       clients = [
         {
           type = zookeeper
