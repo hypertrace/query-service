@@ -30,7 +30,7 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class ProjectionTransformation implements QueryTransformation {
+final class ProjectionTransformation implements QueryTransformation {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProjectionTransformation.class);
 

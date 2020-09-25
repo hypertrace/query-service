@@ -15,6 +15,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createF
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,7 @@ import java.util.List;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 import org.hypertrace.core.attribute.service.v1.AttributeDefinition;
 import org.hypertrace.core.attribute.service.v1.AttributeMetadata;
+import org.hypertrace.core.attribute.service.v1.LiteralValue;
 import org.hypertrace.core.attribute.service.v1.Projection;
 import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
@@ -86,7 +88,7 @@ class ProjectionTransformationTest {
 
   @Test
   void transformsComplexFunctionProjection() {
-    // CONCAT(HASH(SIMPLE_ATTRIBUTE_ID), SIMPLE_ATTRIBUTE_ID)
+    // CONCAT(HASH(SIMPLE_ATTRIBUTE_ID), "projectionLiteral")
     Projection projection =
         functionProjection(
             projectionExpression(
@@ -94,7 +96,7 @@ class ProjectionTransformationTest {
                 functionProjection(
                     projectionExpression(
                         PROJECTION_OPERATOR_HASH, attributeIdProjection(SIMPLE_ATTRIBUTE_ID))),
-                attributeIdProjection(SIMPLE_ATTRIBUTE_ID)));
+                literalProjection("projectionLiteral")));
 
     this.attributeMetadata =
         this.attributeMetadata.toBuilder()
@@ -114,7 +116,7 @@ class ProjectionTransformationTest {
                     PROJECTED_ATTRIBUTE_ID,
                     createFunctionExpression(
                         QUERY_FUNCTION_HASH, createColumnExpression(SIMPLE_ATTRIBUTE_ID).build()),
-                    createColumnExpression(SIMPLE_ATTRIBUTE_ID).build()))
+                    createStringLiteralValueExpression("projectionLiteral")))
             .build();
 
     assertEquals(
@@ -247,5 +249,11 @@ class ProjectionTransformationTest {
 
   private Projection functionProjection(ProjectionExpression expression) {
     return Projection.newBuilder().setExpression(expression).build();
+  }
+
+  private Projection literalProjection(String value) {
+    return Projection.newBuilder()
+        .setLiteral(LiteralValue.newBuilder().setStringValue(value))
+        .build();
   }
 }

@@ -8,7 +8,7 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 
-class AttributeClientProvider implements Provider<CachingAttributeClient> {
+final class AttributeClientProvider implements Provider<CachingAttributeClient> {
 
   private final QueryServiceConfig config;
 
