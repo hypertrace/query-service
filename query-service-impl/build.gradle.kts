@@ -30,7 +30,10 @@ dependencies {
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.0")
   implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.3.0")
+  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.3.0")
   implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.3.0")
+  implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.4.1")
+  implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.4.1")
   implementation("com.google.inject:guice:4.2.3")
   implementation("org.apache.pinot:pinot-java-client:0.5.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
