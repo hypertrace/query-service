@@ -235,7 +235,7 @@ final class ProjectionTransformation implements QueryTransformation {
    * object and keeping it equivalent to the source object for equality checks.
    */
   private Filter rebuildFilterOmittingDefaults(
-      Filter original, Expression lhs, Expression rhs, List<Filter> chidFilters) {
+      Filter original, Expression lhs, Expression rhs, List<Filter> childFilters) {
     Filter.Builder builder = original.toBuilder();
 
     if (Expression.getDefaultInstance().equals(lhs)) {
@@ -250,7 +250,7 @@ final class ProjectionTransformation implements QueryTransformation {
       builder.setRhs(rhs);
     }
 
-    return builder.clearChildFilter().addAllChildFilter(chidFilters).build();
+    return builder.clearChildFilter().addAllChildFilter(childFilters).build();
   }
 
   private QueryRequest rebuildRequestOmittingDefaults(
