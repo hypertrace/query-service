@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 
 import io.reactivex.rxjava3.core.Single;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 import org.hypertrace.core.attribute.service.v1.AttributeDefinition;
 import org.hypertrace.core.attribute.service.v1.AttributeMetadata;
@@ -226,6 +227,66 @@ class ProjectionTransformationTest {
                     QUERY_FUNCTION_AVG,
                     createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)))
             .addGroupBy(createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void passesThroughExpressionsInOrder() {
+    when(this.mockAttributeClient.get("slow"))
+        .thenReturn(
+            Single.defer(
+                () ->
+                    Single.just(AttributeMetadata.getDefaultInstance())
+                        .delay(10, TimeUnit.MILLISECONDS)));
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addSelection(createColumnExpression("slow"))
+            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .build();
+    QueryRequest expected =
+        QueryRequest.newBuilder()
+            .addSelection(createColumnExpression("slow"))
+            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .addSelection(
+                createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
+            .build();
+    assertEquals(
+        expected,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void passesThroughOrderBysInOrder() {
+    when(this.mockAttributeClient.get("slow"))
+        .thenReturn(
+            Single.defer(
+                () ->
+                    Single.just(AttributeMetadata.getDefaultInstance())
+                        .delay(10, TimeUnit.MILLISECONDS)));
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addOrderBy(createOrderByExpression("slow", SortOrder.ASC))
+            .addOrderBy(createOrderByExpression(PROJECTED_ATTRIBUTE_ID, SortOrder.DESC))
+            .build();
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .addOrderBy(createOrderByExpression("slow", SortOrder.ASC))
+            .addOrderBy(
+                createOrderByExpression(
+                    createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)
+                        .toBuilder(),
+                    SortOrder.DESC))
             .build();
 
     assertEquals(

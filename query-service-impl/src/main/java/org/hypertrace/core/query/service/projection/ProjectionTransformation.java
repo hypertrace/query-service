@@ -58,7 +58,7 @@ final class ProjectionTransformation implements QueryTransformation {
 
   private Single<List<Expression>> transformExpressionList(List<Expression> expressionList) {
     return Observable.fromIterable(expressionList)
-        .flatMapSingle(this::transformExpression)
+        .concatMapSingle(this::transformExpression)
         .toList();
   }
 
@@ -95,7 +95,7 @@ final class ProjectionTransformation implements QueryTransformation {
 
   private Single<List<OrderByExpression>> transformOrderByList(
       List<OrderByExpression> orderByList) {
-    return Observable.fromIterable(orderByList).flatMapSingle(this::transformOrderBy).toList();
+    return Observable.fromIterable(orderByList).concatMapSingle(this::transformOrderBy).toList();
   }
 
   private Single<OrderByExpression> transformOrderBy(OrderByExpression orderBy) {
@@ -113,7 +113,7 @@ final class ProjectionTransformation implements QueryTransformation {
     Single<Expression> rhsSingle = this.transformExpression(filter.getRhs());
     Single<List<Filter>> childFilterListSingle =
         Observable.fromIterable(filter.getChildFilterList())
-            .flatMapSingle(this::transformFilter)
+            .concatMapSingle(this::transformFilter)
             .toList();
     return zip(
         lhsSingle,
@@ -169,7 +169,7 @@ final class ProjectionTransformation implements QueryTransformation {
       ProjectionExpression projectionExpression) {
     Single<List<Expression>> argumentListSingle =
         Observable.fromIterable(projectionExpression.getArgumentsList())
-            .flatMapSingle(this::rewriteProjectionAsQueryExpression)
+            .concatMapSingle(this::rewriteProjectionAsQueryExpression)
             .toList();
 
     Single<String> operatorSingle = this.convertOperator(projectionExpression.getOperator());
