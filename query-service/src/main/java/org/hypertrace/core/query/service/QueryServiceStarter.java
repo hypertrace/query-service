@@ -33,7 +33,8 @@ public class QueryServiceStarter extends PlatformService {
         ServerBuilder.forPort(serverPort)
             .addService(
                 InterceptorUtil.wrapInterceptors(
-                    QueryServiceFactory.build(getAppConfig().getConfig(QUERY_SERVICE_CONFIG))))
+                    QueryServiceFactory.build(
+                        getAppConfig().getConfig(QUERY_SERVICE_CONFIG), this.getLifecycle())))
             .build();
   }
 
