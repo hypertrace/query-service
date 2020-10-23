@@ -4,32 +4,35 @@ import com.google.protobuf.ByteString;
 import org.apache.commons.codec.DecoderException;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
-import org.hypertrace.core.query.service.pinot.converters.StringToValueConverter;
+import org.hypertrace.core.query.service.pinot.converters.DestinationColumnValueConverter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class StringToValueConverterTest {
+public class DestinationColumnValueConverterTest {
+  private Value getStringValue(String value) {
+    return Value.newBuilder().setString(value).build();
+  }
 
   @Test
   public void testValidNullFieldsForBytesColumn() throws Exception {
-    StringToValueConverter instance = StringToValueConverter.INSTANCE;
+    DestinationColumnValueConverter converter = DestinationColumnValueConverter.INSTANCE;
 
-    Value value = instance.convert("", ValueType.BYTES);
+    Value value = converter.convert(getStringValue(""), ValueType.BYTES);
     Assertions.assertNotNull(value);
     Assertions.assertEquals(ValueType.BYTES, value.getValueType());
     Assertions.assertEquals(ByteString.EMPTY, value.getBytes());
 
-    value = instance.convert("null", ValueType.BYTES);
+    value = converter.convert(getStringValue("null"), ValueType.BYTES);
     Assertions.assertNotNull(value);
     Assertions.assertEquals(ValueType.BYTES, value.getValueType());
     Assertions.assertEquals(ByteString.EMPTY, value.getBytes());
 
-    value = instance.convert("''", ValueType.BYTES);
+    value = converter.convert(getStringValue("''"), ValueType.BYTES);
     Assertions.assertNotNull(value);
     Assertions.assertEquals(ValueType.BYTES, value.getValueType());
     Assertions.assertEquals(ByteString.EMPTY, value.getBytes());
 
-    value = instance.convert("{}", ValueType.BYTES);
+    value = converter.convert(getStringValue("{}"), ValueType.BYTES);
     Assertions.assertNotNull(value);
     Assertions.assertEquals(ValueType.BYTES, value.getValueType());
     Assertions.assertEquals(ByteString.EMPTY, value.getBytes());
@@ -37,9 +40,9 @@ public class StringToValueConverterTest {
 
   @Test
   public void testInValidNullFieldsForBytesColumn() {
-    StringToValueConverter instance = StringToValueConverter.INSTANCE;
+    DestinationColumnValueConverter converter = DestinationColumnValueConverter.INSTANCE;
     Assertions.assertThrows(DecoderException.class, () -> {
-      Value value = instance.convert("abc", ValueType.BYTES);
+      converter.convert(getStringValue("abc"), ValueType.BYTES);
     });
   }
 }

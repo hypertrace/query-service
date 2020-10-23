@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
+import com.google.protobuf.ByteString;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,7 +16,7 @@ public class Params {
   private final Map<Integer, String> stringParams;
   private final Map<Integer, Float> floatParams;
   private final Map<Integer, Double> doubleParams;
-  private final Map<Integer, String> bytesStringParams;
+  private final Map<Integer, ByteString> byteStringParams;
 
   private Params(
       Map<Integer, Integer> integerParams,
@@ -23,13 +24,13 @@ public class Params {
       Map<Integer, String> stringParams,
       Map<Integer, Float> floatParams,
       Map<Integer, Double> doubleParams,
-      Map<Integer, String> bytesStringParams) {
+      Map<Integer, ByteString> byteStringParams) {
     this.integerParams = integerParams;
     this.longParams = longParams;
     this.stringParams = stringParams;
     this.floatParams = floatParams;
     this.doubleParams = doubleParams;
-    this.bytesStringParams = bytesStringParams;
+    this.byteStringParams = byteStringParams;
   }
 
   public Map<Integer, Integer> getIntegerParams() {
@@ -52,8 +53,8 @@ public class Params {
     return doubleParams;
   }
 
-  public Map<Integer, String> getBytesStringParams() {
-    return bytesStringParams;
+  public Map<Integer, ByteString> getByteStringParams() {
+    return byteStringParams;
   }
 
   @Override
@@ -64,7 +65,7 @@ public class Params {
         ", stringParams=" + stringParams +
         ", floatParams=" + floatParams +
         ", doubleParams=" + doubleParams +
-        ", bytesStringParams=" + bytesStringParams +
+        ", byteStringParams=" + byteStringParams +
         '}';
   }
 
@@ -94,7 +95,7 @@ public class Params {
     if (!doubleParams.equals(params.doubleParams)) {
       return false;
     }
-    return bytesStringParams.equals(params.bytesStringParams);
+    return byteStringParams.equals(params.byteStringParams);
   }
 
   @Override
@@ -104,7 +105,7 @@ public class Params {
     result = 31 * result + stringParams.hashCode();
     result = 31 * result + floatParams.hashCode();
     result = 31 * result + doubleParams.hashCode();
-    result = 31 * result + bytesStringParams.hashCode();
+    result = 31 * result + byteStringParams.hashCode();
     return result;
   }
 
@@ -120,7 +121,7 @@ public class Params {
     private final Map<Integer, String> stringParams;
     private final Map<Integer, Float> floatParams;
     private final Map<Integer, Double> doubleParams;
-    private final Map<Integer, String> bytesStringParams;
+    private final Map<Integer, ByteString> byteStringParams;
 
     private Builder() {
       nextIndex = 0;
@@ -129,7 +130,7 @@ public class Params {
       stringParams = new HashMap<>();
       floatParams = new HashMap<>();
       doubleParams = new HashMap<>();
-      bytesStringParams = new HashMap<>();
+      byteStringParams = new HashMap<>();
     }
 
     public Builder addIntegerParam(int paramValue) {
@@ -157,14 +158,14 @@ public class Params {
       return this;
     }
 
-    public Builder addBytesStringParam(String paramValue) {
-      bytesStringParams.put(nextIndex++, paramValue);
+    public Builder addByteStringParam(ByteString paramValue) {
+      byteStringParams.put(nextIndex++, paramValue);
       return this;
     }
 
     public Params build() {
       return new Params(integerParams, longParams, stringParams, floatParams, doubleParams,
-          bytesStringParams);
+          byteStringParams);
     }
   }
 }
