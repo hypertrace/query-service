@@ -8,7 +8,7 @@ import org.hypertrace.core.query.service.pinot.converters.DestinationColumnValue
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class StringDestinationColumnValueConverterTest {
+public class DestinationColumnValueConverterTest {
   private Value getStringValue(String value) {
     return Value.newBuilder().setString(value).build();
   }
