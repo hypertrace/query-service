@@ -24,13 +24,13 @@ public class Params {
       Map<Integer, String> stringParams,
       Map<Integer, Float> floatParams,
       Map<Integer, Double> doubleParams,
-      Map<Integer, ByteString> bytesParams) {
+      Map<Integer, ByteString> byteStringParams) {
     this.integerParams = integerParams;
     this.longParams = longParams;
     this.stringParams = stringParams;
     this.floatParams = floatParams;
     this.doubleParams = doubleParams;
-    this.byteStringParams = bytesParams;
+    this.byteStringParams = byteStringParams;
   }
 
   public Map<Integer, Integer> getIntegerParams() {
