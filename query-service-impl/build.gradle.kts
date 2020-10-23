@@ -44,7 +44,7 @@ dependencies {
   implementation("commons-codec:commons-codec:1.13")
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.8")
   implementation("com.google.protobuf:protobuf-java-util:3.12.2")
-  implementation("com.google.guava:guava:29.0-jre")
+  implementation("com.google.guava:guava:30.0-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.6")
 
   testImplementation(project(":query-service-api"))
