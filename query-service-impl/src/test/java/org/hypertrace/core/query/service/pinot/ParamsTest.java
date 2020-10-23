@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
+import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +11,7 @@ public class ParamsTest {
   @Test
   public void testEquals() {
     Params params = Params.newBuilder().addStringParam("test").addIntegerParam(1)
-        .addLongParam(100L).addDoubleParam(1.1d).addFloatParam(0.1f).addBytesStringParam("test").build();
+        .addLongParam(100L).addDoubleParam(1.1d).addFloatParam(0.1f).addByteStringParam(ByteString.copyFrom("bytes".getBytes())).build();
     Assertions.assertEquals(params, params);
     Assertions.assertEquals(params.hashCode(), params.hashCode());
     Assertions.assertNotEquals(params, new Object());

@@ -4,11 +4,11 @@ import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNI
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
 import com.google.common.base.Joiner;
+import com.google.protobuf.ByteString;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
-import org.apache.commons.codec.binary.Hex;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -19,9 +19,8 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
+import org.hypertrace.core.query.service.pinot.converters.DestinationColumnValueConverter;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
-import org.hypertrace.core.query.service.pinot.converters.StringToValueConverter;
-import org.hypertrace.core.query.service.pinot.converters.ToValueConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -200,43 +199,18 @@ class QueryRequestToPinotSQLConverter {
       return rhs;
     }
 
-    Expression newRhs = rhs;
     String lhsColumnName = lhs.getColumnIdentifier().getColumnName();
-
-    ToValueConverter converter = getValueConverter(rhs.getLiteral().getValue().getValueType());
-    if (converter != null) {
-      try {
-        Value value =
-            converter.convert(
-                rhs.getLiteral().getValue().getString(),
-                viewDefinition.getColumnType(lhsColumnName));
-        newRhs =
-            Expression.newBuilder()
-                .setLiteral(LiteralConstant.newBuilder().setValue(value))
-                .build();
-      } catch (Exception e) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Invalid string input:{ %s } for bytes column:{ %s }",
-                rhs.getLiteral().getValue().getString(),
-                viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
-      }
+    try {
+      Value value = DestinationColumnValueConverter.INSTANCE.convert(rhs.getLiteral().getValue(),
+          viewDefinition.getColumnType(lhsColumnName));
+      return Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(value)).build();
+    } catch (Exception e) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Invalid input:{ %s } for bytes column:{ %s }",
+              rhs.getLiteral().getValue(),
+              viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
     }
-
-    return newRhs;
-  }
-
-  private ToValueConverter getValueConverter(ValueType valueType) {
-    ToValueConverter result;
-    switch (valueType) {
-      case STRING:
-        result = StringToValueConverter.INSTANCE;
-        break;
-      default:
-        result = null;
-        break;
-    }
-    return result;
   }
 
   private String convertOperator2String(Operator operator) {
@@ -371,17 +345,17 @@ class QueryRequestToPinotSQLConverter {
         builder.append(")");
         ret = builder.toString();
         break;
-      case LONG_ARRAY:
-        break;
-      case INT_ARRAY:
-        break;
-      case FLOAT_ARRAY:
-        break;
-      case DOUBLE_ARRAY:
-        break;
       case BYTES_ARRAY:
-        break;
-      case BOOLEAN_ARRAY:
+        builder = new StringBuilder("(");
+        delim = "";
+        for (ByteString item : value.getBytesArrayList()) {
+          builder.append(delim);
+          builder.append(QUESTION_MARK);
+          paramsBuilder.addByteStringParam(item);
+          delim = ", ";
+        }
+        builder.append(")");
+        ret = builder.toString();
         break;
       case STRING:
         ret = QUESTION_MARK;
@@ -405,7 +379,7 @@ class QueryRequestToPinotSQLConverter {
         break;
       case BYTES:
         ret = QUESTION_MARK;
-        paramsBuilder.addBytesStringParam(Hex.encodeHexString(value.getBytes().toByteArray()));
+        paramsBuilder.addByteStringParam(value.getBytes());
         break;
       case BOOL:
         ret = QUESTION_MARK;
@@ -415,6 +389,11 @@ class QueryRequestToPinotSQLConverter {
         ret = QUESTION_MARK;
         paramsBuilder.addLongParam(value.getTimestamp());
         break;
+      case LONG_ARRAY:
+      case INT_ARRAY:
+      case FLOAT_ARRAY:
+      case DOUBLE_ARRAY:
+      case BOOLEAN_ARRAY:
       case UNRECOGNIZED:
         break;
     }

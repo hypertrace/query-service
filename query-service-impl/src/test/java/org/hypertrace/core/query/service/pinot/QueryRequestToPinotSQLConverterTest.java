@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
@@ -391,15 +392,15 @@ public class QueryRequestToPinotSQLConverterTest {
     ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
-    String trace1 = "1";
-    String trace2 = "2";
+    String spanId1 = "042e5523ff6b2506";
+    String spanId2 = "041e5523ff6b2501";
     LiteralConstant spanIds =
         LiteralConstant.newBuilder()
             .setValue(
                 Value.newBuilder()
                     .setValueType(ValueType.STRING_ARRAY)
-                    .addStringArray(trace1)
-                    .addStringArray(trace2)
+                    .addStringArray(spanId1)
+                    .addStringArray(spanId2)
                     .build())
             .build();
 
@@ -420,16 +421,16 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_id IN ('1', '2')");
+            + "AND span_id IN ('" + spanId1 + "', '" + spanId2 + "')");
   }
 
   @Test
   public void testSQLiWithStringArrayFilter() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.displaySpanName").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
-    String span1 = "1') OR tenant_id = 'tenant2' and span_id IN ('1";
+    String span1 = "1') OR tenant_id = 'tenant2' and span_name IN ('1";
     LiteralConstant spanIds =
         LiteralConstant.newBuilder()
             .setValue(
@@ -449,12 +450,12 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(filter);
     assertPQLQuery(
         builder.build(),
-        "SELECT span_id FROM SpanEventView WHERE "
+        "SELECT span_name FROM SpanEventView WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_id IN ('1'') OR tenant_id = ''tenant2'' and span_id IN (''1')");
+            + "AND span_name IN ('1'') OR tenant_id = ''tenant2'' and span_name IN (''1')");
   }
 
   @Test
@@ -471,7 +472,7 @@ public class QueryRequestToPinotSQLConverterTest {
                 Expression.newBuilder()
                     .setLiteral(
                         LiteralConstant.newBuilder()
-                            .setValue(Value.newBuilder().setString("123").build()))
+                            .setValue(Value.newBuilder().setString("042e5523ff6b2506").build()))
                     .build())
             .build();
 
@@ -484,7 +485,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND REGEXP_LIKE(span_id,'123')");
+            + "AND REGEXP_LIKE(span_id,'042e5523ff6b2506')");
   }
 
   @Test
@@ -613,7 +614,8 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setLimit(5);
 
     assertExceptionOnPQLQuery(builder.build(), IllegalArgumentException.class,
-        "Invalid string input:{ 042e5523ff6b250L } for bytes column:{ parent_span_id }");
+        "Invalid input:{ string: \"042e5523ff6b250L\"\n"
+            + " } for bytes column:{ parent_span_id }");
   }
 
   @Test
@@ -685,35 +687,31 @@ public class QueryRequestToPinotSQLConverterTest {
   }
 
   @Test
-  public void testQueryWithBytesColumnWithLikeFilter() {
+  public void testQueryWithBytesColumnInFilter() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+    ColumnIdentifier durationColumn = ColumnIdentifier.newBuilder()
+        .setColumnName("Span.metrics.duration_millis").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(durationColumn));
 
-    ColumnIdentifier parentSpanId = ColumnIdentifier.newBuilder()
-        .setColumnName("Span.attributes.parent_span_id").build();
-    Filter likeFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.LIKE)
-            .setLhs(Expression.newBuilder().setColumnIdentifier(parentSpanId).build())
-            .setRhs(
-                Expression.newBuilder()
-                    .setLiteral(
-                        LiteralConstant.newBuilder()
-                            .setValue(Value.newBuilder().setString("null").build()))
-                    .build())
-            .build();
+    ColumnIdentifier.Builder spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id");
+    // Though span id is bytes in Pinot, top layers send the value as hex string.
+    Value.Builder value = Value.newBuilder().setValueType(ValueType.STRING_ARRAY)
+        .addAllStringArray(List.of("042e5523ff6b2506"));
+    builder.setFilter(Filter.newBuilder()
+        .setLhs(Expression.newBuilder().setColumnIdentifier(spanId))
+        .setOperator(Operator.IN)
+        .setRhs(Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(value)))
+    );
 
-    builder.setFilter(likeFilter);
     assertPQLQuery(
         builder.build(),
-        "SELECT span_id FROM SpanEventView "
+        "SELECT duration_millis FROM SpanEventView "
             + "WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND REGEXP_LIKE(parent_span_id,'')");
+            + "AND span_id IN ('042e5523ff6b2506')");
   }
 
   @Test
@@ -747,37 +745,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( span_id != 'null' ) limit 5");
-  }
-
-  @Test
-  public void testQueryWithStringColumnWithNullStringWithLikeFilter() {
-    Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
-
-    Filter likeFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.LIKE)
-            .setLhs(Expression.newBuilder().setColumnIdentifier(spanId).build())
-            .setRhs(
-                Expression.newBuilder()
-                    .setLiteral(
-                        LiteralConstant.newBuilder()
-                            .setValue(Value.newBuilder().setString("null").build()))
-                    .build())
-            .build();
-
-    builder.setFilter(likeFilter);
-    assertPQLQuery(
-        builder.build(),
-        "SELECT span_id FROM SpanEventView "
-            + "WHERE "
-            + viewDefinition.getTenantIdColumn()
-            + " = '"
-            + TENANT_ID
-            + "' "
-            + "AND REGEXP_LIKE(span_id,'null')");
+            + "AND ( span_id != '' ) limit 5");
   }
 
   @Test

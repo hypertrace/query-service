@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.pinot;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.ConnectionFactory;
 import org.apache.pinot.client.PreparedStatement;
@@ -97,7 +98,8 @@ public class PinotClientFactory {
       params.getLongParams().forEach(preparedStatement::setLong);
       params.getDoubleParams().forEach(preparedStatement::setDouble);
       params.getFloatParams().forEach(preparedStatement::setFloat);
-      params.getBytesStringParams().forEach(preparedStatement::setString);
+      params.getByteStringParams()
+          .forEach((i, b) -> preparedStatement.setString(i, Hex.encodeHexString(b.toByteArray())));
       return preparedStatement;
     }
   }
