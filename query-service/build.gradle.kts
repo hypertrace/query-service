@@ -9,7 +9,7 @@ dependencies {
   implementation(project(":query-service-impl"))
   implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.3.0")
   implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.15")
-  implementation("io.grpc:grpc-netty:1.31.1")
+  implementation("io.grpc:grpc-netty:1.33.0")
 
   implementation("org.slf4j:slf4j-api:1.7.30")
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
