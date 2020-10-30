@@ -1,10 +1,12 @@
 package org.hypertrace.core.query.service.pinot.converters;
 
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_PERCENTILE;
 
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -37,6 +39,8 @@ public class PinotFunctionConverter {
         return this.convertCount();
       case QUERY_FUNCTION_PERCENTILE:
         return this.functionToString(this.toPinotPercentile(function), argumentConverter);
+      case QUERY_FUNCTION_CONCAT:
+        return this.functionToString(this.toPinotConcat(function), argumentConverter);
       default:
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
         // that logic
@@ -73,6 +77,14 @@ public class PinotFunctionConverter {
     return Function.newBuilder(function)
         .removeArguments(0)
         .setFunctionName(this.percentileAggFunction + percentileValue)
+        .build();
+  }
+
+  private Function toPinotConcat(Function function) {
+    // Our concat takes two args (one can be literal - CONCAT(ARG1, ARG2)
+    // Pinot concat takes a separator - CONCAT(ARG1, ARG2, SEPARATOR)
+    return Function.newBuilder(function)
+        .addArguments(QueryRequestUtil.createStringLiteralExpression(""))
         .build();
   }
 
