@@ -83,6 +83,53 @@ public class QueryServiceImplTest {
     }
   }
 
+  @Test
+  public void testLike() {
+    ManagedChannel managedChannel =
+        ManagedChannelBuilder.forAddress("localhost", 8090).usePlaintext().build();
+    QueryServiceBlockingStub QueryServiceBlockingStub =
+        QueryServiceGrpc.newBlockingStub(managedChannel);
+
+    QueryRequest queryRequest = buildSimpleLikeQuery();
+
+    LOGGER.info("Trying to send request {}", queryRequest);
+    Iterator<ResultSetChunk> resultSetChunkIterator =
+        QueryServiceBlockingStub.withDeadline(Deadline.after(15, TimeUnit.SECONDS))
+            .execute(queryRequest);
+    LOGGER.info("Got response back: {}", resultSetChunkIterator);
+    while (resultSetChunkIterator.hasNext()) {
+      LOGGER.info("{}", resultSetChunkIterator.next());
+    }
+  }
+
+  private QueryRequest buildSimpleLikeQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("EVENT.id").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+    builder.addSelection(createSelection("EVENT.serviceName"));
+
+//    Filter startTimeFilter =
+//        createTimeFilter(
+//            "EVENT.start_time_millis",
+//            Operator.GT,
+//            System.currentTimeMillis() - 1000 * 60 * 60 * 24);
+//    Filter endTimeFilter =
+//        createTimeFilter("EVENT.end_time_millis", Operator.LT, System.currentTimeMillis());
+
+    Filter likeFilter = createStringColumnFilter("EVENT.serviceName", Operator.LIKE, "\\!\\(");
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(likeFilter)
+            //.addChildFilter(endTimeFilter)
+            .build();
+    builder.setFilter(andFilter);
+    builder.setLimit(5);
+
+    return builder.build();
+  }
+
   @Disabled
   public void testGrpcMap() {
     ManagedChannel managedChannel =

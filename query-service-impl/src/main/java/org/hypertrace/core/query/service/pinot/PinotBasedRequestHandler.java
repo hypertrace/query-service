@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.Future;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.QueryContext;
@@ -157,15 +158,18 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
     validateQueryRequest(queryContext, request);
     Entry<String, Params> pql =
         request2PinotSqlConverter.toSQL(queryContext, request, requestAnalyzer.getAllSelections());
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
-    }
+//    if (LOG.isDebugEnabled()) {
+//      LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
+//    }
+    LOG.info("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
     final PinotClient pinotClient = pinotClientFactory.getPinotClient(this.getName());
 
     final ResultSetGroup resultSetGroup;
     try {
-      resultSetGroup = pinotQueryExecutionTimer.recordCallable(
-          () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
+      resultSetGroup = pinotQueryExecutionTimer.recordCallable(() -> {
+        Future<ResultSetGroup> resultSetGroupFuture = pinotClient.executeQueryAsync(pql.getKey(), pql.getValue());
+        return resultSetGroupFuture.get();
+      });
     } catch (Exception ex) {
       // Catch this exception to log the Pinot SQL query that caused the issue
       LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
@@ -187,6 +191,7 @@ public class PinotBasedRequestHandler implements RequestHandler<QueryRequest, Ro
       } catch (InvalidProtocolBufferException ignore) {
       }
     }
+    LOG.info("Query Execution time: {} millis", requestTimeMs);
   }
 
   void convert(

@@ -8,6 +8,8 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.codec.binary.Hex;
 import org.hypertrace.core.query.service.QueryContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -42,6 +44,15 @@ class QueryRequestToPinotSQLConverter {
   private final ViewDefinition viewDefinition;
   private final String percentileAggFunction;
   private final Joiner joiner = Joiner.on(", ").skipNulls();
+
+  final String regExSpecialChars = "<([{\\^-=$!|]})?*+.>";
+  final String regExSpecialCharsRE = regExSpecialChars.replaceAll( ".", "\\\\$0");
+  final Pattern reCharsREP = Pattern.compile( "[" + regExSpecialCharsRE + "]");
+
+  String quoteRegExSpecialChars( String s) {
+    Matcher m = reCharsREP.matcher( s);
+    return m.replaceAll( "\\\\$0");
+  }
 
   QueryRequestToPinotSQLConverter(ViewDefinition viewDefinition, String percentileAggFunc) {
     this.viewDefinition = viewDefinition;
@@ -117,6 +128,7 @@ class QueryRequestToPinotSQLConverter {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Converted QueryRequest to Pinot SQL: {}", pqlBuilder);
     }
+    LOG.info("Converted QueryRequest to Pinot SQL: {}", pqlBuilder);
     return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
   }
 
@@ -138,10 +150,21 @@ class QueryRequestToPinotSQLConverter {
         case LIKE:
           // The like operation in PQL looks like `regexp_like(lhs, rhs)`
           Expression rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+          //rhs = escapeLiteralStringForLikeOperator(rhs);
+          LOG.info("Escaped expression: {}", rhs);
           builder.append(operator);
           builder.append("(");
           builder.append(convertExpression2String(filter.getLhs(), paramsBuilder));
           builder.append(",");
+//          if (!rhs.hasLiteral()) {
+//            throw new RuntimeException("Cannot escape any other type of expression except LiteralExpression");
+//          }
+//          if (rhs.getLiteral().getValue().getValueType() != ValueType.STRING) {
+//            throw new RuntimeException("rhs for LIKE should be a String");
+//          }
+//          String rhsVal = rhs.getLiteral().getValue().getString();
+//          paramsBuilder.addStringParam(rhsVal);
+//          builder.append(QUESTION_MARK);
           builder.append(convertExpression2String(rhs, paramsBuilder));
           builder.append(")");
           break;
@@ -183,6 +206,24 @@ class QueryRequestToPinotSQLConverter {
       }
     }
     return builder.toString();
+  }
+
+  private Expression escapeLiteralStringForLikeOperator(Expression expression) {
+    if (!expression.hasLiteral() ||
+        expression.getLiteral().getValue().getValueType() != ValueType.STRING) {
+      return expression;
+    }
+
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder()
+                        .setValueType(ValueType.STRING)
+                        .setString(quoteRegExSpecialChars(expression.getLiteral().getValue().getString()))
+                )
+        )
+        .build();
   }
 
   /**
@@ -303,6 +344,36 @@ class QueryRequestToPinotSQLConverter {
     }
     return "";
   }
+
+//  private String convertExpression2EscapedString(Expression expression, Params.Builder paramsBuilder) {
+//    switch (expression.getValueCase()) {
+//      case LITERAL:
+//        return convertLiteralToString(expression.getLiteral(), paramsBuilder);
+//      case FUNCTION:
+//        Function function = expression.getFunction();
+//        String functionName = function.getFunctionName();
+//        // For COUNT(column_name), Pinot sql format converts it to COUNT(*) and even only works with
+//        // COUNT(*) for ORDER BY
+//        if (functionName.equalsIgnoreCase("COUNT")) {
+//          return functionName + "(*)";
+//        } else if (functionName.startsWith(PERCENTILE_PREFIX) && !PERCENTILE_PREFIX.equals(functionName)) {
+//          functionName = functionName.replaceFirst(PERCENTILE_PREFIX, percentileAggFunction);
+//        }
+//        List<Expression> argumentsList = function.getArgumentsList();
+//        String[] args = new String[argumentsList.size()];
+//        for (int i = 0; i < argumentsList.size(); i++) {
+//          Expression expr = argumentsList.get(i);
+//          args[i] = convertExpression2String(expr, paramsBuilder);
+//        }
+//        return functionName + "(" + joiner.join(args) + ")";
+//      case ORDERBY:
+//        OrderByExpression orderBy = expression.getOrderBy();
+//        return convertExpression2String(orderBy.getExpression(), paramsBuilder);
+//      default:
+//        throw new RuntimeException("Cannot escape any other type of expression except LiteralExpression");
+//    }
+//    return "";
+//  }
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
     if (expression.getValueCase() == COLUMNIDENTIFIER) {

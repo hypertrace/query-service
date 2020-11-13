@@ -39,6 +39,8 @@ dependencies {
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.8")
   implementation("com.google.protobuf:protobuf-java-util:3.12.2")
 
+  implementation("io.grpc:grpc-netty:1.31.1")
+
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
   testImplementation("org.mockito:mockito-core:3.3.3")
