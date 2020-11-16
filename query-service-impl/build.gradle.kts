@@ -14,11 +14,11 @@ dependencies {
       because("Deserialization of Untrusted Data [High Severity][https://snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-561587] in com.fasterxml.jackson.core:jackson-databind@2.9.8\n" +
           "   used by org.apache.pinot:pinot-java-client")
     }
-    implementation("io.netty:netty:3.10.3.Final") {
+    implementation("io.netty:netty:3.10.6.Final") {
       because("HTTP Request Smuggling [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-IONETTY-473694] in io.netty:netty@3.9.6.Final\n" +
           "    introduced by org.apache.pinot:pinot-java-client")
     }
-    implementation("org.apache.zookeeper:zookeeper:3.6.1") {
+    implementation("org.apache.zookeeper:zookeeper:3.6.2") {
       because("Authentication Bypass [High Severity][https://snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-32301] in org.apache.zookeeper:zookeeper@3.4.6\n" +
           "    introduced by org.apache.pinot:pinot-java-client")
     }
