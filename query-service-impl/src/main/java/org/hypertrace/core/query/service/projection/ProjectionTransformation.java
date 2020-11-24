@@ -5,6 +5,8 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.createBooleanLi
 import static org.hypertrace.core.query.service.QueryRequestUtil.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createDoubleLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createLongLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralExpression;
 
 import io.reactivex.rxjava3.core.Maybe;
@@ -13,7 +15,9 @@ import io.reactivex.rxjava3.core.Single;
 import java.util.List;
 import javax.inject.Inject;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
-import org.hypertrace.core.attribute.service.v1.AttributeDefinition;
+import org.hypertrace.core.attribute.service.projection.AttributeProjection;
+import org.hypertrace.core.attribute.service.projection.AttributeProjectionRegistry;
+import org.hypertrace.core.attribute.service.v1.AttributeKind;
 import org.hypertrace.core.attribute.service.v1.AttributeMetadata;
 import org.hypertrace.core.attribute.service.v1.LiteralValue;
 import org.hypertrace.core.attribute.service.v1.Projection;
@@ -35,10 +39,13 @@ final class ProjectionTransformation implements QueryTransformation {
   private static final Logger LOG = LoggerFactory.getLogger(ProjectionTransformation.class);
 
   private final CachingAttributeClient attributeClient;
+  private final AttributeProjectionRegistry projectionRegistry;
 
   @Inject
-  ProjectionTransformation(CachingAttributeClient attributeClient) {
+  ProjectionTransformation(
+      CachingAttributeClient attributeClient, AttributeProjectionRegistry projectionRegistry) {
     this.attributeClient = attributeClient;
+    this.projectionRegistry = projectionRegistry;
   }
 
   @Override
@@ -127,18 +134,25 @@ final class ProjectionTransformation implements QueryTransformation {
     return this.attributeClient
         .get(attributeId)
         .onErrorComplete()
-        .map(AttributeMetadata::getDefinition)
-        .filter(AttributeDefinition::hasProjection)
-        .map(AttributeDefinition::getProjection)
-        .flatMapSingle(this::rewriteProjectionAsQueryExpression);
+        .flatMap(this::projectAttributeIfPossible);
   }
 
-  private Single<Expression> rewriteProjectionAsQueryExpression(Projection projection) {
+  private Maybe<Expression> projectAttributeIfPossible(AttributeMetadata attributeMetadata) {
+    if (!attributeMetadata.getDefinition().hasProjection()) {
+      return Maybe.empty();
+    }
+    return this.rewriteProjectionAsQueryExpression(
+            attributeMetadata.getDefinition().getProjection(), attributeMetadata.getValueKind())
+        .toMaybe();
+  }
+
+  private Single<Expression> rewriteProjectionAsQueryExpression(
+      Projection projection, AttributeKind expectedType) {
     switch (projection.getValueCase()) {
       case ATTRIBUTE_ID:
         return this.transformExpression(createColumnExpression(projection.getAttributeId()));
       case LITERAL:
-        return this.rewriteLiteralAsQueryExpression(projection.getLiteral());
+        return this.rewriteLiteralAsQueryExpression(projection.getLiteral(), expectedType);
       case EXPRESSION:
         return this.rewriteProjectionExpressionAsQueryExpression(projection.getExpression());
       case VALUE_NOT_SET:
@@ -148,7 +162,8 @@ final class ProjectionTransformation implements QueryTransformation {
     }
   }
 
-  private Single<Expression> rewriteLiteralAsQueryExpression(LiteralValue literal) {
+  private Single<Expression> rewriteLiteralAsQueryExpression(
+      LiteralValue literal, AttributeKind expectedType) {
     switch (literal.getValueCase()) {
       case STRING_VALUE:
         return Single.just(createStringLiteralExpression(literal.getStringValue()));
@@ -159,17 +174,49 @@ final class ProjectionTransformation implements QueryTransformation {
       case INT_VALUE:
         return Single.just(createLongLiteralExpression(literal.getIntValue()));
       case VALUE_NOT_SET:
+        return this.getCorrespondingNullExpression(expectedType);
       default:
         return Single.error(
             new UnsupportedOperationException("Unrecognized literal type: " + literal));
     }
   }
 
+  private Single<Expression> getCorrespondingNullExpression(AttributeKind attributeKind) {
+    switch (attributeKind) {
+      case TYPE_DOUBLE:
+      case TYPE_DOUBLE_ARRAY:
+      case TYPE_INT64:
+      case TYPE_INT64_ARRAY:
+      case TYPE_TIMESTAMP:
+        return Single.just(createNullNumberLiteralExpression());
+      case TYPE_BOOL:
+      case TYPE_BOOL_ARRAY:
+      case TYPE_STRING:
+      case TYPE_STRING_ARRAY:
+      case TYPE_STRING_MAP:
+      case TYPE_BYTES:
+        return Single.just(createNullStringLiteralExpression());
+      case UNRECOGNIZED:
+      case KIND_UNDEFINED:
+      default:
+        return Single.error(
+            new UnsupportedOperationException(
+                "Unrecognized attribute kind for null expression conversion: " + attributeKind));
+    }
+  }
+
   private Single<Expression> rewriteProjectionExpressionAsQueryExpression(
       ProjectionExpression projectionExpression) {
+    List<Projection> arguments = projectionExpression.getArgumentsList();
+    // TODO fallback for unknown projections
+    AttributeProjection projectionMetadata =
+        this.projectionRegistry.getProjection(projectionExpression.getOperator()).orElseThrow();
     Single<List<Expression>> argumentListSingle =
-        Observable.fromIterable(projectionExpression.getArgumentsList())
-            .concatMapSingle(this::rewriteProjectionAsQueryExpression)
+        Observable.range(0, arguments.size())
+            .concatMapSingle(
+                index ->
+                    rewriteProjectionAsQueryExpression(
+                        arguments.get(index), projectionMetadata.getArgumentKinds().get(index)))
             .toList();
 
     Single<String> operatorSingle = this.convertOperator(projectionExpression.getOperator());
