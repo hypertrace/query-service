@@ -389,6 +389,14 @@ class QueryRequestToPinotSQLConverter {
         ret = QUESTION_MARK;
         paramsBuilder.addLongParam(value.getTimestamp());
         break;
+      case NULL_NUMBER:
+        ret = QUESTION_MARK;
+        paramsBuilder.addIntegerParam(0);
+        break;
+      case NULL_STRING:
+        ret = QUESTION_MARK;
+        paramsBuilder.addStringParam("null");
+        break;
       case LONG_ARRAY:
       case INT_ARRAY:
       case FLOAT_ARRAY:

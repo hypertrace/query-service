@@ -4,6 +4,9 @@ import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.mockito.ArgumentMatchers.any;
 
 import com.typesafe.config.Config;
@@ -14,6 +17,7 @@ import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
+import org.hypertrace.core.query.service.QueryFunctionConstants;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -850,6 +854,46 @@ public class QueryRequestToPinotSQLConverterTest {
             + "' "
             + "and ( start_time_millis > '1570658506605' and end_time_millis < '1570744906673' )"
             + " limit 15");
+  }
+
+  @Test
+  public void testQueryWithNulls() {
+    Expression conditionalString =
+        Expression.newBuilder()
+                  .setFunction(
+                      Function.newBuilder()
+                              .setFunctionName(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL)
+                              .addArguments(createStringLiteralValueExpression("true"))
+                              .addArguments(createColumnExpression("Span.id"))
+                              .addArguments(createNullStringLiteralExpression()))
+                  .build();
+
+    Expression conditionalNumber =
+        Expression.newBuilder()
+                  .setFunction(
+                      Function.newBuilder()
+                              .setFunctionName(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL)
+                              .addArguments(createStringLiteralValueExpression("true"))
+                              .addArguments(createColumnExpression("Span.metrics.duration_millis"))
+                              .addArguments(createNullNumberLiteralExpression()))
+                  .build();
+
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+                    .addSelection(conditionalString)
+                    .addSelection(conditionalNumber)
+                    .setLimit(15)
+                    .build();
+
+    assertPQLQuery(
+        queryRequest,
+        "select conditional('true',span_id,'null'), conditional('true',duration_millis,0)"
+            + " from SpanEventView"
+            + " where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' limit 15");
   }
 
   private Filter createTimeFilter(String columnName, Operator op, long value) {

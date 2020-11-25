@@ -20,6 +20,8 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createI
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
@@ -27,7 +29,9 @@ import io.reactivex.rxjava3.core.Single;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
+import org.hypertrace.core.attribute.service.projection.AttributeProjectionRegistry;
 import org.hypertrace.core.attribute.service.v1.AttributeDefinition;
+import org.hypertrace.core.attribute.service.v1.AttributeKind;
 import org.hypertrace.core.attribute.service.v1.AttributeMetadata;
 import org.hypertrace.core.attribute.service.v1.LiteralValue;
 import org.hypertrace.core.attribute.service.v1.Projection;
@@ -69,7 +73,8 @@ class ProjectionTransformationTest {
     when(this.mockAttributeClient.get(SIMPLE_ATTRIBUTE_ID))
         .thenReturn(Single.defer(() -> Single.just(AttributeMetadata.getDefaultInstance())));
 
-    this.projectionTransformation = new ProjectionTransformation(this.mockAttributeClient);
+    this.projectionTransformation =
+        new ProjectionTransformation(this.mockAttributeClient, new AttributeProjectionRegistry());
   }
 
   @Test
@@ -350,6 +355,93 @@ class ProjectionTransformationTest {
             .blockingGet());
   }
 
+  @Test
+  void transformNullDefinedAttributes() {
+    this.attributeMetadata =
+        this.attributeMetadata.toBuilder()
+            .setDefinition(AttributeDefinition.newBuilder().setProjection(nullLiteralProjection()))
+            .setValueKind(AttributeKind.TYPE_STRING)
+            .build();
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .addSelection(createNullStringLiteralExpression())
+            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+
+    // Now make it typed number
+    this.attributeMetadata =
+        this.attributeMetadata.toBuilder()
+            .setDefinition(AttributeDefinition.newBuilder().setProjection(nullLiteralProjection()))
+            .setValueKind(AttributeKind.TYPE_INT64)
+            .build();
+
+    expectedTransform =
+        QueryRequest.newBuilder()
+            .addSelection(createNullNumberLiteralExpression())
+            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void transformsNullProjectionArguments() {
+    // CONDITIONAL("true", SIMPLE_ATTRIBUTE_ID, "null")
+    Projection projection =
+        functionProjection(
+            projectionExpression(
+                PROJECTION_OPERATOR_CONDITIONAL,
+                literalProjection("true"),
+                attributeIdProjection(SIMPLE_ATTRIBUTE_ID),
+                nullLiteralProjection()
+            ));
+
+    this.attributeMetadata =
+        this.attributeMetadata.toBuilder()
+                              .setDefinition(AttributeDefinition.newBuilder().setProjection(projection))
+                              .build();
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+                    .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+                    .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+                    .addSelection(
+                        createFunctionExpression(
+                            QUERY_FUNCTION_CONDITIONAL,
+                            PROJECTED_ATTRIBUTE_ID,
+                            createStringLiteralValueExpression("true"),
+                            createColumnExpression(SIMPLE_ATTRIBUTE_ID).build(),
+                            createNullStringLiteralExpression()))
+                    .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+
+  }
+
   private ProjectionExpression projectionExpression(
       ProjectionOperator operator, Projection... arguments) {
     return ProjectionExpression.newBuilder()
@@ -370,5 +462,9 @@ class ProjectionTransformationTest {
     return Projection.newBuilder()
         .setLiteral(LiteralValue.newBuilder().setStringValue(value))
         .build();
+  }
+
+  private Projection nullLiteralProjection() {
+    return Projection.newBuilder().setLiteral(LiteralValue.getDefaultInstance()).build();
   }
 }
