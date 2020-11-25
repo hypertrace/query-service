@@ -2,10 +2,14 @@ package org.hypertrace.core.query.service.projection;
 
 import static java.util.Arrays.asList;
 import static org.hypertrace.core.attribute.service.v1.ProjectionOperator.PROJECTION_OPERATOR_CONCAT;
+import static org.hypertrace.core.attribute.service.v1.ProjectionOperator.PROJECTION_OPERATOR_CONDITIONAL;
 import static org.hypertrace.core.attribute.service.v1.ProjectionOperator.PROJECTION_OPERATOR_HASH;
+import static org.hypertrace.core.attribute.service.v1.ProjectionOperator.PROJECTION_OPERATOR_STRING_EQUALS;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_HASH;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_STRINGEQUALS;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
@@ -115,6 +119,56 @@ class ProjectionTransformationTest {
                 createFunctionExpression(
                     QUERY_FUNCTION_CONCAT,
                     PROJECTED_ATTRIBUTE_ID,
+                    createFunctionExpression(
+                        QUERY_FUNCTION_HASH, createColumnExpression(SIMPLE_ATTRIBUTE_ID).build()),
+                    createStringLiteralValueExpression("projectionLiteral")))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void transformsConditionalAndStringEquals() {
+    // CONDITIONAL(STRINGEQUALS(SIMPLE_ATTRIBUTE_ID, "foo"), HASH(SIMPLE_ATTRIBUTE_ID), "projectionLiteral")
+    Projection projection =
+        functionProjection(
+            projectionExpression(
+                PROJECTION_OPERATOR_CONDITIONAL,
+                functionProjection(
+                    projectionExpression(
+                        PROJECTION_OPERATOR_STRING_EQUALS,
+                        attributeIdProjection(SIMPLE_ATTRIBUTE_ID),
+                        literalProjection("foo"))),
+                functionProjection(
+                    projectionExpression(
+                        PROJECTION_OPERATOR_HASH,
+                        attributeIdProjection(SIMPLE_ATTRIBUTE_ID))),
+                literalProjection("projectionLiteral")));
+
+    this.attributeMetadata =
+        this.attributeMetadata.toBuilder()
+            .setDefinition(AttributeDefinition.newBuilder().setProjection(projection))
+            .build();
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .addSelection(
+                createFunctionExpression(
+                    QUERY_FUNCTION_CONDITIONAL,
+                    PROJECTED_ATTRIBUTE_ID,
+                    createFunctionExpression(
+                        QUERY_FUNCTION_STRINGEQUALS,
+                        createColumnExpression(SIMPLE_ATTRIBUTE_ID).build(),
+                        createStringLiteralValueExpression("foo")),
                     createFunctionExpression(
                         QUERY_FUNCTION_HASH, createColumnExpression(SIMPLE_ATTRIBUTE_ID).build()),
                     createStringLiteralValueExpression("projectionLiteral")))

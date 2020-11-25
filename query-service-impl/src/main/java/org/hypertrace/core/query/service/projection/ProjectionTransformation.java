@@ -192,6 +192,10 @@ final class ProjectionTransformation implements QueryTransformation {
         return Single.just(QueryFunctionConstants.QUERY_FUNCTION_CONCAT);
       case PROJECTION_OPERATOR_HASH:
         return Single.just(QueryFunctionConstants.QUERY_FUNCTION_HASH);
+      case PROJECTION_OPERATOR_STRING_EQUALS:
+        return Single.just(QueryFunctionConstants.QUERY_FUNCTION_STRINGEQUALS);
+      case PROJECTION_OPERATOR_CONDITIONAL:
+        return Single.just(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL);
       case PROJECTION_OPERATOR_UNSET:
       case UNRECOGNIZED:
       default:

@@ -12,10 +12,10 @@ dependencies {
   implementation("io.grpc:grpc-netty:1.33.0")
   implementation("org.slf4j:slf4j-api:1.7.30")
 
-  runtimeOnly("io.netty:netty-codec-http2:4.1.53.Final") {
+  runtimeOnly("io.netty:netty-codec-http2:4.1.54.Final") {
     because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1020439")
   }
-  runtimeOnly("io.netty:netty-handler-proxy:4.1.53.Final") {
+  runtimeOnly("io.netty:netty-handler-proxy:4.1.54.Final") {
     because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1020439s")
   }
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
