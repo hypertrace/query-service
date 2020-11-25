@@ -1,8 +1,8 @@
 plugins {
   java
   application
-  id("org.hypertrace.docker-java-application-plugin") version "0.4.0"
-  id("org.hypertrace.docker-publish-plugin") version "0.4.0"
+  id("org.hypertrace.docker-java-application-plugin") version "0.8.0"
+  id("org.hypertrace.docker-publish-plugin") version "0.8.0"
 }
 
 dependencies {
@@ -30,4 +30,12 @@ application {
 // Config for gw run to be able to run this locally. Just execute gw run here on Intellij or on the console.
 tasks.run<JavaExec> {
   jvmArgs = listOf("-Dbootstrap.config.uri=file:${projectDir}/src/main/resources/configs", "-Dservice.name=${project.name}")
+}
+
+hypertraceDocker {
+  defaultImage {
+    javaApplication {
+      port.set(8090)
+    }
+  }
 }
