@@ -39,7 +39,8 @@ commands:
       - checkout
       - run:
           name: Generate cache key
-          command: find . -type f -name "*.gradle-wrapper*" -exec shasum {} + | sort > /tmp/checksum.txt && cat /tmp/checksum.txt
+           # Find all gradle related files, hash each and order them consistently, then save to file for later use
+          command: find . -type f -name "*.gradle*" -o -name "gradle-wrapper*" | xargs shasum | sort > /tmp/checksum.txt && cat /tmp/checksum.txt
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "/tmp/checksum.txt" }}
@@ -140,7 +141,7 @@ jobs:
       - add_ssh_keys:
           fingerprints:
             # This ssh key gives write permission needed for the following step.
-            - '76:7a:c8:91:c0:cd:eb:71:96:3c:44:c6:cf:b0:26:83'
+            - 'bd:a2:a2:90:46:6c:51:d0:af:8b:1b:c2:d6:e2:f2:e2'
       - run:
           name: Update remote tags
           command: git push origin refs/tags/$(git describe --abbrev=0) :refs/tags/release-$(git describe --abbrev=0)
