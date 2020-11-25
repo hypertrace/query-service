@@ -13,6 +13,7 @@ import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 import java.util.List;
+import java.util.Optional;
 import javax.inject.Inject;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 import org.hypertrace.core.attribute.service.projection.AttributeProjection;
@@ -208,15 +209,20 @@ final class ProjectionTransformation implements QueryTransformation {
   private Single<Expression> rewriteProjectionExpressionAsQueryExpression(
       ProjectionExpression projectionExpression) {
     List<Projection> arguments = projectionExpression.getArgumentsList();
-    // TODO fallback for unknown projections
-    AttributeProjection projectionMetadata =
-        this.projectionRegistry.getProjection(projectionExpression.getOperator()).orElseThrow();
+    Optional<List<AttributeKind>> knownArgumentKinds =
+        this.projectionRegistry
+            .getProjection(projectionExpression.getOperator())
+            .map(AttributeProjection::getArgumentKinds);
+
     Single<List<Expression>> argumentListSingle =
         Observable.range(0, arguments.size())
             .concatMapSingle(
                 index ->
                     rewriteProjectionAsQueryExpression(
-                        arguments.get(index), projectionMetadata.getArgumentKinds().get(index)))
+                        arguments.get(index),
+                        knownArgumentKinds
+                            .map(kinds -> kinds.get(index))
+                            .orElse(AttributeKind.KIND_UNDEFINED)))
             .toList();
 
     Single<String> operatorSingle = this.convertOperator(projectionExpression.getOperator());
