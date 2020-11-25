@@ -32,9 +32,9 @@ dependencies {
   implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.3.0")
   implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.3.0")
   implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.3.0")
-  implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.8.6-SNAPSHOT")
-  implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.8.6-SNAPSHOT")
-  implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.8.6-SNAPSHOT")
+  implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.8.7")
+  implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.8.7")
+  implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.8.7")
   implementation("org.hypertrace.core.serviceframework:service-framework-spi:0.1.15")
   implementation("com.google.inject:guice:4.2.3")
   implementation("org.apache.pinot:pinot-java-client:0.5.0") {
