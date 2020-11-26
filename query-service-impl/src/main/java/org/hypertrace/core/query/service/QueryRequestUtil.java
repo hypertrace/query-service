@@ -52,4 +52,20 @@ public class QueryRequestUtil {
                 .setValue(Value.newBuilder().setValueType(ValueType.BOOL).setBoolean(value)))
         .build();
   }
+
+  public static Expression createNullStringLiteralExpression() {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(Value.newBuilder().setValueType(ValueType.NULL_STRING)))
+        .build();
+  }
+
+  public static Expression createNullNumberLiteralExpression() {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(Value.newBuilder().setValueType(ValueType.NULL_NUMBER)))
+        .build();
+  }
 }
