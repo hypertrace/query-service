@@ -1,0 +1,10 @@
+name: 'Gradle command action'
+inputs:
+  args:
+    required: true
+runs:
+  using: "composite"
+  steps: 
+    - run: |
+          ./gradlew ${{ inputs.args }} --info --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g -Dorg.gradle.console=plain --continue
+      shell: bash

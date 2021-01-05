@@ -28,8 +28,11 @@ jobs:
             gradle-packages-${{ runner.os }}-${{ github.job }}
             gradle-packages-${{ runner.os }}
 
+
       - name: Unit test
-        run: ./gradlew jacocoTestReport
+        uses: hypertrace/actions/gradle@main
+        with: 
+          args: jacocoTestReport
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
@@ -38,8 +41,10 @@ jobs:
           fail_ci_if_error: true
           flags: unit
 
-      - name: Copy test reports
-        run: ./gradlew copyAllReports --output-dir=/tmp/test-reports
+      - name: copy test reports
+        uses: hypertrace/actions/gradle@main
+        with: 
+          args: copyAllReports --output-dir=/tmp/test-reports
 
       - name: Archive test reports
         uses: actions/upload-artifact@v1

@@ -37,7 +37,9 @@ jobs:
           password: ${{ secrets.DOCKERHUB_READ_TOKEN }}
 
       - name: push docker image
-        run: ./gradlew dockerPushImages
+        uses: hypertrace/actions/gradle@main
+        with: 
+          args: dockerPushImages
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_PUBLISH_USER }}
           DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PUBLISH_TOKEN }}

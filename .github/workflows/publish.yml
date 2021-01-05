@@ -36,7 +36,9 @@ jobs:
           password: ${{ secrets.DOCKERHUB_READ_TOKEN }}
 
       - name: publish docker image
-        run: ./gradlew publish dockerPushImages
+        uses: hypertrace/actions/gradle@main
+        with: 
+          args: publish dockerPushImages
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_PUBLISH_USER }}
           DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PUBLISH_TOKEN }}
@@ -46,11 +48,6 @@ jobs:
   publish-helm-charts:
     needs: publish-artifacts
     runs-on: ubuntu-20.04
-    container: 
-      image: hypertrace/helm-gcs-packager:0.3.1
-      credentials:
-        username: ${{ secrets.DOCKERHUB_READ_USER }}
-        password: ${{ secrets.DOCKERHUB_READ_TOKEN }}
     steps:
        # Set fetch-depth: 0 to fetch commit history and tags for use in version calculation
       - name: Checkout Repository
