@@ -54,8 +54,6 @@ jobs:
 
       - name: validate charts
         uses: hypertrace/actions/validate-charts@main
-        with: 
-          role-name: validate
 
   snyk-scan:
     runs-on: ubuntu-20.04
