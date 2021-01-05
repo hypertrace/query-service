@@ -19,7 +19,6 @@ jobs:
         uses: hypertrace/actions/checksum@main
 
       - name: Cache packages
-        id: cache-packages
         uses: actions/cache@v2
         with:
           path: ~/.gradle
@@ -51,4 +50,4 @@ jobs:
         with:
           name: test-reports
           path: /tmp/test-reports
-        if: ${{ always() }}
+        if: always()

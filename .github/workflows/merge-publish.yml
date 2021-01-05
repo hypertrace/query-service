@@ -21,7 +21,6 @@ jobs:
         uses: hypertrace/actions/checksum@main
 
       - name: Cache packages
-        id: cache-packages
         uses: actions/cache@v2
         with:
           path: ~/.gradle
