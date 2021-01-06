@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0
 
       - name: create checksum file
-        uses: hypertrace/actions/checksum@main
+        uses: hypertrace/github-actions/checksum@main
 
       - name: Cache packages
         uses: actions/cache@v2
@@ -35,7 +35,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_READ_TOKEN }}
 
       - name: publish docker image
-        uses: hypertrace/actions/gradle@main
+        uses: hypertrace/github-actions/gradle@main
         with: 
           args: publish dockerPushImages
         env:
@@ -55,7 +55,7 @@ jobs:
           fetch-depth: 0
    
       - name: package and release charts
-        uses: hypertrace/actions/helm-gcs-publish@main
+        uses: hypertrace/github-actions/helm-gcs-publish@main
         with: 
           helm-gcs-credentials: ${{ secrets.HELM_GCS_CREDENTIALS }}
           helm-gcs-repository: ${{ secrets.HELM_GCS_REPOSITORY }}

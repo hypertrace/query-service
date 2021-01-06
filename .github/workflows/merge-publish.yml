@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
       
       - name: create checksum file
-        uses: hypertrace/actions/checksum@main
+        uses: hypertrace/github-actions/checksum@main
 
       - name: Cache packages
         uses: actions/cache@v2
@@ -36,7 +36,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_READ_TOKEN }}
 
       - name: push docker image
-        uses: hypertrace/actions/gradle@main
+        uses: hypertrace/github-actions/gradle@main
         with: 
           args: dockerPushImages
         env:
