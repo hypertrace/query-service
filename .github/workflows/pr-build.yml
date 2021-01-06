@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
       
       - name: create checksum file
-        uses: hypertrace/actions/checksum@main
+        uses: hypertrace/github-actions/checksum@main
 
       - name: Cache packages
         uses: actions/cache@v2
@@ -38,7 +38,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_READ_TOKEN }}
       
       - name: Build with Gradle
-        uses: hypertrace/actions/gradle@main
+        uses: hypertrace/github-actions/gradle@main
         with: 
           args: build dockerBuildImages
 
@@ -53,7 +53,7 @@ jobs:
           fetch-depth: 0
 
       - name: validate charts
-        uses: hypertrace/actions/validate-charts@main
+        uses: hypertrace/github-actions/validate-charts@main
 
   snyk-scan:
     runs-on: ubuntu-20.04

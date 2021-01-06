@@ -16,7 +16,7 @@ jobs:
           fetch-depth: 0
       
       - name: create checksum file
-        uses: hypertrace/actions/checksum@main
+        uses: hypertrace/github-actions/checksum@main
 
       - name: Cache packages
         uses: actions/cache@v2
@@ -29,7 +29,7 @@ jobs:
 
 
       - name: Unit test
-        uses: hypertrace/actions/gradle@main
+        uses: hypertrace/github-actions/gradle@main
         with: 
           args: jacocoTestReport
 
@@ -41,7 +41,7 @@ jobs:
           flags: unit
 
       - name: copy test reports
-        uses: hypertrace/actions/gradle@main
+        uses: hypertrace/github-actions/gradle@main
         with: 
           args: copyAllReports --output-dir=/tmp/test-reports
 
