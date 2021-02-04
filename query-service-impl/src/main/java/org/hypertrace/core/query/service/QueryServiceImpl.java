@@ -14,9 +14,12 @@ import org.hypertrace.core.grpcutils.server.rx.ServerCallStreamRxObserver;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryServiceGrpc;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
+  private static final Logger LOG = LoggerFactory.getLogger(QueryServiceImpl.class);
   private final RequestHandlerSelector handlerSelector;
   private final QueryTransformationPipeline queryTransformationPipeline;
 
@@ -35,6 +38,10 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
         .switchIfEmpty(
             Maybe.error(new UnsupportedOperationException("Tenant ID missing in request context")))
         .flatMapObservable(tenantId -> this.transformAndExecute(originalRequest, tenantId))
+         .doOnError(error -> {
+           LOG.error("Query failed: {}", originalRequest);
+           LOG.error("Query failure source", error);
+         })
         .subscribe(
             new ServerCallStreamRxObserver<>(
                 (ServerCallStreamObserver<ResultSetChunk>) callStreamObserver));
