@@ -38,10 +38,11 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
         .switchIfEmpty(
             Maybe.error(new UnsupportedOperationException("Tenant ID missing in request context")))
         .flatMapObservable(tenantId -> this.transformAndExecute(originalRequest, tenantId))
-         .doOnError(error -> {
-           LOG.error("Query failed: {}", originalRequest);
-           LOG.error("Query failure source", error);
-         })
+        .doOnError(
+            error -> {
+              LOG.error("Query failed: {}", originalRequest);
+              LOG.error("Query failure source", error);
+            })
         .subscribe(
             new ServerCallStreamRxObserver<>(
                 (ServerCallStreamObserver<ResultSetChunk>) callStreamObserver));
