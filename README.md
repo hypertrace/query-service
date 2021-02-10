@@ -45,7 +45,7 @@ cd query-service && git checkout query-service-test && cd ..
 
 and then run `docker-compose up` to test the setup.
 
-### With Helm setup
+#### With Helm setup
 Add image repository and tag in values.yaml file [here](https://github.com/hypertrace/hypertrace/blob/main/kubernetes/platform-services/values.yaml) like below and then run `./hypertrace.sh install` again and you can test your image!
 
 ```yaml
