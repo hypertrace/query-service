@@ -3,7 +3,7 @@ The Query Service interfaces with Apache Pinot Data Store
 
 ## Description
 
-| ![space-1.jpg](https://hypertrace-docs.s3.amazonaws.com/hypertrace-query-arch.png) | 
+| ![space-1.jpg]((https://hypertrace-docs.s3.amazonaws.com/arch/ht-query.png) | 
 |:--:| 
 | *Hypertrace Query Architecture* |
 
@@ -43,6 +43,16 @@ cd query-service && git checkout query-service-test && cd ..
 - and then run `docker-compose up` to test the setup.
 
 and then run `docker-compose up` to test the setup.
+
+### Helm setup
+Add image repository and tag in values.yaml file [here](https://github.com/hypertrace/hypertrace/blob/main/kubernetes/platform-services/values.yaml) like below and then run `./hypertrace.sh install` again and you can test your image!
+
+```yaml
+query-service:
+  image:
+    repository: "hypertrace/query-service"
+    tagOverride: "test"
+ ```
 
 ## Docker Image Source:
 - [DockerHub > Query service](https://hub.docker.com/r/hypertrace/Query-service)
