@@ -3,6 +3,11 @@ plugins {
   application
   id("org.hypertrace.docker-java-application-plugin") version "0.8.1"
   id("org.hypertrace.docker-publish-plugin") version "0.8.1"
+  id("org.hypertrace.integration-test-plugin")
+}
+
+repositories {
+  maven("http://packages.confluent.io/maven")
 }
 
 dependencies {
@@ -18,9 +23,32 @@ dependencies {
   runtimeOnly("io.netty:netty-handler-proxy:4.1.54.Final") {
     because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1020439s")
   }
-  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
+  implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
 
   implementation("com.typesafe:config:1.4.0")
+
+  integrationTestImplementation(project(":query-service-client"))
+  integrationTestImplementation("org.junit.jupiter:junit-jupiter-api:5.4.2")
+  integrationTestImplementation("org.junit.jupiter:junit-jupiter-params:5.4.2")
+  integrationTestImplementation("org.junit.jupiter:junit-jupiter-engine:5.4.2")
+  integrationTestImplementation("org.testcontainers:testcontainers:1.15.2")
+  integrationTestImplementation("org.testcontainers:junit-jupiter:1.15.2")
+  integrationTestImplementation("org.testcontainers:kafka:1.15.2")
+  integrationTestImplementation("org.apache.kafka:kafka-clients:5.5.1-ccs")
+  integrationTestImplementation("org.apache.kafka:kafka-streams:5.5.1-ccs")
+  integrationTestImplementation("org.apache.kafka:kafka-clients:2.6.0")
+  integrationTestImplementation("org.hypertrace.core.datamodel:data-model:0.1.12")
+  integrationTestImplementation("org.apache.avro:avro:1.10.1")
+  integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.1.13")
+  integrationTestImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
+  integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.19")
+  integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-service-api:0.8.7")
+  integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.8.7")
+  integrationTestImplementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.8.7")
+  integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-service-client:0.8.7")
+  integrationTestImplementation("org.hypertrace.core.bootstrapper:config-bootstrapper:0.2.6-SNAPSHOT")
+  integrationTestImplementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.3.1")
+  integrationTestImplementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.3.1")
 }
 
 application {
@@ -30,6 +58,10 @@ application {
 // Config for gw run to be able to run this locally. Just execute gw run here on Intellij or on the console.
 tasks.run<JavaExec> {
   jvmArgs = listOf("-Dbootstrap.config.uri=file:${projectDir}/src/main/resources/configs", "-Dservice.name=${project.name}")
+}
+
+tasks.integrationTest {
+  useJUnitPlatform()
 }
 
 hypertraceDocker {
