@@ -1,4 +1,4 @@
-package org.hypertrace.core.query.service;
+package org.hypertrace.core.query.service.htqueries;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -31,12 +31,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.hypertrace.core.attribute.service.client.AttributeServiceClient;
-import org.hypertrace.core.attribute.service.v1.AttributeMetadataFilter;
-import org.hypertrace.core.bootstrapper.ConfigBootstrapper;
 import org.hypertrace.core.datamodel.StructuredTrace;
-import org.hypertrace.core.grpcutils.context.RequestContext;
-import org.hypertrace.core.grpcutils.context.RequestContextConstants;
 import org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -45,7 +40,6 @@ import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryRequest.Builder;
-import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.client.QueryServiceClient;
 import org.hypertrace.core.query.service.client.QueryServiceConfig;
@@ -64,9 +58,9 @@ import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 @Testcontainers
-public class QueryServiceTest {
+public class HTPinotQueriesTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(QueryServiceTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HTPinotQueriesTest.class);
   private static final Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(LOG);
   private static final String tenantId = "__default";
 
@@ -114,7 +108,7 @@ public class QueryServiceTest {
     mongo.start();
     mongo.followOutput(logConsumer);
 
-    attributeService = new GenericContainer<>(DockerImageName.parse("traceableai-docker.jfrog.io/hypertrace/attribute-service:test"))
+    attributeService = new GenericContainer<>(DockerImageName.parse("hypertrace/attribute-service:main"))
         .withNetwork(network)
         .withNetworkAliases("attribute-service")
         .withEnv("MONGO_HOST", "mongo")
@@ -153,8 +147,8 @@ public class QueryServiceTest {
         .collect(Collectors.toList());
     adminClient.createTopics(topics);
 
-    assertTrue(bootstrapConfig());
-    LOG.info("Bootstrap Complete");
+    //assertTrue(bootstrapConfig());
+    //LOG.info("Bootstrap Complete");
     assertTrue(generateData());
     LOG.info("Generate Data Complete");
 
@@ -179,14 +173,15 @@ public class QueryServiceTest {
   @Test
   public void test() throws Exception {
     System.out.println("Hello Hello");
-    Iterator<ResultSetChunk> result = queryServiceClient.executeQuery(
-        buildSimpleQuery(), Map.of("x-tenant-id", tenantId), 2000);
 
-    while (result.hasNext()) {
-      ResultSetChunk rsc = result.next();
-
-      System.out.println(rsc);
-    }
+//    Iterator<ResultSetChunk> result = queryServiceClient.executeQuery(
+//        buildSimpleQuery(), Map.of("x-tenant-id", tenantId), 2000);
+//
+//    while (result.hasNext()) {
+//      ResultSetChunk rsc = result.next();
+//
+//      System.out.println(rsc);
+//    }
   }
 
   private QueryRequest buildSimpleQuery() {
@@ -228,48 +223,49 @@ public class QueryServiceTest {
   }
 
   private static boolean bootstrapConfig() throws Exception {
-    // set env vars
-    setEnv(Map.of(
-        "MONGO_PORT", mongo.getMappedPort(27017).toString(),
-        "ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost(),
-        "ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString()
-    ));
-
-    String resourcesPath =
-        Thread.currentThread()
-            .getContextClassLoader()
-            .getResource("config-bootstrapper")
-            .getPath();
-
-    // Since the clients to run Config commands are created internal to this code,
-    // we need to set the tenantId in the context so that it's propagated.
-    RequestContext requestContext = new RequestContext();
-    requestContext.add(RequestContextConstants.TENANT_ID_HEADER_KEY, "__default");
-    Context context = Context.current().withValue(RequestContext.CURRENT, requestContext);
-
-    context.run(
-        () ->
-            ConfigBootstrapper.main(
-                new String[]{
-                    "-c",
-                    resourcesPath + "/application.conf",
-                    "-C",
-                    resourcesPath,
-                    "--validate",
-                    "--upgrade"
-                }));
-
-    Channel channel = ManagedChannelBuilder
-        .forAddress(attributeService.getHost(), attributeService.getMappedPort(9012)).usePlaintext()
-        .build();
-    AttributeServiceClient client = new AttributeServiceClient(channel);
-    int retry = 0;
-    while (Streams.stream(
-        client.findAttributes(tenantId, AttributeMetadataFilter.getDefaultInstance()))
-        .collect(Collectors.toList()).size() == 0 && retry++ < 5) {
-      Thread.sleep(1000);
-    }
-    return retry < 5;
+//    // set env vars
+//    setEnv(Map.of(
+//        "MONGO_PORT", mongo.getMappedPort(27017).toString(),
+//        "ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost(),
+//        "ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString()
+//    ));
+//
+//    String resourcesPath =
+//        Thread.currentThread()
+//            .getContextClassLoader()
+//            .getResource("config-bootstrapper")
+//            .getPath();
+//
+//    // Since the clients to run Config commands are created internal to this code,
+//    // we need to set the tenantId in the context so that it's propagated.
+//    RequestContext requestContext = new RequestContext();
+//    requestContext.add(RequestContextConstants.TENANT_ID_HEADER_KEY, "__default");
+//    Context context = Context.current().withValue(RequestContext.CURRENT, requestContext);
+//
+//    context.run(
+//        () ->
+//            ConfigBootstrapper.main(
+//                new String[]{
+//                    "-c",
+//                    resourcesPath + "/application.conf",
+//                    "-C",
+//                    resourcesPath,
+//                    "--validate",
+//                    "--upgrade"
+//                }));
+//
+//    Channel channel = ManagedChannelBuilder
+//        .forAddress(attributeService.getHost(), attributeService.getMappedPort(9012)).usePlaintext()
+//        .build();
+//    AttributeServiceClient client = new AttributeServiceClient(channel);
+//    int retry = 0;
+//    while (Streams.stream(
+//        client.findAttributes(tenantId, AttributeMetadataFilter.getDefaultInstance()))
+//        .collect(Collectors.toList()).size() == 0 && retry++ < 5) {
+//      Thread.sleep(1000);
+//    }
+//    return retry < 5;
+    return true;
   }
 
   private static boolean generateData() throws Exception {
