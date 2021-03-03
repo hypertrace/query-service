@@ -14,7 +14,7 @@ import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.ValueType;
 
-public class BackendsQueries {
+class BackendsQueries {
 
   /**
    * [ Select backend_id, backend_name, backend_protocol, COUNT(*) FROM backendEntityView WHERE

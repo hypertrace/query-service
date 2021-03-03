@@ -14,7 +14,7 @@ import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
-public class ExplorerQueries {
+class ExplorerQueries {
 
   /**
    * [ Select dateTimeConvert(start_time_millis,?,?,?), COUNT(*) FROM spanEventView WHERE tenant_id = ?
