@@ -319,7 +319,7 @@ public class HTPinotQueriesTest {
 
   @Test
   public void testBackendsQueries() {
-    LOG.info("Backend queries");
+    LOG.info("Backends queries");
     Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
         BackendsQueries.buildQuery1(), TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());

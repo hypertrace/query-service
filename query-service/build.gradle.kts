@@ -25,7 +25,7 @@ dependencies {
   runtimeOnly("io.netty:netty-handler-proxy:4.1.54.Final") {
     because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1020439s")
   }
-  implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
+  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
 
   implementation("com.typesafe:config:1.4.0")
 
