@@ -10,12 +10,6 @@ import org.hypertrace.core.query.service.api.ValueType;
 
 public class Utils {
 
-  static Expression createSelection(String colName) {
-    return Expression.newBuilder()
-        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(colName))
-        .build();
-  }
-
   public static Filter createFilter(
       String columnName, Operator op,
       ValueType valueType, Object valueObject) {
