@@ -1,8 +1,11 @@
 plugins {
   java
   application
+  jacoco
   id("org.hypertrace.docker-java-application-plugin") version "0.8.1"
   id("org.hypertrace.docker-publish-plugin") version "0.8.1"
+  id("org.hypertrace.integration-test-plugin")
+  id("org.hypertrace.jacoco-report-plugin")
 }
 
 dependencies {
@@ -21,6 +24,9 @@ dependencies {
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.13.3")
 
   implementation("com.typesafe:config:1.4.0")
+
+  integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.19")
+  integrationTestImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
 }
 
 application {
@@ -38,4 +44,13 @@ hypertraceDocker {
       port.set(8090)
     }
   }
+}
+
+tasks.integrationTest {
+  useJUnitPlatform()
+}
+
+tasks.jacocoIntegrationTestReport {
+  sourceSets(project(":query-service-impl").sourceSets.getByName("main"))
+  sourceSets(project(":query-service-client").sourceSets.getByName("main"))
 }
