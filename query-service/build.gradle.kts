@@ -1,9 +1,11 @@
 plugins {
   java
   application
+  jacoco
   id("org.hypertrace.docker-java-application-plugin") version "0.8.1"
   id("org.hypertrace.docker-publish-plugin") version "0.8.1"
   id("org.hypertrace.integration-test-plugin")
+  id("org.hypertrace.jacoco-report-plugin")
 }
 
 repositories {
@@ -46,7 +48,7 @@ dependencies {
   integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.8.7")
   integrationTestImplementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.8.7")
   integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-service-client:0.8.7")
-//  integrationTestImplementation("org.hypertrace.core.bootstrapper:config-bootstrapper:0.2.6-SNAPSHOT")
+  integrationTestImplementation("org.hypertrace.core.bootstrapper:config-bootstrapper:0.2.6-SNAPSHOT")
   integrationTestImplementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.3.1")
   integrationTestImplementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.3.1")
 }
@@ -70,4 +72,9 @@ hypertraceDocker {
       port.set(8090)
     }
   }
+}
+
+tasks.jacocoIntegrationTestReport {
+  sourceSets(project(":query-service-impl").sourceSets.getByName("main"))
+  sourceSets(project(":query-service-client").sourceSets.getByName("main"))
 }

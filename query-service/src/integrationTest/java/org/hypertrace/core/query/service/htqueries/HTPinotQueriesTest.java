@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.htqueries;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
@@ -12,7 +13,8 @@ import io.grpc.ManagedChannelBuilder;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -22,25 +24,22 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
-import org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.hypertrace.core.attribute.service.client.AttributeServiceClient;
+import org.hypertrace.core.attribute.service.v1.AttributeMetadataFilter;
+import org.hypertrace.core.bootstrapper.ConfigBootstrapper;
 import org.hypertrace.core.datamodel.StructuredTrace;
+import org.hypertrace.core.grpcutils.context.RequestContext;
+import org.hypertrace.core.grpcutils.context.RequestContextConstants;
 import org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde;
-import org.hypertrace.core.query.service.api.ColumnIdentifier;
-import org.hypertrace.core.query.service.api.Expression;
-import org.hypertrace.core.query.service.api.Filter;
-import org.hypertrace.core.query.service.api.LiteralConstant;
-import org.hypertrace.core.query.service.api.Operator;
-import org.hypertrace.core.query.service.api.QueryRequest;
-import org.hypertrace.core.query.service.api.QueryRequest.Builder;
-import org.hypertrace.core.query.service.api.Value;
+import org.hypertrace.core.query.service.api.ResultSetChunk;
+import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.client.QueryServiceClient;
 import org.hypertrace.core.query.service.client.QueryServiceConfig;
 import org.junit.jupiter.api.AfterAll;
@@ -62,7 +61,7 @@ public class HTPinotQueriesTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(HTPinotQueriesTest.class);
   private static final Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(LOG);
-  private static final String tenantId = "__default";
+  private static final Map<String, String> TENANT_ID_MAP = Map.of("x-tenant-id", "__default");
 
   private static AdminClient adminClient;
   private static String bootstrapServers;
@@ -84,7 +83,6 @@ public class HTPinotQueriesTest {
         .withNetwork(network)
         .withNetworkAliases("kafka", "zookeeper")
         .waitingFor(Wait.forListeningPort());
-     //   .withStartupTimeout(Duration.ofMinutes(1));
     kafkaZk.start();
 
     pinotServiceManager = new GenericContainer<>(
@@ -94,8 +92,8 @@ public class HTPinotQueriesTest {
         .withExposedPorts(8099)
         .withExposedPorts(9000)
         .dependsOn(kafkaZk)
+        .withStartupAttempts(5)
         .waitingFor(Wait.forLogMessage(".*Completed schema installation.*", 1))
-       // .withStartupTimeout(Duration.ofMinutes(5))
         .withLogConsumer(logConsumer);
     pinotServiceManager.start();
 
@@ -147,8 +145,8 @@ public class HTPinotQueriesTest {
         .collect(Collectors.toList());
     adminClient.createTopics(topics);
 
-    //assertTrue(bootstrapConfig());
-    //LOG.info("Bootstrap Complete");
+    assertTrue(bootstrapConfig());
+    LOG.info("Bootstrap Complete");
     assertTrue(generateData());
     LOG.info("Generate Data Complete");
 
@@ -171,101 +169,86 @@ public class HTPinotQueriesTest {
   }
 
   @Test
-  public void test() throws Exception {
-    System.out.println("Hello Hello");
-
-//    Iterator<ResultSetChunk> result = queryServiceClient.executeQuery(
-//        buildSimpleQuery(), Map.of("x-tenant-id", tenantId), 2000);
-//
-//    while (result.hasNext()) {
-//      ResultSetChunk rsc = result.next();
-//
-//      System.out.println(rsc);
-//    }
+  public void testServicesQueries() {
+    LOG.info("Services queries");
+    Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
+        ServicesQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(4, rows.size());
+    List<String> serviceNames = new ArrayList<>(Arrays.asList("frontend", "driver", "route", "customer"));
+    rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
+    assertTrue(serviceNames.isEmpty());
   }
 
-  private QueryRequest buildSimpleQuery() {
-    Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("EVENT.id").build();
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
-
-    Filter startTimeFilter =
-        createTimeFilter(
-            "EVENT.startTime",
-            Operator.GT,
-            System.currentTimeMillis() - Duration.ofDays(20).toMillis());
-    Filter endTimeFilter =
-        createTimeFilter("EVENT.endTime", Operator.LT, System.currentTimeMillis());
-
-    Filter andFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(startTimeFilter)
-            .addChildFilter(endTimeFilter)
-            .build();
-    builder.setFilter(andFilter);
-
-    return builder.build();
+  @Test
+  public void testBackendsQueries() {
+    LOG.info("Backend queries");
+    Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
+        BackendsQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(1, rows.size());
+    List<String> backendNames = new ArrayList<>(Arrays.asList("redis"));
+    rows.forEach(row -> backendNames.remove(row.getColumn(1).getString()));
+    assertTrue(backendNames.isEmpty());
   }
 
-  private Filter createTimeFilter(String columnName, Operator op, long value) {
-
-    ColumnIdentifier startTimeColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setString(String.valueOf(value)).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
+  @Test
+  public void testExplorerQueries() throws Exception {
+    LOG.info("Explorer queries");
+    Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
+        ExplorerQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(1, rows.size());
+    // COUNT_API_TRACE.calls_[] is 13
+    assertEquals("13", rows.get(0).getColumn(1).getString());
   }
 
   private static boolean bootstrapConfig() throws Exception {
-//    // set env vars
-//    setEnv(Map.of(
-//        "MONGO_PORT", mongo.getMappedPort(27017).toString(),
-//        "ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost(),
-//        "ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString()
-//    ));
-//
-//    String resourcesPath =
-//        Thread.currentThread()
-//            .getContextClassLoader()
-//            .getResource("config-bootstrapper")
-//            .getPath();
-//
-//    // Since the clients to run Config commands are created internal to this code,
-//    // we need to set the tenantId in the context so that it's propagated.
-//    RequestContext requestContext = new RequestContext();
-//    requestContext.add(RequestContextConstants.TENANT_ID_HEADER_KEY, "__default");
-//    Context context = Context.current().withValue(RequestContext.CURRENT, requestContext);
-//
-//    context.run(
-//        () ->
-//            ConfigBootstrapper.main(
-//                new String[]{
-//                    "-c",
-//                    resourcesPath + "/application.conf",
-//                    "-C",
-//                    resourcesPath,
-//                    "--validate",
-//                    "--upgrade"
-//                }));
-//
-//    Channel channel = ManagedChannelBuilder
-//        .forAddress(attributeService.getHost(), attributeService.getMappedPort(9012)).usePlaintext()
-//        .build();
-//    AttributeServiceClient client = new AttributeServiceClient(channel);
-//    int retry = 0;
-//    while (Streams.stream(
-//        client.findAttributes(tenantId, AttributeMetadataFilter.getDefaultInstance()))
-//        .collect(Collectors.toList()).size() == 0 && retry++ < 5) {
-//      Thread.sleep(1000);
-//    }
-//    return retry < 5;
-    return true;
+    // set env vars
+    setEnv(Map.of(
+        "MONGO_PORT", mongo.getMappedPort(27017).toString(),
+        "ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost(),
+        "ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString()
+    ));
+
+    String resourcesPath =
+        Thread.currentThread()
+            .getContextClassLoader()
+            .getResource("config-bootstrapper")
+            .getPath();
+
+    // Since the clients to run Config commands are created internal to this code,
+    // we need to set the tenantId in the context so that it's propagated.
+    RequestContext requestContext = new RequestContext();
+    requestContext.add(RequestContextConstants.TENANT_ID_HEADER_KEY, "__default");
+    Context context = Context.current().withValue(RequestContext.CURRENT, requestContext);
+
+    context.run(
+        () ->
+            ConfigBootstrapper.main(
+                new String[]{
+                    "-c",
+                    resourcesPath + "/application.conf",
+                    "-C",
+                    resourcesPath,
+                    "--validate",
+                    "--upgrade"
+                }));
+
+    Channel channel = ManagedChannelBuilder
+        .forAddress(attributeService.getHost(), attributeService.getMappedPort(9012)).usePlaintext()
+        .build();
+    AttributeServiceClient client = new AttributeServiceClient(channel);
+    int retry = 0;
+    while (Streams.stream(
+        client.findAttributes(TENANT_ID_MAP, AttributeMetadataFilter.getDefaultInstance()))
+        .collect(Collectors.toList()).size() == 0 && retry++ < 5) {
+      Thread.sleep(1000);
+    }
+    return retry < 5;
   }
 
   private static boolean generateData() throws Exception {
@@ -280,7 +263,7 @@ public class HTPinotQueriesTest {
                 Thread.currentThread().getContextClassLoader().getResource("view-generator")
                     .getPath() + "/application.conf"),
             "/app/resources/configs/all-views/application.conf")
-        .withStartupTimeout(Duration.ofMinutes(1))
+        .withStartupAttempts(5)
         .waitingFor(Wait.forLogMessage(".* Started admin service on port: 8099.*", 1));
     viewGen.start();
     viewGen.followOutput(logConsumer);
@@ -288,6 +271,7 @@ public class HTPinotQueriesTest {
     // produce data
     SpecificDatumReader<StructuredTrace> datumReader = new SpecificDatumReader<>(
         StructuredTrace.getClassSchema());
+
     DataFileReader<StructuredTrace> dfrStructuredTrace = new DataFileReader<>(
         new File(Thread.currentThread()
             .getContextClassLoader()
@@ -297,6 +281,7 @@ public class HTPinotQueriesTest {
     StructuredTrace trace = dfrStructuredTrace.next();
     dfrStructuredTrace.close();
 
+    updateTimeStamp(trace);
     KafkaProducer<String, StructuredTrace> producer = new KafkaProducer<>(
         ImmutableMap.of(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
@@ -307,82 +292,58 @@ public class HTPinotQueriesTest {
     );
     producer.send(new ProducerRecord<>("enriched-structured-traces", "", trace)).get();
 
+    Map<String, Long> endOffSetMap = Map.of(
+        "raw-service-view-events", 13L,
+        "backend-entity-view-events", 11L,
+        "raw-trace-view-events", 1L,
+        "service-call-view-events", 27L,
+        "span-event-view", 50L);
     int retry = 0;
-    while (!areMessagesConsumed() && retry++ < 5) {
-      Thread.sleep(1000);
+    while (!areMessagesConsumed(endOffSetMap) && retry++ < 5) {
+      Thread.sleep(2000);
     }
     viewGen.stop();
+
     return retry < 5;
   }
 
-  private static boolean areMessagesConsumed() throws Exception {
-    ListConsumerGroupOffsetsResult lcgor = adminClient.listConsumerGroupOffsets("");
-    Map<TopicPartition, OffsetAndMetadata> w = lcgor.partitionsToOffsetAndMetadata().get();
-    Map<TopicPartition, OffsetSpec> r = Maps.newHashMap();
-    w.forEach((k, v) -> r.put(k, OffsetSpec.latest()));
-    Map<TopicPartition, ListOffsetsResultInfo> lor = adminClient.listOffsets(r).all().get();
-    return lor.entrySet().stream()
-        .noneMatch(k -> w.get(k.getKey()).offset() < k.getValue().offset());
+  private static boolean areMessagesConsumed(Map<String, Long> endOffSetMap) throws Exception {
+    ListConsumerGroupOffsetsResult consumerGroupOffsetsResult = adminClient.listConsumerGroupOffsets("");
+    Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap =
+        consumerGroupOffsetsResult.partitionsToOffsetAndMetadata().get();
+    if (offsetAndMetadataMap.size() < 5) {
+      return false;
+    }
+    return offsetAndMetadataMap.entrySet().stream()
+        .noneMatch(k -> k.getValue().offset() < endOffSetMap.get(k.getKey().topic()));
   }
 
-  private static void setEnv(Map<String, String> newenv) throws Exception {
-    // https://stackoverflow.com/questions/318239/how-do-i-set-environment-variables-from-java
-    try {
-      Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
-      Field theEnvironmentField = processEnvironmentClass.getDeclaredField("theEnvironment");
-      theEnvironmentField.setAccessible(true);
-      Map<String, String> env = (Map<String, String>) theEnvironmentField.get(null);
-      env.putAll(newenv);
-      Field theCaseInsensitiveEnvironmentField = processEnvironmentClass
-          .getDeclaredField("theCaseInsensitiveEnvironment");
-      theCaseInsensitiveEnvironmentField.setAccessible(true);
-      Map<String, String> cienv = (Map<String, String>) theCaseInsensitiveEnvironmentField
-          .get(null);
-      cienv.putAll(newenv);
-    } catch (NoSuchFieldException e) {
-      Class[] classes = Collections.class.getDeclaredClasses();
-      Map<String, String> env = System.getenv();
-      for (Class cl : classes) {
-        if ("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
-          Field field = cl.getDeclaredField("m");
-          field.setAccessible(true);
-          Object obj = field.get(env);
-          Map<String, String> map = (Map<String, String>) obj;
-          map.clear();
-          map.putAll(newenv);
-        }
-      }
-    }
+  private static void updateTimeStamp(StructuredTrace trace) {
+    long delta = System.currentTimeMillis() - trace.getStartTimeMillis();
+    trace.setStartTimeMillis(trace.getStartTimeMillis() + delta);
+    trace.setEndTimeMillis(trace.getEndTimeMillis() + delta);
+    // update events
+    trace.getEventList().forEach(e -> e.setStartTimeMillis(e.getStartTimeMillis() + delta));
+    trace.getEventList().forEach(e -> e.setEndTimeMillis(e.getEndTimeMillis() + delta));
+    // updates edges
+    trace.getEntityEdgeList().forEach(edge -> edge.setStartTimeMillis(edge.getStartTimeMillis() + delta));
+    trace.getEntityEdgeList().forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
+    trace.getEventEdgeList().forEach(edge -> edge.setStartTimeMillis(edge.getStartTimeMillis() + delta));
+    trace.getEventEdgeList().forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
+    trace.getEntityEventEdgeList().forEach(edge -> edge.setStartTimeMillis(edge.getStartTimeMillis() + delta));
+    trace.getEntityEventEdgeList().forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
+  }
+
+  private static void setEnv(Map<String, String> newEnv) throws Exception {
+    Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+    Field theEnvironmentField = processEnvironmentClass.getDeclaredField("theEnvironment");
+    theEnvironmentField.setAccessible(true);
+    Map<String, String> env = (Map<String, String>) theEnvironmentField.get(null);
+    env.putAll(newEnv);
+    Field theCaseInsensitiveEnvironmentField = processEnvironmentClass
+        .getDeclaredField("theCaseInsensitiveEnvironment");
+    theCaseInsensitiveEnvironmentField.setAccessible(true);
+    Map<String, String> cienv = (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+    cienv.putAll(newEnv);
   }
 }
-
-
-
-/**
- * System.getProperty("KAFKA_BOOTSTRAP_SERVERS", getBootstrapServers());
- *         try {
- *             execInContainer("/bin/sh", "-c",
- *                     "/usr/bin/kafka-topics --create --topic my-topic-1 --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1");
- *         } catch (UnsupportedOperationException | IOException | InterruptedException e) {
- *             e.printStackTrace();
- *         }
- *
- *          kafkaContainer.execInContainer(
- *                 "/bin/sh",
- *                 "-c",
- *                 "/usr/bin/kafka-topics --create --zookeeper $KAFKA_ZOOKEEPER_CONNECT "
- *                 + "--replication-factor 1 --partitions 1 --topic " + TOPIC);
- *
- *
- *
- *                     Channel channel = ManagedChannelBuilder
- *         .forAddress(attributeService.getHost(), attributeService.getMappedPort(9012)).usePlaintext()
- *         .build();
- *     AttributeServiceClient client = new AttributeServiceClient(channel);
- *     List<AttributeMetadata> attributeMetadataList =
- *         Streams.stream(
- *             client.findAttributes("__default", AttributeMetadataFilter.getDefaultInstance()))
- *             .collect(Collectors.toList());
- *     System.out.println(attributeMetadataList);
- */
-// kafkaZk.execInContainer();
