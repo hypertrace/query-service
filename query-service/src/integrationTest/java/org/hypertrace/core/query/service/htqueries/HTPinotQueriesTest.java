@@ -9,7 +9,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
 import com.typesafe.config.ConfigFactory;
 import io.grpc.Channel;
-import io.grpc.Context;
 import io.grpc.ManagedChannelBuilder;
 import java.io.File;
 import java.util.ArrayList;
@@ -33,15 +32,13 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.hypertrace.core.attribute.service.client.AttributeServiceClient;
 import org.hypertrace.core.attribute.service.v1.AttributeMetadataFilter;
-import org.hypertrace.core.bootstrapper.ConfigBootstrapper;
 import org.hypertrace.core.datamodel.StructuredTrace;
-import org.hypertrace.core.grpcutils.context.RequestContext;
-import org.hypertrace.core.grpcutils.context.RequestContextConstants;
 import org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.client.QueryServiceClient;
 import org.hypertrace.core.query.service.client.QueryServiceConfig;
+import org.hypertrace.core.serviceframework.IntegrationTestServerUtil;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -72,7 +69,6 @@ public class HTPinotQueriesTest {
   private static GenericContainer<?> attributeService;
   private static KafkaContainer kafkaZk;
   private static GenericContainer<?> pinotServiceManager;
-  private static GenericContainer<?> queryService;
 
   private static QueryServiceClient queryServiceClient;
 
@@ -120,20 +116,6 @@ public class HTPinotQueriesTest {
     attributeService.start();
     attributeService.followOutput(logConsumer);
 
-    queryService = new GenericContainer<>(DockerImageName.parse("hypertrace/query-service:main"))
-        .withNetwork(network)
-        .withNetworkAliases("query-service")
-        .withEnv("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
-        .withEnv("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
-        .withEnv("ZK_CONNECT_STR", "zookeeper:2181/hypertrace-views")
-        .withExposedPorts(8090)
-        .dependsOn(pinotServiceManager)
-        .dependsOn(attributeService)
-        .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
-        .waitingFor(Wait.forLogMessage(".*Started admin service on port: 8091.*", 1));
-    queryService.start();
-    queryService.followOutput(logConsumer);
-
     List<String> topicsNames = List.of(
         "enriched-structured-traces",
         "raw-service-view-events",
@@ -153,9 +135,16 @@ public class HTPinotQueriesTest {
     assertTrue(generateData());
     LOG.info("Generate Data Complete");
 
+    withEnvironmentVariable(
+        "ZK_CONNECT_STR", "localhost:" + pinotServiceManager.getMappedPort(8099).toString())
+        .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
+        .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
+        .execute(() ->
+            IntegrationTestServerUtil.startServices(new String[] {"query-service"}));
+
     Map<String, Object> map = Maps.newHashMap();
-    map.put("host", queryService.getHost());
-    map.put("port", queryService.getMappedPort(8090));
+    map.put("host", "localhost");
+    map.put("port", 8090);
     QueryServiceConfig queryServiceConfig = new QueryServiceConfig(ConfigFactory.parseMap(map));
     queryServiceClient = new QueryServiceClient(queryServiceConfig);
   }
@@ -163,7 +152,6 @@ public class HTPinotQueriesTest {
   @AfterAll
   public static void shutdown() {
     LOG.info("Initiating shutdown");
-    queryService.stop();
     attributeService.stop();
     mongo.stop();
     pinotServiceManager.stop();
@@ -172,32 +160,15 @@ public class HTPinotQueriesTest {
   }
 
   private static boolean bootstrapConfig() throws Exception {
-    String resourcesPath =
-        Thread.currentThread()
-            .getContextClassLoader()
-            .getResource("config-bootstrapper")
-            .getPath();
-
-    // Since the clients to run Config commands are created internal to this code,
-    // we need to set the tenantId in the context so that it's propagated.
-    RequestContext requestContext = new RequestContext();
-    requestContext.add(RequestContextConstants.TENANT_ID_HEADER_KEY, "__default");
-    Context context = Context.current().withValue(RequestContext.CURRENT, requestContext);
-
-    withEnvironmentVariable(
-        "MONGO_PORT", mongo.getMappedPort(27017).toString())
-        .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
-        .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
-        .execute(() -> context.run(
-            () -> ConfigBootstrapper.main(
-                new String[]{
-                    "-c",
-                    resourcesPath + "/application.conf",
-                    "-C",
-                    resourcesPath,
-                    "--validate",
-                    "--upgrade"
-                })));
+    GenericContainer<?> bootstrapper = new GenericContainer<>(
+        DockerImageName.parse("traceableai-docker.jfrog.io/hypertrace/config-bootstrapper:test"))
+        .withNetwork(network)
+        .dependsOn(attributeService)
+        .withEnv("MONGO_HOST", "mongo")
+        .withEnv("ATTRIBUTE_SERVICE_HOST_CONFIG", "attribute-service")
+        .withCommand("-c", "/app/resources/configs/config-bootstrapper/application.conf", "-C", "/app/resources/configs/config-bootstrapper/attribute-service", "--upgrade")
+        .withLogConsumer(logConsumer);
+    bootstrapper.start();
 
     Channel channel = ManagedChannelBuilder
         .forAddress(attributeService.getHost(), attributeService.getMappedPort(9012)).usePlaintext()
@@ -207,7 +178,7 @@ public class HTPinotQueriesTest {
     while (Streams.stream(
         client.findAttributes(TENANT_ID_MAP, AttributeMetadataFilter.getDefaultInstance()))
         .collect(Collectors.toList()).size() == 0 && retry++ < 5) {
-      Thread.sleep(1000);
+      Thread.sleep(2000);
     }
     return retry < 5;
   }

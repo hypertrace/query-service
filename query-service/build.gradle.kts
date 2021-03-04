@@ -29,7 +29,6 @@ dependencies {
 
   implementation("com.typesafe:config:1.4.0")
 
-
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-api:5.6.2")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-params:5.6.2")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-engine:5.6.2")
@@ -47,9 +46,6 @@ dependencies {
 
   integrationTestImplementation(project(":query-service-client"))
   integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-service-client:0.8.7")
-  integrationTestImplementation("org.hypertrace.core.bootstrapper:config-bootstrapper:0.2.6-SNAPSHOT")
-  integrationTestImplementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.3.1")
-  integrationTestImplementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.3.1")
 }
 
 application {
