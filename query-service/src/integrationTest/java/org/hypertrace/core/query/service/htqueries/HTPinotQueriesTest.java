@@ -51,7 +51,6 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.utility.MountableFile;
 
 @Testcontainers
 public class HTPinotQueriesTest {
@@ -190,11 +189,9 @@ public class HTPinotQueriesTest {
         .withNetwork(network)
         .dependsOn(kafkaZk)
         .withEnv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-        .withCopyFileToContainer(
-            MountableFile.forHostPath(
-                Thread.currentThread().getContextClassLoader().getResource("view-generator")
-                    .getPath() + "/application.conf"),
-            "/app/resources/configs/all-views/application.conf")
+        .withEnv("DEFAULT_KEY_SERDE", "org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde")
+        .withEnv("DEFAULT_VALUE_SERDE", "org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde")
+        .withEnv("NUM_STREAM_THREADS", "1")
         .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
         .waitingFor(Wait.forLogMessage(".* Started admin service on port: 8099.*", 1));
     viewGen.start();
