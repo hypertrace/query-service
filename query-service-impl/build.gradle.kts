@@ -30,6 +30,10 @@ dependencies {
       because("Information Disclosure (new) [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-IONETTY-1082238] in io.netty:netty-transport-native-epoll@4.1.50.Final\n" +
               "    introduced by io.netty:netty-transport-native-epoll@4.1.50.Final")
     }
+    implementation("io.netty:netty-handler:4.1.59.Final") {
+      because("Information Disclosure (new) [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-IONETTY-1082235] in io.netty:netty-handler@4.1.50.Final\n" +
+              "    introduced by io.netty:netty-handler@4.1.50.Final")
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.0")
