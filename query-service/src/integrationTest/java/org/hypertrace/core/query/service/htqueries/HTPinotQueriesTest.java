@@ -9,6 +9,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
 import com.typesafe.config.ConfigFactory;
 import io.grpc.Channel;
+import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.File;
 import java.util.ArrayList;
@@ -160,7 +161,7 @@ public class HTPinotQueriesTest {
 
   private static boolean bootstrapConfig() throws Exception {
     GenericContainer<?> bootstrapper = new GenericContainer<>(
-        DockerImageName.parse("traceableai-docker.jfrog.io/hypertrace/config-bootstrapper:test"))
+        DockerImageName.parse("hypertrace/config-bootstrapper:main"))
         .withNetwork(network)
         .dependsOn(attributeService)
         .withEnv("MONGO_HOST", "mongo")
@@ -169,7 +170,7 @@ public class HTPinotQueriesTest {
         .withLogConsumer(logConsumer);
     bootstrapper.start();
 
-    Channel channel = ManagedChannelBuilder
+    ManagedChannel channel = ManagedChannelBuilder
         .forAddress(attributeService.getHost(), attributeService.getMappedPort(9012)).usePlaintext()
         .build();
     AttributeServiceClient client = new AttributeServiceClient(channel);
@@ -179,6 +180,8 @@ public class HTPinotQueriesTest {
         .collect(Collectors.toList()).size() == 0 && retry++ < 5) {
       Thread.sleep(2000);
     }
+    channel.shutdown();
+    bootstrapper.stop();
     return retry < 5;
   }
 

@@ -26,16 +26,24 @@ dependencies {
       because("Information Exposure [Low Severity][https://snyk.io/vuln/SNYK-JAVA-COMMONSCODEC-561518] in commons-codec:commons-codec@1.11"
           + " introduced org.apache.httpcomponents:httpclient@4.5.12")
     }
+    implementation("io.netty:netty-transport-native-epoll:4.1.59.Final") {
+      because("Information Disclosure (new) [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-IONETTY-1082238] in io.netty:netty-transport-native-epoll@4.1.50.Final\n" +
+              "    introduced by io.netty:netty-transport-native-epoll@4.1.50.Final")
+    }
+    implementation("io.netty:netty-handler:4.1.59.Final") {
+      because("Information Disclosure (new) [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-IONETTY-1082235] in io.netty:netty-handler@4.1.50.Final\n" +
+              "    introduced by io.netty:netty-handler@4.1.50.Final")
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.0")
-  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.3.0")
-  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.3.0")
-  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.3.0")
+  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.3.3")
+  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.3.3")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.3.3")
   implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.8.7")
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.8.7")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.8.7")
-  implementation("org.hypertrace.core.serviceframework:service-framework-spi:0.1.18")
+  implementation("org.hypertrace.core.serviceframework:service-framework-spi:0.1.21")
   implementation("com.google.inject:guice:4.2.3")
   implementation("org.apache.pinot:pinot-java-client:0.6.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
@@ -43,7 +51,7 @@ dependencies {
   }
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("commons-codec:commons-codec:1.13")
-  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.18")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.21")
   implementation("com.google.protobuf:protobuf-java-util:3.12.2")
   implementation("com.google.guava:guava:30.0-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.6")
