@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service.htqueries;
 
-import static org.hypertrace.core.query.service.Utils.createFilter;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFilter;
 
 import java.time.Duration;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;

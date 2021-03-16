@@ -8,7 +8,7 @@ import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
-public class Utils {
+public class QueryServiceTestUtils {
 
   public static Filter createFilter(
       String columnName, Operator op,

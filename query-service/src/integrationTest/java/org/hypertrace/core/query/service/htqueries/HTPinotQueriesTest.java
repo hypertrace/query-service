@@ -8,7 +8,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
 import com.typesafe.config.ConfigFactory;
-import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.File;
@@ -136,7 +135,8 @@ public class HTPinotQueriesTest {
     LOG.info("Generate Data Complete");
 
     withEnvironmentVariable(
-        "ZK_CONNECT_STR", "localhost:" + pinotServiceManager.getMappedPort(8099).toString())
+        "PINOT_CONNECTION_TYPE", "broker")
+        .and("ZK_CONNECT_STR", "localhost:" + pinotServiceManager.getMappedPort(8099).toString())
         .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
         .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
         .execute(() ->
