@@ -14,11 +14,14 @@ repositories {
 
 dependencies {
   constraints {
-    runtimeOnly("io.netty:netty-codec-http2:4.1.59.Final") {
+    runtimeOnly("io.netty:netty-codec-http2:4.1.60.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1020439")
     }
     runtimeOnly("io.netty:netty-handler-proxy:4.1.59.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1020439s")
+    }
+    integrationTestRuntimeOnly("junit:junit:4.13.1") {
+      because("https://snyk.io/vuln/SNYK-JAVA-JUNIT-1017047")
     }
   }
 
