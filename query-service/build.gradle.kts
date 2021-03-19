@@ -76,10 +76,6 @@ hypertraceDocker {
   }
 }
 
-tasks.integrationTest {
-  useJUnitPlatform()
-}
-
 tasks.jacocoIntegrationTestReport {
   sourceSets(project(":query-service-impl").sourceSets.getByName("main"))
   sourceSets(project(":query-service-client").sourceSets.getByName("main"))
