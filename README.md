@@ -25,6 +25,7 @@ Run `./gradlew test` to execute unit tests.
 
 ### Testing image
 
+
 #### With docker-compose
 To test your image using the docker-compose setup follow the steps:
 
