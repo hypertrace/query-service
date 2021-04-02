@@ -9,6 +9,14 @@ plugins {
 }
 
 dependencies {
+  implementation(project(":query-service-impl"))
+  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.4.0")
+  implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.23")
+  implementation("org.slf4j:slf4j-api:1.7.30")
+  implementation("com.typesafe:config:1.4.1")
+
+  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.14.1")
+  runtimeOnly("io.grpc:grpc-netty:1.36.1")
   constraints {
     runtimeOnly("io.netty:netty-codec-http2:4.1.63.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1089809")
@@ -17,17 +25,6 @@ dependencies {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1089809")
     }
   }
-
-  implementation(project(":query-service-impl"))
-  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.4.0")
-  implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.23")
-  implementation("io.grpc:grpc-netty:1.36.1")
-  implementation("org.slf4j:slf4j-api:1.7.30")
-  implementation("com.typesafe:config:1.4.1")
-
-  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.14.1")
-
-  implementation("com.typesafe:config:1.4.1")
 
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-params:5.7.1")
