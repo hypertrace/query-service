@@ -2,7 +2,7 @@ import com.google.protobuf.gradle.*
 
 plugins {
   `java-library`
-  id("com.google.protobuf") version "0.8.8"
+  id("com.google.protobuf") version "0.8.15"
   id("org.hypertrace.publish-plugin")
   id("org.hypertrace.jacoco-report-plugin")
 }
@@ -11,14 +11,14 @@ val generateLocalGoGrpcFiles = false
 
 protobuf {
   protoc {
-    artifact = "com.google.protobuf:protoc:3.12.3"
+    artifact = "com.google.protobuf:protoc:3.15.6"
   }
   plugins {
     // Optional: an artifact spec for a protoc plugin, with "grpc" as
     // the identifier, which can be referred to in the "plugins"
     // container of the "generateProtoTasks" closure.
     id("grpc_java") {
-      artifact = "io.grpc:protoc-gen-grpc-java:1.31.1"
+      artifact = "io.grpc:protoc-gen-grpc-java:1.36.1"
     }
 
     if (generateLocalGoGrpcFiles) {
@@ -65,15 +65,10 @@ tasks.test {
 }
 
 dependencies {
-  api("io.grpc:grpc-protobuf:1.33.0")
-  api("io.grpc:grpc-stub:1.33.0")
+  api("io.grpc:grpc-protobuf:1.36.1")
+  api("io.grpc:grpc-stub:1.36.1")
   api("javax.annotation:javax.annotation-api:1.3.2")
-  constraints {
-    api("com.google.guava:guava:30.0-jre") {
-      because("Information Disclosure [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-COMGOOGLEGUAVA-1015415] in com.google.guava:guava@29.0-android")
-    }
-  }
 
-  testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
-  testImplementation("com.google.protobuf:protobuf-java-util:3.12.2")
+  testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
+  testImplementation("com.google.protobuf:protobuf-java-util:3.15.6")
 }
