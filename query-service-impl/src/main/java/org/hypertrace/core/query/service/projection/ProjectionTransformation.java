@@ -142,6 +142,9 @@ final class ProjectionTransformation implements QueryTransformation {
     if (!attributeMetadata.getDefinition().hasProjection()) {
       return Maybe.empty();
     }
+    if (attributeMetadata.getMaterialized()) {
+      return Maybe.empty();
+    }
     return this.rewriteProjectionAsQueryExpression(
             attributeMetadata.getDefinition().getProjection(), attributeMetadata.getValueKind())
         .toMaybe();

@@ -68,17 +68,14 @@ class ProjectionTransformationTest {
                     .setProjection(Projection.newBuilder().setAttributeId(SIMPLE_ATTRIBUTE_ID)))
             .build();
 
-    when(this.mockAttributeClient.get(PROJECTED_ATTRIBUTE_ID))
-        .thenReturn(Single.defer(() -> Single.just(this.attributeMetadata)));
-    when(this.mockAttributeClient.get(SIMPLE_ATTRIBUTE_ID))
-        .thenReturn(Single.defer(() -> Single.just(AttributeMetadata.getDefaultInstance())));
-
     this.projectionTransformation =
         new ProjectionTransformation(this.mockAttributeClient, new AttributeProjectionRegistry());
   }
 
   @Test
   void transformsBasicAliasProjection() {
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
@@ -107,11 +104,12 @@ class ProjectionTransformationTest {
                     projectionExpression(
                         PROJECTION_OPERATOR_HASH, attributeIdProjection(SIMPLE_ATTRIBUTE_ID))),
                 literalProjection("projectionLiteral")));
-
     this.attributeMetadata =
         this.attributeMetadata.toBuilder()
             .setDefinition(AttributeDefinition.newBuilder().setProjection(projection))
             .build();
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
@@ -138,7 +136,8 @@ class ProjectionTransformationTest {
 
   @Test
   void transformsConditionalAndStringEquals() {
-    // CONDITIONAL(STRINGEQUALS(SIMPLE_ATTRIBUTE_ID, "foo"), HASH(SIMPLE_ATTRIBUTE_ID), "projectionLiteral")
+    // CONDITIONAL(STRINGEQUALS(SIMPLE_ATTRIBUTE_ID, "foo"), HASH(SIMPLE_ATTRIBUTE_ID),
+    // "projectionLiteral")
     Projection projection =
         functionProjection(
             projectionExpression(
@@ -150,14 +149,15 @@ class ProjectionTransformationTest {
                         literalProjection("foo"))),
                 functionProjection(
                     projectionExpression(
-                        PROJECTION_OPERATOR_HASH,
-                        attributeIdProjection(SIMPLE_ATTRIBUTE_ID))),
+                        PROJECTION_OPERATOR_HASH, attributeIdProjection(SIMPLE_ATTRIBUTE_ID))),
                 literalProjection("projectionLiteral")));
 
     this.attributeMetadata =
         this.attributeMetadata.toBuilder()
             .setDefinition(AttributeDefinition.newBuilder().setProjection(projection))
             .build();
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
@@ -188,6 +188,8 @@ class ProjectionTransformationTest {
 
   @Test
   void transformsAggregations() {
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addAggregation(
@@ -214,6 +216,8 @@ class ProjectionTransformationTest {
 
   @Test
   void transformsOrderBys() {
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
@@ -239,6 +243,8 @@ class ProjectionTransformationTest {
 
   @Test
   void transformsNestedFilters() {
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
@@ -272,6 +278,8 @@ class ProjectionTransformationTest {
 
   @Test
   void transformsGroupBys() {
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addAggregation(
@@ -297,6 +305,8 @@ class ProjectionTransformationTest {
 
   @Test
   void passesThroughExpressionsInOrder() {
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     when(this.mockAttributeClient.get("slow"))
         .thenReturn(
             Single.defer(
@@ -326,6 +336,8 @@ class ProjectionTransformationTest {
 
   @Test
   void passesThroughOrderBysInOrder() {
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     when(this.mockAttributeClient.get("slow"))
         .thenReturn(
             Single.defer(
@@ -363,6 +375,9 @@ class ProjectionTransformationTest {
             .setValueKind(AttributeKind.TYPE_STRING)
             .build();
 
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
+
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
@@ -388,6 +403,8 @@ class ProjectionTransformationTest {
             .setValueKind(AttributeKind.TYPE_INT64)
             .build();
 
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    
     expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(createNullNumberLiteralExpression())
@@ -410,36 +427,58 @@ class ProjectionTransformationTest {
                 PROJECTION_OPERATOR_CONDITIONAL,
                 literalProjection("true"),
                 attributeIdProjection(SIMPLE_ATTRIBUTE_ID),
-                nullLiteralProjection()
-            ));
+                nullLiteralProjection()));
 
     this.attributeMetadata =
         this.attributeMetadata.toBuilder()
-                              .setDefinition(AttributeDefinition.newBuilder().setProjection(projection))
-                              .build();
+            .setDefinition(AttributeDefinition.newBuilder().setProjection(projection))
+            .build();
+
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-                    .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
-                    .build();
+            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .build();
 
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
-                    .addSelection(
-                        createFunctionExpression(
-                            QUERY_FUNCTION_CONDITIONAL,
-                            PROJECTED_ATTRIBUTE_ID,
-                            createStringLiteralValueExpression("true"),
-                            createColumnExpression(SIMPLE_ATTRIBUTE_ID).build(),
-                            createNullStringLiteralExpression()))
-                    .build();
+            .addSelection(
+                createFunctionExpression(
+                    QUERY_FUNCTION_CONDITIONAL,
+                    PROJECTED_ATTRIBUTE_ID,
+                    createStringLiteralValueExpression("true"),
+                    createColumnExpression(SIMPLE_ATTRIBUTE_ID).build(),
+                    createNullStringLiteralExpression()))
+            .build();
 
     assertEquals(
         expectedTransform,
         this.projectionTransformation
             .transform(originalRequest, mockTransformationContext)
             .blockingGet());
+  }
 
+  @Test
+  void doesNotTransformMaterializedDefinition() {
+    this.mockAttribute(
+        PROJECTED_ATTRIBUTE_ID, this.attributeMetadata.toBuilder().setMaterialized(true).build());
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .build();
+
+    assertEquals(
+        originalRequest,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  private void mockAttribute(String id, AttributeMetadata attributeMetadata) {
+    when(this.mockAttributeClient.get(id))
+        .thenReturn(Single.defer(() -> Single.just(attributeMetadata)));
   }
 
   private ProjectionExpression projectionExpression(
