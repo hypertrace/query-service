@@ -2,8 +2,8 @@ plugins {
   java
   application
   jacoco
-  id("org.hypertrace.docker-java-application-plugin") version "0.8.2"
-  id("org.hypertrace.docker-publish-plugin") version "0.8.2"
+  id("org.hypertrace.docker-java-application-plugin") version "0.9.0"
+  id("org.hypertrace.docker-publish-plugin") version "0.9.0"
   id("org.hypertrace.integration-test-plugin")
   id("org.hypertrace.jacoco-report-plugin")
 }
@@ -37,7 +37,7 @@ dependencies {
 
   integrationTestImplementation("org.apache.kafka:kafka-clients:5.5.1-ccs")
   integrationTestImplementation("org.apache.kafka:kafka-streams:5.5.1-ccs")
-  integrationTestImplementation("org.apache.avro:avro:1.10.1")
+  integrationTestImplementation("org.apache.avro:avro:1.10.2")
   integrationTestImplementation("com.google.guava:guava:30.1.1-jre")
   integrationTestImplementation("org.hypertrace.core.datamodel:data-model:0.1.12")
   integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.1.13")
