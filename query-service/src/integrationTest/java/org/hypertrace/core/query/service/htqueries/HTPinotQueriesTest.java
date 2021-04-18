@@ -229,7 +229,8 @@ public class HTPinotQueriesTest {
         "backend-entity-view-events", 11L,
         "raw-trace-view-events", 1L,
         "service-call-view-events", 27L,
-        "span-event-view", 50L);
+        "span-event-view", 50L,
+        "log-event-view", 0L);
     int retry = 0;
     while (!areMessagesConsumed(endOffSetMap) && retry++ < 5) {
       Thread.sleep(2000);
@@ -245,7 +246,7 @@ public class HTPinotQueriesTest {
         .listConsumerGroupOffsets("");
     Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap =
         consumerGroupOffsetsResult.partitionsToOffsetAndMetadata().get();
-    if (offsetAndMetadataMap.size() < 5) {
+    if (offsetAndMetadataMap.size() < 6) {
       return false;
     }
     return offsetAndMetadataMap.entrySet().stream()
