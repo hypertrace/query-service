@@ -121,7 +121,9 @@ public class HTPinotQueriesTest {
         "raw-trace-view-events",
         "service-call-view-events",
         "span-event-view",
-        "backend-entity-view-events");
+        "backend-entity-view-events",
+        "log-event-view",
+        "raw-logs");
     bootstrapServers = kafkaZk.getBootstrapServers();
     adminClient = AdminClient
         .create(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaZk.getBootstrapServers()));
