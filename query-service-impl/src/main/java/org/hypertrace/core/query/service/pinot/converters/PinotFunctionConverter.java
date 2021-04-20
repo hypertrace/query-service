@@ -6,7 +6,6 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -19,6 +18,8 @@ public class PinotFunctionConverter {
    * reasonably accurate, hence use that as the default.
    */
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
+
+  private static final String PINOT_CONCAT_FUNCTION = "CONCATSKIPNULL";
 
   private final String percentileAggFunction;
 
@@ -81,11 +82,9 @@ public class PinotFunctionConverter {
   }
 
   private Function toPinotConcat(Function function) {
-    // Our concat takes two args (one can be literal - CONCAT(ARG1, ARG2)
-    // Pinot concat takes a separator - CONCAT(ARG1, ARG2, SEPARATOR)
-    return Function.newBuilder(function)
-        .addArguments(QueryRequestUtil.createStringLiteralExpression(""))
-        .build();
+    // We don't want to use pinot's built in concat, it has different null behavior.
+    // Instead, use our custom UDF.
+    return Function.newBuilder(function).setFunctionName(PINOT_CONCAT_FUNCTION).build();
   }
 
   private boolean isHardcodedPercentile(Function function) {

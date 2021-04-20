@@ -11,7 +11,6 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createIntLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -164,16 +163,14 @@ class PinotFunctionConverterTest {
   }
 
   @Test
-  void convertsConcatFunctionAddingSeparator() {
+  void convertsConcatFunction() {
     Expression column1 = createColumnExpression("foo").build();
     Expression column2 = createColumnExpression("bar").build();
-    Expression separator = createStringLiteralValueExpression("");
 
     when(this.mockArgumentConverter.apply(column1)).thenReturn("foo");
     when(this.mockArgumentConverter.apply(column2)).thenReturn("bar");
-    when(this.mockArgumentConverter.apply(separator)).thenReturn("''");
     assertEquals(
-        "CONCAT(foo,bar,'')",
+        "CONCATSKIPNULL(foo,bar)",
         new PinotFunctionConverter()
             .convert(
                 buildFunction(QUERY_FUNCTION_CONCAT, column1.toBuilder(), column2.toBuilder()),
