@@ -43,7 +43,7 @@ dependencies {
   integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.1.13")
 
   integrationTestImplementation(project(":query-service-client"))
-  integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-service-client:0.10.5")
+  integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-service-client:0.12.0")
 }
 
 application {
