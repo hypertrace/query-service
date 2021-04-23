@@ -1,7 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
-import static org.hypertrace.core.query.service.ConfigUtils.optionallyGet;
-
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
@@ -11,19 +10,7 @@ import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import io.reactivex.rxjava3.core.Observable;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -43,6 +30,21 @@ import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter
 import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import static org.hypertrace.core.query.service.ConfigUtils.optionallyGet;
 
 /** RequestHandler to handle queries by fetching data from Pinot. */
 public class PinotBasedRequestHandler implements RequestHandler {
@@ -343,7 +345,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
       try {
         resultSetGroup =
             pinotQueryExecutionTimer.recordCallable(
-                () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
+                () -> pinotClient.executeQuery(resolveStatement(pql.getKey(), pql.getValue())));
       } catch (Exception ex) {
         // Catch this exception to log the Pinot SQL query that caused the issue
         LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
@@ -567,5 +569,31 @@ public class PinotBasedRequestHandler implements RequestHandler {
           noGroupBy && noAggregations,
           "If distinct selections are requested, there should be no groupBys or aggregations.");
     }
+  }
+
+  @VisibleForTesting
+  String resolveStatement(String query, Params params) {
+    String[] queryParts = query.split("\\?");
+
+    String[] parameters = new String[queryParts.length];
+    params.getStringParams().forEach((i, p) -> parameters[i] = getStringParam(p));
+    params.getIntegerParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+    params.getLongParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+    params.getDoubleParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+    params.getFloatParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+    params
+        .getByteStringParams()
+        .forEach((i, p) -> parameters[i] = getStringParam(Hex.encodeHexString(p.toByteArray())));
+
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < queryParts.length; i++) {
+      sb.append(queryParts[i]);
+      sb.append(parameters[i] != null ? parameters[i] : "");
+    }
+    return sb.toString();
+  }
+
+  private String getStringParam(String value) {
+    return "'" + value.replace("'", "''") + "'";
   }
 }
