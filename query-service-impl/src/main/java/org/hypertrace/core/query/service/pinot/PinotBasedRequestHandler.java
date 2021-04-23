@@ -345,7 +345,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
       try {
         resultSetGroup =
             pinotQueryExecutionTimer.recordCallable(
-                () -> pinotClient.executeQuery(resolveStatement(pql.getKey(), pql.getValue())));
+                () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
       } catch (Exception ex) {
         // Catch this exception to log the Pinot SQL query that caused the issue
         LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
@@ -569,31 +569,5 @@ public class PinotBasedRequestHandler implements RequestHandler {
           noGroupBy && noAggregations,
           "If distinct selections are requested, there should be no groupBys or aggregations.");
     }
-  }
-
-  @VisibleForTesting
-  String resolveStatement(String query, Params params) {
-    String[] queryParts = query.split("\\?");
-
-    String[] parameters = new String[queryParts.length];
-    params.getStringParams().forEach((i, p) -> parameters[i] = getStringParam(p));
-    params.getIntegerParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-    params.getLongParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-    params.getDoubleParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-    params.getFloatParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-    params
-        .getByteStringParams()
-        .forEach((i, p) -> parameters[i] = getStringParam(Hex.encodeHexString(p.toByteArray())));
-
-    StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < queryParts.length; i++) {
-      sb.append(queryParts[i]);
-      sb.append(parameters[i] != null ? parameters[i] : "");
-    }
-    return sb.toString();
-  }
-
-  private String getStringParam(String value) {
-    return "'" + value.replace("'", "''") + "'";
   }
 }

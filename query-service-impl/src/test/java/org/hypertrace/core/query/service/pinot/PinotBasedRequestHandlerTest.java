@@ -866,7 +866,6 @@ public class PinotBasedRequestHandlerTest {
       ResultSet resultSet = mockResultSet(4, 2, columnNames, resultTable);
       ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
       when(pinotClient.executeQuery(any(), any())).thenReturn(resultSetGroup);
-      when(pinotClient.executeQuery(any())).thenReturn(resultSetGroup);
 
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
@@ -954,9 +953,6 @@ public class PinotBasedRequestHandlerTest {
       String expectedQuery = "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND ( is_entry_span = ? AND start_time_millis > ? )";
       Params params = Params.newBuilder().addStringParam("__default").addStringParam("true").addStringParam("1000").build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
-      String expectedStatement =
-          "Select span_id, trace_id FROM spanEventView WHERE tenant_id = '__default' AND ( is_entry_span = 'true' AND start_time_millis > '1000' )";
-      when(pinotClient.executeQuery(expectedStatement)).thenReturn(resultSetGroup);
 
       verifyResponseRows(handler.handleRequest(request, context), resultTable);
     }
@@ -1025,25 +1021,9 @@ public class PinotBasedRequestHandlerTest {
       String expectedQuery = "Select DISTINCT start_time_millis, span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND status_code = ?";
       Params params = Params.newBuilder().addStringParam("__default").addStringParam("401").build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
-      String expectedStatement = "Select DISTINCT start_time_millis, span_id, trace_id FROM spanEventView WHERE tenant_id = '__default' AND status_code = '401'";
-      when(pinotClient.executeQuery(expectedStatement)).thenReturn(resultSetGroup);
 
       verifyResponseRows(handler.handleRequest(request, context), resultTable);
     }
-  }
-
-  @Test
-  public void testResolveStatement() {
-    String statement =
-        pinotBasedRequestHandler.resolveStatement(
-            "select * from table where team in (?, ?, ?)",
-            Params.newBuilder()
-                .addStringParam("abc")
-                .addStringParam("pqr with (?)")
-                .addStringParam("xyz")
-                .build());
-
-    Assertions.assertEquals("select * from table where team in ('abc', 'pqr with (?)', 'xyz')", statement);
   }
 
   private ResultSet mockResultSet(

@@ -81,17 +81,19 @@ public class PinotClientFactory {
     }
 
     public ResultSetGroup executeQuery(String statement, Params params) {
+      /*
       PreparedStatement preparedStatement = buildPreparedStatement(statement, params);
       return preparedStatement.execute();
-    }
-
-    public ResultSetGroup executeQuery(String statement) {
-      return connection.execute(new Request(SQL_FORMAT, statement));
+      */
+      return connection.execute(new Request(SQL_FORMAT, resolveStatement(statement, params)));
     }
 
     public Future<ResultSetGroup> executeQueryAsync(String statement, Params params) {
+      /*
       PreparedStatement preparedStatement = buildPreparedStatement(statement, params);
       return preparedStatement.executeAsync();
+      */
+      return connection.executeAsync(new Request(SQL_FORMAT, resolveStatement(statement, params)));
     }
 
     private PreparedStatement buildPreparedStatement(String statement, Params params) {
@@ -105,6 +107,48 @@ public class PinotClientFactory {
       params.getByteStringParams()
           .forEach((i, b) -> preparedStatement.setString(i, Hex.encodeHexString(b.toByteArray())));
       return preparedStatement;
+    }
+
+    @VisibleForTesting
+    /*
+     * Pinot PreparedStatement creates invalid query if one of the parameters has '?' in its value.
+     * Sample pinot query : select * from table where team in (?, ?, ?).. Now say parameters are:
+     * 'abc', 'pqr with (?)' and 'xyz'..
+     *
+     * Now, on executing PreparedStatement:fillStatementWithParameters method on this will return
+     * select * from table where team in ('abc', 'pqr with ('xyz')', ?) -- which is clearly wrong
+     * (what we wanted was select * from table where team in ('abc', 'pqr with (?)', 'xyz'))..
+     *
+     * The reason is the usage of replaceFirst iteration in the pinot PreparedStatement method..
+     *
+     * Hence written this custom method to resolve the query statement rather than relying on Pinot's
+     * library method.
+     * This is a temporary fix and can be reverted when the Pinot issue gets resolved
+     * Raised an issue in incubator-pinot github repo: apache/incubator-pinot#6834
+     */
+    String resolveStatement(String query, Params params) {
+      String[] queryParts = query.split("\\?");
+
+      String[] parameters = new String[queryParts.length];
+      params.getStringParams().forEach((i, p) -> parameters[i] = getStringParam(p));
+      params.getIntegerParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+      params.getLongParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+      params.getDoubleParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+      params.getFloatParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+      params
+          .getByteStringParams()
+          .forEach((i, p) -> parameters[i] = getStringParam(Hex.encodeHexString(p.toByteArray())));
+
+      StringBuilder sb = new StringBuilder();
+      for (int i = 0; i < queryParts.length; i++) {
+        sb.append(queryParts[i]);
+        sb.append(parameters[i] != null ? parameters[i] : "");
+      }
+      return sb.toString();
+    }
+
+    private String getStringParam(String value) {
+      return "'" + value.replace("'", "''") + "'";
     }
   }
 }

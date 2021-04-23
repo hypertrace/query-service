@@ -22,4 +22,19 @@ public class PinotQueryTest {
     Assertions.assertEquals(q2, q3);
     Assertions.assertEquals(q3, q2);
   }
+
+  @Test
+  public void testResolveStatement() {
+    PinotClientFactory.PinotClient pinotClient = new PinotClientFactory.PinotClient(null);
+    String statement =
+        pinotClient.resolveStatement(
+        "select * from table where team in (?, ?, ?)",
+        Params.newBuilder()
+            .addStringParam("abc")
+            .addStringParam("pqr with (?)")
+            .addStringParam("xyz")
+            .build());
+
+    Assertions.assertEquals("select * from table where team in ('abc', 'pqr with (?)', 'xyz')", statement);
+  }
 }
