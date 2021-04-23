@@ -85,6 +85,10 @@ public class PinotClientFactory {
       return preparedStatement.execute();
     }
 
+    public ResultSetGroup executeQuery(String statement) {
+      return connection.execute(new Request(SQL_FORMAT, statement));
+    }
+
     public Future<ResultSetGroup> executeQueryAsync(String statement, Params params) {
       PreparedStatement preparedStatement = buildPreparedStatement(statement, params);
       return preparedStatement.executeAsync();
