@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
-import com.google.common.annotations.VisibleForTesting;
+import static org.hypertrace.core.query.service.ConfigUtils.optionallyGet;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
@@ -10,7 +11,19 @@ import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import io.reactivex.rxjava3.core.Observable;
-import org.apache.commons.codec.binary.Hex;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -30,21 +43,6 @@ import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter
 import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.annotation.Nonnull;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import static org.hypertrace.core.query.service.ConfigUtils.optionallyGet;
 
 /** RequestHandler to handle queries by fetching data from Pinot. */
 public class PinotBasedRequestHandler implements RequestHandler {
