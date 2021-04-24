@@ -25,9 +25,8 @@ public class PinotQueryTest {
 
   @Test
   public void testResolveStatement() {
-    PinotClientFactory.PinotClient pinotClient = new PinotClientFactory.PinotClient(null);
     String statement =
-        pinotClient.resolveStatement(
+        PinotClientFactory.PinotClient.resolveStatement(
         "select * from table where team in (?, ?, ?)",
         Params.newBuilder()
             .addStringParam("abc")

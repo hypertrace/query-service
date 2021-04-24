@@ -126,7 +126,10 @@ public class PinotClientFactory {
      * This is a temporary fix and can be reverted when the Pinot issue gets resolved
      * Raised an issue in incubator-pinot github repo: apache/incubator-pinot#6834
      */
-    String resolveStatement(String query, Params params) {
+    static String resolveStatement(String query, Params params) {
+      if (query.isEmpty()) {
+        return query;
+      }
       String[] queryParts = query.split("\\?");
 
       String[] parameters = new String[queryParts.length];
@@ -147,7 +150,7 @@ public class PinotClientFactory {
       return sb.toString();
     }
 
-    private String getStringParam(String value) {
+    private static String getStringParam(String value) {
       return "'" + value.replace("'", "''") + "'";
     }
   }
