@@ -1,14 +1,14 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.ConnectionFactory;
 import org.apache.pinot.client.PreparedStatement;
 import org.apache.pinot.client.Request;
 import org.apache.pinot.client.ResultSetGroup;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
 
 /*
  * Factory to create PinotClient based on given zookeeper path.
@@ -151,7 +151,11 @@ public class PinotClientFactory {
         sb.append(queryParts[i]);
         sb.append(parameters[i] != null ? parameters[i] : "");
       }
-      return sb.toString();
+      String statement = sb.toString();
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Resolved PQL query: " + statement);
+      }
+      return statement;
     }
 
     private static String getStringParam(String value) {
