@@ -147,6 +147,10 @@ public class PinotClientFactory {
         sb.append(queryParts[i]);
         sb.append(parameters[i] != null ? parameters[i] : "");
       }
+      String statement = sb.toString();
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Resolved PQL statement: " + statement);
+      }
       return sb.toString();
     }
 
