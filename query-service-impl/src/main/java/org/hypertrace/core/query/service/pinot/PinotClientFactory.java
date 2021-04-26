@@ -149,7 +149,7 @@ public class PinotClientFactory {
       }
       String statement = sb.toString();
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Resolved PQL statement: " + statement);
+        LOG.debug("Resolved PQL statement: [{}]", statement);
       }
       return statement;
     }
