@@ -38,6 +38,7 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
 import org.hypertrace.core.query.service.api.Value;
+import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
@@ -51,13 +52,16 @@ public class PinotBasedRequestHandler implements RequestHandler {
 
   public static final String VIEW_DEFINITION_CONFIG_KEY = "viewDefinition";
   private static final String TENANT_COLUMN_NAME_CONFIG_KEY = "tenantColumnName";
+  private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
   private static final String PERCENTILE_AGGREGATION_FUNCTION_CONFIG = "percentileAggFunction";
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
+  private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
   private final String name;
   private ViewDefinition viewDefinition;
+  private Optional<String> startTimeAttributeName;
   private QueryRequestToPinotSQLConverter request2PinotSqlConverter;
   private final PinotMapConverter pinotMapConverter;
   // The implementations of ResultSet are package private and hence there's no way to determine the
@@ -116,6 +120,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
     this.viewDefinition =
         ViewDefinition.parse(config.getConfig(VIEW_DEFINITION_CONFIG_KEY), tenantColumnName);
 
+    this.startTimeAttributeName =
+        config.hasPath(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY)
+            ? Optional.of(config.getString(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY))
+            : Optional.empty();
+
     Optional<String> customPercentileFunction =
         optionallyGet(() -> config.getString(PERCENTILE_AGGREGATION_FUNCTION_CONFIG));
 
@@ -164,10 +173,24 @@ public class PinotBasedRequestHandler implements RequestHandler {
       return QueryCost.UNSUPPORTED;
     }
 
-    // TODO: Come up with a way to compute the cost based on request and view definition
-    // Higher columns --> Higher cost,
-    // Finer the time granularity --> Higher the cost.
-    return new QueryCost(0.5);
+//    TODO
+//    if (!this.viewDefinitionSupportsGranularity(viewDefinition, request.getGroupByList())) {
+//      return QueryCost.UNSUPPORTED;
+//    }
+
+    double cost;
+
+    long requestStartTime = getRequestStartTime(request.getFilter());
+    // check if this view contains data from the requested start time
+    if (requestStartTime < System.currentTimeMillis() - viewDefinition.getRetentionTimeMillis()) {
+      // prefer to get data from the view which has max retention time. Ensure 0.5 <= cost <= 1
+      cost = 1 - viewDefinition.getRetentionTimeMillis() / (Long.MAX_VALUE * 2D);
+    } else {
+      // prefer to get data from the view which has the finest granularity. Ensure cost <= 0.5
+      cost = viewDefinition.getTimeGranularityMillis() / (Long.MAX_VALUE * 2D);
+    }
+
+    return new QueryCost(cost);
   }
 
   private boolean viewDefinitionSupportsFilter(ViewDefinition viewDefinition, Filter filter) {
@@ -176,6 +199,34 @@ public class PinotBasedRequestHandler implements RequestHandler {
     Map<String, ViewColumnFilter> viewFilterMap = viewDefinition.getColumnFilterMap();
     return viewFilterMap.isEmpty()
         || viewFilterMap.keySet().equals(this.getMatchingViewFilterColumns(filter, viewFilterMap));
+  }
+
+  private long getRequestStartTime(Filter filter) {
+    long requestStartTime = Long.MAX_VALUE;
+
+    if (lhsIsStartTimeAttribute(filter.getLhs())
+        && GTE_OPERATORS.contains(filter.getOperator())
+        && rhsHasLongValue(filter.getRhs())) {
+      long filterStartTime = filter.getRhs().getLiteral().getValue().getLong();
+      requestStartTime = Math.min(requestStartTime, filterStartTime);
+    }
+
+    for (Filter childFilter : filter.getChildFilterList()) {
+      requestStartTime = Math.min(requestStartTime, getRequestStartTime(childFilter));
+    }
+
+    return requestStartTime;
+  }
+
+  private boolean lhsIsStartTimeAttribute(Expression lhs) {
+    return lhs.hasColumnIdentifier()
+        && startTimeAttributeName
+            .map(attributeName -> attributeName.equals(lhs.getColumnIdentifier().getColumnName()))
+            .orElse(false);
+  }
+
+  private boolean rhsHasLongValue(Expression rhs) {
+    return rhs.hasLiteral() && rhs.getLiteral().getValue().getValueType() == ValueType.LONG;
   }
 
   /**
@@ -422,9 +473,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(
-      ResultSetGroup resultSetGroup,
-      LinkedHashSet<String> selectedAttributes) {
+  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
