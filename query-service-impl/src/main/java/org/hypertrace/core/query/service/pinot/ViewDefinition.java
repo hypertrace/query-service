@@ -28,7 +28,7 @@ public class ViewDefinition {
   private static final String FIELD_MAP_CONFIG_KEY = "fieldMap";
   private static final String MAP_FIELDS_CONFIG_KEY = "mapFields";
   private static final String FILTERS_CONFIG_KEY = "filters";
-  private static final String COLUMN_CONFIG_KEY = "mapFields";
+  private static final String COLUMN_CONFIG_KEY = "column";
 
   private static final long DEFAULT_RETENTION_TIME = TimeUnit.DAYS.toMillis(8);
   private static final long DEFAULT_TIME_GRANULARITY = TimeUnit.MINUTES.toMillis(1);
