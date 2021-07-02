@@ -15,6 +15,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -639,6 +640,56 @@ public class PinotBasedRequestHandlerTest {
         context = new ExecutionContext("__default", request);
         cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+      }
+    }
+  }
+
+  @Test
+  void testCanHandle_costShouldBeLessThanHalf() {
+    for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      long oneHourAgoTimestamp = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1);
+      QueryRequest request = QueryRequest.newBuilder()
+          .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
+          .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.duration_millis"))
+          .setFilter(QueryRequestBuilderUtils.createFilter("Trace.start_time_millis", Operator.GE,
+              QueryRequestBuilderUtils.createLongLiteralValueExpression(oneHourAgoTimestamp)))
+          .build();
+      ExecutionContext context = new ExecutionContext("__default", request);
+      QueryCost cost = handler.canHandle(request, context);
+
+      if (config.getString("name").equals("trace-view-handler")) {
+        Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 0.5d);
+      } else {
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+      }
+    }
+  }
+
+  @Test
+  void testCanHandle_costShouldBeMoreThanHalf() {
+    for (Config config: serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      long threeDaysAgoTime = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(3);
+      QueryRequest request = QueryRequest.newBuilder()
+          .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
+          .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.duration_millis"))
+          .setFilter(QueryRequestBuilderUtils.createFilter("Trace.start_time_millis", Operator.GE,
+              QueryRequestBuilderUtils.createLongLiteralValueExpression(threeDaysAgoTime)))
+          .build();
+      ExecutionContext context = new ExecutionContext("__default", request);
+      QueryCost cost = handler.canHandle(request, context);
+
+      if (config.getString("name").equals("trace-view-handler")) {
+        Assertions.assertTrue(cost.getCost() >= 0.5d && cost.getCost() < 1.0d);
+      } else {
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
       }
     }
   }
