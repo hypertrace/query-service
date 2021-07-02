@@ -651,6 +651,7 @@ public class PinotBasedRequestHandlerTest {
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
 
+      // this timestamp should be less than the view retention time
       long oneHourAgoTimestamp = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1);
       QueryRequest request = QueryRequest.newBuilder()
           .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
@@ -676,6 +677,7 @@ public class PinotBasedRequestHandlerTest {
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
 
+      // this timestamp should be greater than the view retention time
       long threeDaysAgoTime = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(3);
       QueryRequest request = QueryRequest.newBuilder()
           .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
