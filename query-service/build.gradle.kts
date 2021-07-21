@@ -11,7 +11,7 @@ plugins {
 dependencies {
   implementation(project(":query-service-impl"))
   implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.4.0")
-  implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.23")
+  implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.28")
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("com.typesafe:config:1.4.1")
 
@@ -32,7 +32,7 @@ dependencies {
   integrationTestImplementation("org.testcontainers:testcontainers:1.15.2")
   integrationTestImplementation("org.testcontainers:junit-jupiter:1.15.2")
   integrationTestImplementation("org.testcontainers:kafka:1.15.2")
-  integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.23")
+  integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.28")
   integrationTestImplementation("com.github.stefanbirkner:system-lambda:1.2.0")
 
   integrationTestImplementation("org.apache.kafka:kafka-clients:5.5.1-ccs")
