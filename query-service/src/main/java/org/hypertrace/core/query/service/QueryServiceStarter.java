@@ -1,13 +1,18 @@
 package org.hypertrace.core.query.service;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import java.io.IOException;
 import org.hypertrace.core.grpcutils.server.InterceptorUtil;
 import org.hypertrace.core.serviceframework.PlatformService;
 import org.hypertrace.core.serviceframework.config.ConfigClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class QueryServiceStarter extends PlatformService {
   private static final String SERVICE_NAME_CONFIG = "service.name";
@@ -35,6 +40,17 @@ public class QueryServiceStarter extends PlatformService {
                 InterceptorUtil.wrapInterceptors(
                     QueryServiceFactory.build(
                         getAppConfig().getConfig(QUERY_SERVICE_CONFIG), this.getLifecycle())))
+            .executor(
+                new ThreadPoolExecutor(
+                    4,
+                    16,
+                    60L,
+                    TimeUnit.SECONDS,
+                    new LinkedBlockingQueue<>(),
+                    new ThreadFactoryBuilder().setNameFormat("query-service-worker-%d").build()))
+            //            .executor(Executors.newFixedThreadPool(16, new ThreadFactoryBuilder()
+            //                .setNameFormat("query-service-worker-%d")
+            //                .build()))
             .build();
   }
 
