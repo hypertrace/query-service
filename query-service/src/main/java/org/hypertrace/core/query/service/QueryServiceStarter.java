@@ -42,7 +42,7 @@ public class QueryServiceStarter extends PlatformService {
                         getAppConfig().getConfig(QUERY_SERVICE_CONFIG), this.getLifecycle())))
             .executor(
                 new ThreadPoolExecutor(
-                    4,
+                    16,
                     16,
                     60L,
                     TimeUnit.SECONDS,
