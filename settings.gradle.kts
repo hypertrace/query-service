@@ -1,4 +1,4 @@
-rootProject.name = "query-service"
+rootProject.name = "query-service-root"
 
 pluginManagement {
   repositories {
