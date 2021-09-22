@@ -1,6 +1,7 @@
 # Query Service
 The Query Service interfaces with Apache Pinot Data Store
 
+
 ## Description
 
 | ![space-1.jpg](https://hypertrace-docs.s3.amazonaws.com/arch/ht-query.png) | 
