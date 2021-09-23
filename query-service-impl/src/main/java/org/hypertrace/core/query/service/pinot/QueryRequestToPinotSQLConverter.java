@@ -6,8 +6,10 @@ import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL
 import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -40,7 +42,7 @@ class QueryRequestToPinotSQLConverter {
   private final ViewDefinition viewDefinition;
   private final PinotFunctionConverter functionConverter;
   private final Joiner joiner = Joiner.on(", ").skipNulls();
-  private Boolean[] isAvgRate = {false};
+  private Map<String,Integer> selectionMap = new HashMap<String,Integer>();
 
   QueryRequestToPinotSQLConverter(
       ViewDefinition viewDefinition, PinotFunctionConverter functionConverter) {
@@ -48,7 +50,7 @@ class QueryRequestToPinotSQLConverter {
     this.functionConverter = functionConverter;
   }
 
-  Pair<Boolean,Entry<String, Params>> toSQL(
+  Pair<Map<String ,Integer>,Entry<String, Params>> toSQL(
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
@@ -61,15 +63,15 @@ class QueryRequestToPinotSQLConverter {
       pqlBuilder.append("DISTINCT ");
     }
 
-    isAvgRate[0]=false;
-
     // allSelections contain all the various expressions in QueryRequest that we want selections on.
     // Group bys, selections and aggregations in that order. See RequestAnalyzer#analyze() to see
     // how it is created.
+    int selectionCounter=0;
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
-      pqlBuilder.append(convertExpression2String(expr, paramsBuilder));
+      pqlBuilder.append(convertExpression2String(expr, paramsBuilder,selectionCounter));
       delim = ", ";
+      selectionCounter++;
     }
 
     pqlBuilder.append(" FROM ").append(viewDefinition.getViewName());
@@ -121,7 +123,7 @@ class QueryRequestToPinotSQLConverter {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Converted QueryRequest to Pinot SQL: {}", pqlBuilder);
     }
-    return Pair.of(isAvgRate[0],new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build()));
+    return Pair.of(selectionMap,new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build()));
 //    return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
   }
 
@@ -254,6 +256,30 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
+  //called for selection columns
+  private String convertExpression2String(Expression expression, Params.Builder paramsBuilder,int selectionCounter) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        String logicalColumnName = expression.getColumnIdentifier().getColumnName();
+        // this takes care of the Map Type where it's split into 2 columns
+        List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
+        return joiner.join(columnNames);
+      case LITERAL:
+        return convertLiteralToString(expression.getLiteral(), paramsBuilder);
+      case FUNCTION:
+        selectionMap.put(expression.getFunction().getFunctionName(),selectionCounter);
+        return this.functionConverter.convert(
+            expression.getFunction(),
+            argExpression -> convertExpression2String(argExpression, paramsBuilder));
+      case ORDERBY:
+        OrderByExpression orderBy = expression.getOrderBy();
+        return convertExpression2String(orderBy.getExpression(), paramsBuilder);
+      case VALUE_NOT_SET:
+        break;
+    }
+    return "";
+  }
+
   private String convertExpression2String(Expression expression, Params.Builder paramsBuilder) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
@@ -265,7 +291,6 @@ class QueryRequestToPinotSQLConverter {
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
         return this.functionConverter.convert(
-            isAvgRate,
             expression.getFunction(),
             argExpression -> convertExpression2String(argExpression, paramsBuilder));
       case ORDERBY:

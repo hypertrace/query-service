@@ -383,10 +383,10 @@ public class PinotBasedRequestHandler implements RequestHandler {
         request = originalRequest;
       }
 
-      Pair<Boolean,Entry<String, Params>> pair =
+      Pair<Map<String ,Integer>,Entry<String, Params>> pair =
           request2PinotSqlConverter.toSQL(
               executionContext, request, executionContext.getAllSelections());
-      Boolean isAvgRate = pair.getLeft();
+      Map<String,Integer> selectionMap = pair.getLeft();
       Entry<String, Params> pql = pair
           .getRight();
 
@@ -411,7 +411,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
       }
       // need to merge data especially for Pinot. That's why we need to track the map columns
-      return this.convert(resultSetGroup, executionContext.getSelectedColumns(),isAvgRate)
+      return this.convert(resultSetGroup, executionContext.getSelectedColumns(),selectionMap)
           .doOnComplete(
               () -> {
                 long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -478,7 +478,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes,Boolean isAvgRate) {
+  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes,Map<String,Integer>selectionMap) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
@@ -488,7 +488,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         // syntax in Pinot
         handleSelection(resultSetGroup, rowBuilderList, selectedAttributes);
       } else if (resultSetTypePredicateProvider.isResultTableResultSetType(resultSet)) {
-        handleTableFormatResultSet(resultSetGroup, rowBuilderList, isAvgRate);
+        handleTableFormatResultSet(resultSetGroup, rowBuilderList, selectionMap);
       } else {
         handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
       }
@@ -573,7 +573,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private void handleTableFormatResultSet(
-      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList,Boolean isAvgRate) {
+      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList,Map<String,Integer>selectionMap) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
@@ -601,8 +601,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
             colIdx++;
           } else {
             String val = resultSet.getString(rowIdx, colIdx);
-            Boolean avgRateCol = resultSet.getColumnName(colIdx).startsWith("sum");
-            if(isAvgRate && avgRateCol){
+            if(selectionMap.containsKey("AVG_RATE") && selectionMap.get("AVG_RATE")==colIdx){
               val=updateValForAvgRate(val);
             }
             builder.addColumn(Value.newBuilder().setString(val).build());

@@ -34,7 +34,7 @@ public class PinotFunctionConverter {
     this.percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
   }
 
-  public String convert(Boolean[] isAvgRate,
+  public String convert(
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     switch (function.getFunctionName().toUpperCase()) {
       case QUERY_FUNCTION_COUNT:
@@ -44,13 +44,12 @@ public class PinotFunctionConverter {
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
       case QUERY_FUNCTION_AVG_RATE:
-        isAvgRate[0]=true;
         return this.functionToString(getAvgRateFunction(function), argumentConverter);
       default:
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
         // that logic
         if (this.isHardcodedPercentile(function)) {
-          return this.convert(isAvgRate,this.normalizeHardcodedPercentile(function), argumentConverter);
+          return this.convert(this.normalizeHardcodedPercentile(function), argumentConverter);
         }
         return this.functionToString(function, argumentConverter);
     }
