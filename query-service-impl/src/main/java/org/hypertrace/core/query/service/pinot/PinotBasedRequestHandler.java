@@ -390,7 +390,6 @@ public class PinotBasedRequestHandler implements RequestHandler {
       Entry<String, Params> pql = pair
           .getRight();
 
-          LOG.error("\npql\n{}",pql);
       if (LOG.isDebugEnabled()) {
         LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
       }
