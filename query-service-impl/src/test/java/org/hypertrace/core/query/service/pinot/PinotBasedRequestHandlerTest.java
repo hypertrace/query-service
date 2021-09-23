@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.util.collections.Iterables.firstOf;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Test;
 
 public class PinotBasedRequestHandlerTest {
   // Test subject
+  Boolean isAvgRate = false;
   private PinotBasedRequestHandler pinotBasedRequestHandler;
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final Config serviceConfig =
@@ -710,7 +712,7 @@ public class PinotBasedRequestHandlerTest {
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), resultTable);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),isAvgRate), resultTable);
   }
 
   @Test
@@ -727,7 +729,7 @@ public class PinotBasedRequestHandlerTest {
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), resultTable);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),isAvgRate), resultTable);
   }
 
   @Test
@@ -788,7 +790,7 @@ public class PinotBasedRequestHandlerTest {
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), expectedRows);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),isAvgRate), expectedRows);
   }
 
   @Test
@@ -822,7 +824,7 @@ public class PinotBasedRequestHandlerTest {
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), expectedRows);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),isAvgRate), expectedRows);
   }
 
   @Test
