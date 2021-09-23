@@ -46,6 +46,7 @@ dependencies {
   implementation("com.google.protobuf:protobuf-java-util:3.15.6")
   implementation("com.google.guava:guava:30.1.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
+  implementation("org.apache.commons:commons-lang3:3.12.0")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")

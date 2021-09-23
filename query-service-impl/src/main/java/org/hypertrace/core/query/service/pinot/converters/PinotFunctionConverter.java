@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.pinot.converters;
 
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG_RATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_PERCENTILE;
@@ -33,7 +34,7 @@ public class PinotFunctionConverter {
     this.percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
   }
 
-  public String convert(
+  public String convert(Boolean[] isAvgRate,
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     switch (function.getFunctionName().toUpperCase()) {
       case QUERY_FUNCTION_COUNT:
@@ -42,14 +43,21 @@ public class PinotFunctionConverter {
         return this.functionToString(this.toPinotPercentile(function), argumentConverter);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
+      case QUERY_FUNCTION_AVG_RATE:
+        isAvgRate[0]=true;
+        return this.functionToString(getAvgRateFunction(function), argumentConverter);
       default:
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
         // that logic
         if (this.isHardcodedPercentile(function)) {
-          return this.convert(this.normalizeHardcodedPercentile(function), argumentConverter);
+          return this.convert(isAvgRate,this.normalizeHardcodedPercentile(function), argumentConverter);
         }
         return this.functionToString(function, argumentConverter);
     }
+  }
+
+  private Function getAvgRateFunction(Function function){
+    return function.toBuilder().setFunctionName("SUM").build();
   }
 
   private String functionToString(

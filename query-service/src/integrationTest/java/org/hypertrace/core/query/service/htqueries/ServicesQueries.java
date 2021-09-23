@@ -67,4 +67,50 @@ class ServicesQueries {
 
     return builder.build();
   }
+
+  static QueryRequest buildQuery2() {
+    Builder builder = QueryRequest.newBuilder();
+    ColumnIdentifier serviceId = ColumnIdentifier.newBuilder().setColumnName("SERVICE.id").build();
+    ColumnIdentifier serviceDuration = ColumnIdentifier.newBuilder().setColumnName("SERVICE.duration").build();
+    ColumnIdentifier serviceName = ColumnIdentifier.newBuilder().setColumnName("SERVICE.name").setAlias("SERVICE.name").build();
+    Function serviceIdFunction = Function.newBuilder().addArguments(
+        Expression.newBuilder().setColumnIdentifier(serviceDuration).build()).setFunctionName("AVG_RATE")
+        .build();
+
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId).build());
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName).build());
+    builder.addSelection(Expression.newBuilder().setFunction(serviceIdFunction));
+
+    Filter filter1 =
+        createFilter(
+            "SERVICE.startTime", Operator.GE,
+            ValueType.LONG, System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+    Filter filter2 =
+        createFilter("SERVICE.startTime", Operator.LT,  ValueType.LONG, System.currentTimeMillis());
+    Filter filter3 =
+        createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
+
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(filter1)
+            .addChildFilter(filter2)
+            .addChildFilter(filter3)
+            .build());
+
+
+    builder.addGroupBy(
+        Expression.newBuilder().setColumnIdentifier(serviceId));
+    builder.addGroupBy(
+        Expression.newBuilder().setColumnIdentifier(serviceName));
+    Function serviceDurationPercentileFunc = Function.newBuilder().addArguments(
+        Expression.newBuilder().setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName("SERVICE.duration").build()).build()).setFunctionName("PERCENTILE99")
+        .build();
+    OrderByExpression orderByExpression = OrderByExpression.newBuilder().setOrder(SortOrder.DESC).setExpression(
+        Expression.newBuilder().setFunction(serviceDurationPercentileFunc).build()).build();
+    builder.addOrderBy(orderByExpression);
+    builder.setLimit(10000);
+
+    return builder.build();
+  }
 }

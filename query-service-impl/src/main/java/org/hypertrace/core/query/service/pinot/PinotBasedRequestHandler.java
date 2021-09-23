@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -382,9 +383,14 @@ public class PinotBasedRequestHandler implements RequestHandler {
         request = originalRequest;
       }
 
-      Entry<String, Params> pql =
+      Pair<Boolean,Entry<String, Params>> pair =
           request2PinotSqlConverter.toSQL(
               executionContext, request, executionContext.getAllSelections());
+      Boolean isAvgRate = pair.getLeft();
+      Entry<String, Params> pql = pair
+          .getRight();
+
+          LOG.error("\npql\n{}",pql);
       if (LOG.isDebugEnabled()) {
         LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
       }
@@ -406,7 +412,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
       }
       // need to merge data especially for Pinot. That's why we need to track the map columns
-      return this.convert(resultSetGroup, executionContext.getSelectedColumns())
+      return this.convert(resultSetGroup, executionContext.getSelectedColumns(),isAvgRate)
           .doOnComplete(
               () -> {
                 long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -473,7 +479,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes) {
+  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes,Boolean isAvgRate) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
@@ -483,7 +489,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         // syntax in Pinot
         handleSelection(resultSetGroup, rowBuilderList, selectedAttributes);
       } else if (resultSetTypePredicateProvider.isResultTableResultSetType(resultSet)) {
-        handleTableFormatResultSet(resultSetGroup, rowBuilderList);
+        handleTableFormatResultSet(resultSetGroup, rowBuilderList, isAvgRate);
       } else {
         handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
       }
@@ -568,7 +574,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private void handleTableFormatResultSet(
-      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList) {
+      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList,Boolean isAvgRate) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
@@ -596,6 +602,10 @@ public class PinotBasedRequestHandler implements RequestHandler {
             colIdx++;
           } else {
             String val = resultSet.getString(rowIdx, colIdx);
+            Boolean avgRateCol = resultSet.getColumnName(colIdx).startsWith("sum");
+            if(isAvgRate && avgRateCol){
+              val=updateValForAvgRate(val);
+            }
             builder.addColumn(Value.newBuilder().setString(val).build());
           }
         }
@@ -616,5 +626,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
           noGroupBy && noAggregations,
           "If distinct selections are requested, there should be no groupBys or aggregations.");
     }
+  }
+
+  private String updateValForAvgRate(String val){
+    Double doubleVal = Double.parseDouble(val);
+    Double secondInMilli = 1000.0;
+    return String.valueOf(doubleVal/secondInMilli);
   }
 }

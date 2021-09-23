@@ -23,7 +23,7 @@ import org.hypertrace.core.query.service.pinot.converters.DestinationColumnValue
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.apache.commons.lang3.tuple.Pair;
 /**
  * Converts {@link QueryRequest} to Pinot SQL query
  */
@@ -40,6 +40,7 @@ class QueryRequestToPinotSQLConverter {
   private final ViewDefinition viewDefinition;
   private final PinotFunctionConverter functionConverter;
   private final Joiner joiner = Joiner.on(", ").skipNulls();
+  private Boolean[] isAvgRate = {false};
 
   QueryRequestToPinotSQLConverter(
       ViewDefinition viewDefinition, PinotFunctionConverter functionConverter) {
@@ -47,7 +48,7 @@ class QueryRequestToPinotSQLConverter {
     this.functionConverter = functionConverter;
   }
 
-  Entry<String, Params> toSQL(
+  Pair<Boolean,Entry<String, Params>> toSQL(
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
@@ -59,6 +60,8 @@ class QueryRequestToPinotSQLConverter {
     if (request.getDistinctSelections()) {
       pqlBuilder.append("DISTINCT ");
     }
+
+    isAvgRate[0]=false;
 
     // allSelections contain all the various expressions in QueryRequest that we want selections on.
     // Group bys, selections and aggregations in that order. See RequestAnalyzer#analyze() to see
@@ -118,7 +121,8 @@ class QueryRequestToPinotSQLConverter {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Converted QueryRequest to Pinot SQL: {}", pqlBuilder);
     }
-    return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
+    return Pair.of(isAvgRate[0],new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build()));
+//    return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
   }
 
   private String convertFilter2String(Filter filter, Params.Builder paramsBuilder) {
@@ -261,6 +265,7 @@ class QueryRequestToPinotSQLConverter {
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
         return this.functionConverter.convert(
+            isAvgRate,
             expression.getFunction(),
             argExpression -> convertExpression2String(argExpression, paramsBuilder));
       case ORDERBY:

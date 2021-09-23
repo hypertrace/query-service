@@ -292,6 +292,20 @@ public class HTPinotQueriesTest {
   }
 
   @Test
+  public void testServicesQueriesForAvgRate() {
+    LOG.info("Services queries");
+    Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
+        ServicesQueries.buildQuery2(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(4, rows.size());
+    List<String> serviceNames = new ArrayList<>(
+        Arrays.asList("frontend", "driver", "route", "customer"));
+    rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
+    assertTrue(serviceNames.isEmpty());
+  }
+
+  @Test
   public void testBackendsQueries() {
     LOG.info("Backends queries");
     Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
