@@ -12,6 +12,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import io.reactivex.rxjava3.core.Observable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,7 @@ import org.junit.jupiter.api.Test;
 
 public class PinotBasedRequestHandlerTest {
   // Test subject
-  Boolean isAvgRate = false;
+  Map<String,Integer>selectionMap = new HashMap<String,Integer>();
   private PinotBasedRequestHandler pinotBasedRequestHandler;
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final Config serviceConfig =
@@ -712,7 +713,7 @@ public class PinotBasedRequestHandlerTest {
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),isAvgRate), resultTable);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),selectionMap), resultTable);
   }
 
   @Test
@@ -729,7 +730,7 @@ public class PinotBasedRequestHandlerTest {
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),isAvgRate), resultTable);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),selectionMap), resultTable);
   }
 
   @Test
@@ -790,7 +791,7 @@ public class PinotBasedRequestHandlerTest {
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),isAvgRate), expectedRows);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),selectionMap), expectedRows);
   }
 
   @Test
@@ -824,7 +825,7 @@ public class PinotBasedRequestHandlerTest {
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),isAvgRate), expectedRows);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),selectionMap), expectedRows);
   }
 
   @Test
