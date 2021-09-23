@@ -73,13 +73,17 @@ class ServicesQueries {
     ColumnIdentifier serviceId = ColumnIdentifier.newBuilder().setColumnName("SERVICE.id").build();
     ColumnIdentifier serviceDuration = ColumnIdentifier.newBuilder().setColumnName("SERVICE.duration").build();
     ColumnIdentifier serviceName = ColumnIdentifier.newBuilder().setColumnName("SERVICE.name").setAlias("SERVICE.name").build();
-    Function serviceIdFunction = Function.newBuilder().addArguments(
+    Function serviceIdAvgRateFunction = Function.newBuilder().addArguments(
         Expression.newBuilder().setColumnIdentifier(serviceDuration).build()).setFunctionName("AVG_RATE")
+        .build();
+    Function serviceIdSumFunction = Function.newBuilder().addArguments(
+        Expression.newBuilder().setColumnIdentifier(serviceDuration).build()).setFunctionName("SUM")
         .build();
 
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId).build());
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName).build());
-    builder.addSelection(Expression.newBuilder().setFunction(serviceIdFunction));
+    builder.addSelection(Expression.newBuilder().setFunction(serviceIdAvgRateFunction));
+    builder.addSelection(Expression.newBuilder().setFunction(serviceIdSumFunction));
 
     Filter filter1 =
         createFilter(
