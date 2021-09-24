@@ -1110,7 +1110,7 @@ public class QueryRequestToPinotSQLConverterTest {
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
     Entry<String, Params> statementToParam =
         converter.toSQL(new ExecutionContext("__default", queryRequest), queryRequest,
-            createSelectionsFromQueryRequest(queryRequest)).getRight();
+            createSelectionsFromQueryRequest(queryRequest));
     PinotClient pinotClient = new PinotClient(connection);
     pinotClient.executeQuery(statementToParam.getKey(), statementToParam.getValue());
     ArgumentCaptor<Request> statementCaptor = ArgumentCaptor.forClass(Request.class);
