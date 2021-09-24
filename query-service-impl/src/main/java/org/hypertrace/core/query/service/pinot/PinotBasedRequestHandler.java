@@ -607,7 +607,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
           } else {
             String val = resultSet.getString(rowIdx, colIdx);
             if(selectionMap.containsKey(colIdx) && selectionMap.get(colIdx).equals("AVG_RATE")){
-              val=updateValForAvgRate(val);
+              val = updateValForAvgRate(val);
             }
             builder.addColumn(Value.newBuilder().setString(val).build());
           }
