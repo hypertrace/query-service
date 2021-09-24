@@ -627,8 +627,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private String updateValForAvgRate(String val){
-    Double doubleVal = Double.parseDouble(val);
-    Double secondInMilli = 1000.0;
-    return String.valueOf(doubleVal/secondInMilli);
+    double doubleVal = Double.parseDouble(val);
+    double oneSecInMillis = TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS);
+    return String.valueOf(doubleVal/oneSecInMillis);
   }
 }

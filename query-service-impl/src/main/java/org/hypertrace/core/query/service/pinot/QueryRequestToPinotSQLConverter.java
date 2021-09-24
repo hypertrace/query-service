@@ -124,7 +124,6 @@ class QueryRequestToPinotSQLConverter {
       LOG.debug("Converted QueryRequest to Pinot SQL: {}", pqlBuilder);
     }
     return Pair.of(selectionMap,new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build()));
-//    return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
   }
 
   private String convertFilter2String(Filter filter, Params.Builder paramsBuilder) {
