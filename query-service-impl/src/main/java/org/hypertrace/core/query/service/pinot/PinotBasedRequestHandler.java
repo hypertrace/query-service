@@ -570,15 +570,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private void handleTableFormatResultSet(
       ResultSetGroup resultSetGroup, List<Builder> rowBuilderList,LinkedHashSet<Expression> allSelections) {
 
-    Map<Integer,String >selectionMap= new HashMap<Integer,String>();
-    int selectionCounter=0;
-    for(Expression expr : allSelections){
-      if(expr.getValueCase()==ValueCase.FUNCTION){
-        selectionMap.put(selectionCounter,expr.getFunction().getFunctionName());
-      }
-      selectionCounter++;
-    }
-
+    Set<Integer> avgRateColumnIndices = getAvgRateColumnIndices(allSelections);
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
@@ -606,8 +598,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
             colIdx++;
           } else {
             String val = resultSet.getString(rowIdx, colIdx);
-            if(selectionMap.containsKey(colIdx) && selectionMap.get(colIdx).equals("AVG_RATE")){
-              val = updateValForAvgRate(val);
+            if(avgRateColumnIndices.contains(colIdx)){
+              val = handleAvgRateTransformation(val);
             }
             builder.addColumn(Value.newBuilder().setString(val).build());
           }
@@ -631,7 +623,18 @@ public class PinotBasedRequestHandler implements RequestHandler {
     }
   }
 
-  private String updateValForAvgRate(String val){
+  private Set<Integer> getAvgRateColumnIndices(LinkedHashSet<Expression> allSelections){
+    Set<Integer>avgRateColumnIndices = new HashSet<>();
+    int selectionCounter=0;
+    for(Expression expr : allSelections){
+      if(expr.getValueCase()==ValueCase.FUNCTION && expr.getFunction().getFunctionName().equals("AVG_RATE")){
+        avgRateColumnIndices.add(selectionCounter);
+      }
+      selectionCounter++;
+    }
+    return avgRateColumnIndices;
+  }
+  private String handleAvgRateTransformation(String val){
     double doubleVal = Double.parseDouble(val);
     double oneSecInMillis = TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS);
     return String.valueOf(doubleVal/oneSecInMillis);
