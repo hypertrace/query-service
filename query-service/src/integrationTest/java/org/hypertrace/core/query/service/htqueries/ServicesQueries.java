@@ -68,22 +68,22 @@ class ServicesQueries {
     return builder.build();
   }
 
-  static QueryRequest buildQuery2() {
+  static QueryRequest buildAvgRateQuery() {
     Builder builder = QueryRequest.newBuilder();
     ColumnIdentifier serviceId = ColumnIdentifier.newBuilder().setColumnName("SERVICE.id").build();
     ColumnIdentifier serviceDuration = ColumnIdentifier.newBuilder().setColumnName("SERVICE.duration").build();
     ColumnIdentifier serviceName = ColumnIdentifier.newBuilder().setColumnName("SERVICE.name").setAlias("SERVICE.name").build();
-    Function serviceIdAvgRateFunction = Function.newBuilder().addArguments(
+    Function durationAvgRateFunction = Function.newBuilder().addArguments(
         Expression.newBuilder().setColumnIdentifier(serviceDuration).build()).setFunctionName("AVG_RATE")
         .build();
-    Function serviceIdSumFunction = Function.newBuilder().addArguments(
+    Function durationSumFunction = Function.newBuilder().addArguments(
         Expression.newBuilder().setColumnIdentifier(serviceDuration).build()).setFunctionName("SUM")
         .build();
 
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId).build());
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName).build());
-    builder.addSelection(Expression.newBuilder().setFunction(serviceIdAvgRateFunction));
-    builder.addSelection(Expression.newBuilder().setFunction(serviceIdSumFunction));
+    builder.addSelection(Expression.newBuilder().setFunction(durationAvgRateFunction));
+    builder.addSelection(Expression.newBuilder().setFunction(durationSumFunction));
 
     Filter filter1 =
         createFilter(
