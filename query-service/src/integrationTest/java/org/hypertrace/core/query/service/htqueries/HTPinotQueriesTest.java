@@ -40,6 +40,7 @@ import org.hypertrace.core.query.service.client.QueryServiceClient;
 import org.hypertrace.core.query.service.client.QueryServiceConfig;
 import org.hypertrace.core.serviceframework.IntegrationTestServerUtil;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -293,7 +294,7 @@ public class HTPinotQueriesTest {
 
   @Test
   public void testServicesQueriesForAvgRate() {
-    LOG.info("Services queries");
+    LOG.info("Services queries for AVG_RATE");
     Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
         ServicesQueries.buildQuery2(), TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
@@ -303,6 +304,7 @@ public class HTPinotQueriesTest {
         Arrays.asList("frontend", "driver", "route", "customer"));
     rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
     assertTrue(serviceNames.isEmpty());
+    rows.forEach(row->assertTrue(row.getColumn(2).getString().equals(String.valueOf(Double.parseDouble(row.getColumn(3).getString())/1000))));
   }
 
   @Test
