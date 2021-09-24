@@ -406,7 +406,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
       }
       // need to merge data especially for Pinot. That's why we need to track the map columns
-      return this.convert(resultSetGroup, executionContext.getSelectedColumns(),executionContext.getAllSelections())
+      return this.convert(resultSetGroup, executionContext)
           .doOnComplete(
               () -> {
                 long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -473,7 +473,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes,LinkedHashSet<Expression> allSelections) {
+    Observable<Row> convert(ResultSetGroup resultSetGroup, ExecutionContext executionContext) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
@@ -481,9 +481,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
       if (resultSetTypePredicateProvider.isSelectionResultSetType(resultSet)) {
         // map merging is only supported in the selection. Filtering and Group by has its own
         // syntax in Pinot
-        handleSelection(resultSetGroup, rowBuilderList, selectedAttributes);
+        handleSelection(resultSetGroup, rowBuilderList, executionContext.getSelectedColumns());
       } else if (resultSetTypePredicateProvider.isResultTableResultSetType(resultSet)) {
-        handleTableFormatResultSet(resultSetGroup, rowBuilderList, allSelections);
+        handleTableFormatResultSet(resultSetGroup, rowBuilderList, executionContext.getAllSelections());
       } else {
         handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
       }

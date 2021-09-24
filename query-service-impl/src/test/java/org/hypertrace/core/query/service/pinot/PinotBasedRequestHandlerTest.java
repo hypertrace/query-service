@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 
 public class PinotBasedRequestHandlerTest {
   // Test subject
-  LinkedHashSet<Expression> allSelections= new LinkedHashSet<>();
   private PinotBasedRequestHandler pinotBasedRequestHandler;
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final Config serviceConfig =
@@ -713,7 +712,7 @@ public class PinotBasedRequestHandlerTest {
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),allSelections), resultTable);
+        pinotBasedRequestHandler.convert(resultSetGroup, new ExecutionContext("test-tenant-id")), resultTable);
   }
 
   @Test
@@ -730,7 +729,7 @@ public class PinotBasedRequestHandlerTest {
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),allSelections), resultTable);
+        pinotBasedRequestHandler.convert(resultSetGroup, new ExecutionContext("test-tenant-id")), resultTable);
   }
 
   @Test
@@ -791,7 +790,7 @@ public class PinotBasedRequestHandlerTest {
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),allSelections), expectedRows);
+        pinotBasedRequestHandler.convert(resultSetGroup, new ExecutionContext("test-tenant-id")), expectedRows);
   }
 
   @Test
@@ -825,7 +824,7 @@ public class PinotBasedRequestHandlerTest {
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>(),allSelections), expectedRows);
+        pinotBasedRequestHandler.convert(resultSetGroup, new ExecutionContext("test-tenant-id")), expectedRows);
   }
 
   @Test
