@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -383,13 +382,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
         request = originalRequest;
       }
 
-      Pair<Map<Integer,String>,Entry<String, Params>> pair =
+      Entry<String, Params> pql =
           request2PinotSqlConverter.toSQL(
               executionContext, request, executionContext.getAllSelections());
-      Map<Integer,String> selectionMap = pair.getLeft();
-      Entry<String, Params> pql = pair
-          .getRight();
-
       if (LOG.isDebugEnabled()) {
         LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
       }
@@ -411,7 +406,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
       }
       // need to merge data especially for Pinot. That's why we need to track the map columns
-      return this.convert(resultSetGroup, executionContext.getSelectedColumns(),selectionMap)
+      return this.convert(resultSetGroup, executionContext.getSelectedColumns(),executionContext.getAllSelections())
           .doOnComplete(
               () -> {
                 long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -478,7 +473,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes,Map<Integer,String >selectionMap) {
+  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes,LinkedHashSet<Expression> allSelections) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
@@ -488,7 +483,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         // syntax in Pinot
         handleSelection(resultSetGroup, rowBuilderList, selectedAttributes);
       } else if (resultSetTypePredicateProvider.isResultTableResultSetType(resultSet)) {
-        handleTableFormatResultSet(resultSetGroup, rowBuilderList, selectionMap);
+        handleTableFormatResultSet(resultSetGroup, rowBuilderList, allSelections);
       } else {
         handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
       }
@@ -573,7 +568,17 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private void handleTableFormatResultSet(
-      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList,Map<Integer,String >selectionMap) {
+      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList,LinkedHashSet<Expression> allSelections) {
+
+    Map<Integer,String >selectionMap= new HashMap<Integer,String>();
+    int selectionCounter=0;
+    for(Expression expr : allSelections){
+      if(expr.getValueCase()==ValueCase.FUNCTION){
+        selectionMap.put(selectionCounter,expr.getFunction().getFunctionName());
+      }
+      selectionCounter++;
+    }
+
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);

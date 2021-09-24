@@ -6,10 +6,8 @@ import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL
 import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -25,7 +23,7 @@ import org.hypertrace.core.query.service.pinot.converters.DestinationColumnValue
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.commons.lang3.tuple.Pair;
+
 /**
  * Converts {@link QueryRequest} to Pinot SQL query
  */
@@ -42,7 +40,6 @@ class QueryRequestToPinotSQLConverter {
   private final ViewDefinition viewDefinition;
   private final PinotFunctionConverter functionConverter;
   private final Joiner joiner = Joiner.on(", ").skipNulls();
-  private Map<Integer,String> selectionMap = new HashMap<Integer,String>();
 
   QueryRequestToPinotSQLConverter(
       ViewDefinition viewDefinition, PinotFunctionConverter functionConverter) {
@@ -50,7 +47,7 @@ class QueryRequestToPinotSQLConverter {
     this.functionConverter = functionConverter;
   }
 
-  Pair<Map<Integer,String >,Entry<String, Params>> toSQL(
+  Entry<String, Params> toSQL(
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
@@ -66,12 +63,10 @@ class QueryRequestToPinotSQLConverter {
     // allSelections contain all the various expressions in QueryRequest that we want selections on.
     // Group bys, selections and aggregations in that order. See RequestAnalyzer#analyze() to see
     // how it is created.
-    int selectionCounter=0;
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
-      pqlBuilder.append(convertExpression2String(expr, paramsBuilder,selectionCounter));
+      pqlBuilder.append(convertExpression2String(expr, paramsBuilder));
       delim = ", ";
-      selectionCounter++;
     }
 
     pqlBuilder.append(" FROM ").append(viewDefinition.getViewName());
@@ -123,7 +118,7 @@ class QueryRequestToPinotSQLConverter {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Converted QueryRequest to Pinot SQL: {}", pqlBuilder);
     }
-    return Pair.of(selectionMap,new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build()));
+    return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
   }
 
   private String convertFilter2String(Filter filter, Params.Builder paramsBuilder) {
@@ -253,30 +248,6 @@ class QueryRequestToPinotSQLConverter {
       default:
         throw new UnsupportedOperationException("Unknown operator:" + operator);
     }
-  }
-
-  //called for selection columns
-  private String convertExpression2String(Expression expression, Params.Builder paramsBuilder,int selectionCounter) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        String logicalColumnName = expression.getColumnIdentifier().getColumnName();
-        // this takes care of the Map Type where it's split into 2 columns
-        List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
-        return joiner.join(columnNames);
-      case LITERAL:
-        return convertLiteralToString(expression.getLiteral(), paramsBuilder);
-      case FUNCTION:
-        selectionMap.put(selectionCounter,expression.getFunction().getFunctionName());
-        return this.functionConverter.convert(
-            expression.getFunction(),
-            argExpression -> convertExpression2String(argExpression, paramsBuilder));
-      case ORDERBY:
-        OrderByExpression orderBy = expression.getOrderBy();
-        return convertExpression2String(orderBy.getExpression(), paramsBuilder);
-      case VALUE_NOT_SET:
-        break;
-    }
-    return "";
   }
 
   private String convertExpression2String(Expression expression, Params.Builder paramsBuilder) {
