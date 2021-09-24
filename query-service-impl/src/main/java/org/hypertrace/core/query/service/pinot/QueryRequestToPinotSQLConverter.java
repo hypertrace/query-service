@@ -42,7 +42,7 @@ class QueryRequestToPinotSQLConverter {
   private final ViewDefinition viewDefinition;
   private final PinotFunctionConverter functionConverter;
   private final Joiner joiner = Joiner.on(", ").skipNulls();
-  private Map<String,Integer> selectionMap = new HashMap<String,Integer>();
+  private Map<Integer,String> selectionMap = new HashMap<Integer,String>();
 
   QueryRequestToPinotSQLConverter(
       ViewDefinition viewDefinition, PinotFunctionConverter functionConverter) {
@@ -50,7 +50,7 @@ class QueryRequestToPinotSQLConverter {
     this.functionConverter = functionConverter;
   }
 
-  Pair<Map<String ,Integer>,Entry<String, Params>> toSQL(
+  Pair<Map<Integer,String >,Entry<String, Params>> toSQL(
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
@@ -266,7 +266,7 @@ class QueryRequestToPinotSQLConverter {
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
-        selectionMap.put(expression.getFunction().getFunctionName(),selectionCounter);
+        selectionMap.put(selectionCounter,expression.getFunction().getFunctionName());
         return this.functionConverter.convert(
             expression.getFunction(),
             argExpression -> convertExpression2String(argExpression, paramsBuilder));

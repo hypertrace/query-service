@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test;
 
 public class PinotBasedRequestHandlerTest {
   // Test subject
-  Map<String,Integer>selectionMap = new HashMap<String,Integer>();
+  Map<Integer,String>selectionMap = new HashMap<Integer,String >();
   private PinotBasedRequestHandler pinotBasedRequestHandler;
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final Config serviceConfig =

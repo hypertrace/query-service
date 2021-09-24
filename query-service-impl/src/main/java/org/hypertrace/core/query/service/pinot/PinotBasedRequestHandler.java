@@ -383,10 +383,10 @@ public class PinotBasedRequestHandler implements RequestHandler {
         request = originalRequest;
       }
 
-      Pair<Map<String ,Integer>,Entry<String, Params>> pair =
+      Pair<Map<Integer,String>,Entry<String, Params>> pair =
           request2PinotSqlConverter.toSQL(
               executionContext, request, executionContext.getAllSelections());
-      Map<String,Integer> selectionMap = pair.getLeft();
+      Map<Integer,String> selectionMap = pair.getLeft();
       Entry<String, Params> pql = pair
           .getRight();
 
@@ -478,7 +478,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes,Map<String,Integer>selectionMap) {
+  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes,Map<Integer,String >selectionMap) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
@@ -573,7 +573,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private void handleTableFormatResultSet(
-      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList,Map<String,Integer>selectionMap) {
+      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList,Map<Integer,String >selectionMap) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
@@ -601,7 +601,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
             colIdx++;
           } else {
             String val = resultSet.getString(rowIdx, colIdx);
-            if(selectionMap.containsKey("AVG_RATE") && selectionMap.get("AVG_RATE")==colIdx){
+            if(selectionMap.containsKey(colIdx) && selectionMap.get(colIdx).equals("AVG_RATE")){
               val=updateValForAvgRate(val);
             }
             builder.addColumn(Value.newBuilder().setString(val).build());
