@@ -46,7 +46,7 @@ public class PinotFunctionConverter {
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
       case QUERY_FUNCTION_AVG_RATE:
-        return this.functionToString(getAvgRateFunction(function), argumentConverter);
+        return this.functionToStringForAvgRate(function, argumentConverter);
       default:
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
         // that logic
@@ -57,8 +57,14 @@ public class PinotFunctionConverter {
     }
   }
 
-  private Function getAvgRateFunction(Function function){
-    return function.toBuilder().setFunctionName("SUM").build();
+  private String functionToStringForAvgRate(
+      Function function, java.util.function.Function<Expression, String> argumentConverter) {
+    String argumentString =
+        function.getArgumentsList().stream()
+            .map(argumentConverter::apply)
+            .collect(Collectors.joining(","));
+
+    return "SUM(DIV(" + argumentString + "))";
   }
 
   private String functionToString(

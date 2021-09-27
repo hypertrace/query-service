@@ -7,11 +7,13 @@ import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
+import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.SortOrder;
+import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
 class ServicesQueries {
@@ -73,8 +75,18 @@ class ServicesQueries {
     ColumnIdentifier serviceId = ColumnIdentifier.newBuilder().setColumnName("SERVICE.id").build();
     ColumnIdentifier serviceDuration = ColumnIdentifier.newBuilder().setColumnName("SERVICE.duration").build();
     ColumnIdentifier serviceName = ColumnIdentifier.newBuilder().setColumnName("SERVICE.name").setAlias("SERVICE.name").build();
-    Function durationAvgRateFunction = Function.newBuilder().addArguments(
-        Expression.newBuilder().setColumnIdentifier(serviceDuration).build()).setFunctionName("AVG_RATE")
+    LiteralConstant oneSec = LiteralConstant.newBuilder().setValue(Value.newBuilder().setLong(1000).setValueType(ValueType.LONG).build()).build();
+
+    Function durationAvgRateFunction = Function.newBuilder()
+        .addArguments(
+        Expression.newBuilder()
+            .setColumnIdentifier(serviceDuration)
+            .build())
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(oneSec)
+                .build())
+        .setFunctionName("AVG_RATE")
         .build();
     Function durationSumFunction = Function.newBuilder().addArguments(
         Expression.newBuilder().setColumnIdentifier(serviceDuration).build()).setFunctionName("SUM")
