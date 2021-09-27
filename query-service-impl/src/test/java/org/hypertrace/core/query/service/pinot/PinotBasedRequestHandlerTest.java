@@ -1,7 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.util.collections.Iterables.firstOf;
@@ -12,7 +11,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import io.reactivex.rxjava3.core.Observable;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -712,7 +710,7 @@ public class PinotBasedRequestHandlerTest {
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new ExecutionContext("test-tenant-id")), resultTable);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), resultTable);
   }
 
   @Test
@@ -729,7 +727,7 @@ public class PinotBasedRequestHandlerTest {
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new ExecutionContext("test-tenant-id")), resultTable);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), resultTable);
   }
 
   @Test
@@ -790,7 +788,7 @@ public class PinotBasedRequestHandlerTest {
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new ExecutionContext("test-tenant-id")), expectedRows);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), expectedRows);
   }
 
   @Test
@@ -824,7 +822,7 @@ public class PinotBasedRequestHandlerTest {
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new ExecutionContext("test-tenant-id")), expectedRows);
+        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), expectedRows);
   }
 
   @Test
