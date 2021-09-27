@@ -43,12 +43,6 @@ public class ExecutionContext {
     analyze(request);
   }
 
-  public ExecutionContext(String tenantId) {
-    this.tenantId = tenantId;
-    this.selectedColumns = new LinkedHashSet<>();
-    this.allSelections = new LinkedHashSet<>();
-  }
-
   private void analyze(QueryRequest request) {
     List<String> filterColumns = new ArrayList<>();
     LinkedList<Filter> filterQueue = new LinkedList<>();
