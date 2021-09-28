@@ -18,7 +18,8 @@ public class PinotFunctionConverter {
    * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster and
    * reasonably accurate, hence use that as the default.
    *
-   * AVG_RATE not supported in pinot. So AVG_RATE is computed by summing over all values and then deviding by 1s
+   * AVG_RATE not supported directly in Pinot. So AVG_RATE is computed by summing over all values
+   * and then dividing by a constant (1s in this case).
    */
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
 
