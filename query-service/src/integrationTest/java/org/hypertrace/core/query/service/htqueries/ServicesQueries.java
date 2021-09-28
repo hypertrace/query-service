@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.htqueries;
 
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFilter;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createTimeColumnGroupByFunction;
 
 import java.time.Duration;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
@@ -125,6 +126,57 @@ class ServicesQueries {
     OrderByExpression orderByExpression = OrderByExpression.newBuilder().setOrder(SortOrder.DESC).setExpression(
         Expression.newBuilder().setFunction(serviceDurationPercentileFunc).build()).build();
     builder.addOrderBy(orderByExpression);
+    builder.setLimit(10000);
+
+    return builder.build();
+  }
+
+  static QueryRequest buildAvgRateQueryWithTimeAggregation() {
+    Builder builder = QueryRequest.newBuilder();
+    ColumnIdentifier serviceId = ColumnIdentifier.newBuilder().setColumnName("SERVICE.id").build();
+    ColumnIdentifier serviceNumCalls = ColumnIdentifier.newBuilder().setColumnName("SERVICE.numCalls").build();
+    LiteralConstant oneSec = LiteralConstant.newBuilder().setValue(Value.newBuilder().setLong(1000).setValueType(ValueType.LONG).build()).build();
+
+    Function durationAvgRateFunction = Function.newBuilder()
+        .addArguments(
+            Expression.newBuilder()
+                .setColumnIdentifier(serviceNumCalls)
+                .build())
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(oneSec)
+                .build())
+        .setFunctionName("AVG_RATE")
+        .build();
+    Function durationSumFunction = Function.newBuilder().addArguments(
+        Expression.newBuilder().setColumnIdentifier(serviceNumCalls).build()).setFunctionName("SUM")
+        .build();
+
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId).build());
+    builder.addSelection(Expression.newBuilder().setFunction(durationAvgRateFunction));
+    builder.addSelection(Expression.newBuilder().setFunction(durationSumFunction));
+
+    Filter filter1 =
+        createFilter(
+            "SERVICE.startTime", Operator.GE,
+            ValueType.LONG, System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+    Filter filter2 =
+        createFilter("SERVICE.startTime", Operator.LT,  ValueType.LONG, System.currentTimeMillis());
+    Filter filter3 =
+        createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
+
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(filter1)
+            .addChildFilter(filter2)
+            .addChildFilter(filter3)
+            .build());
+
+    builder.addGroupBy(
+        Expression.newBuilder().setFunction(createTimeColumnGroupByFunction("SERVICE.startTime",15)).build());
+    builder.addGroupBy(
+        Expression.newBuilder().setColumnIdentifier(serviceId));
     builder.setLimit(10000);
 
     return builder.build();

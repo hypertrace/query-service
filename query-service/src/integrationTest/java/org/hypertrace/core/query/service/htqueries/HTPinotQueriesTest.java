@@ -11,6 +11,7 @@ import com.typesafe.config.ConfigFactory;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.File;
+import java.lang.Math;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -277,6 +278,14 @@ public class HTPinotQueriesTest {
         .forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
   }
 
+  private static void validateRows(List<Row> rows){
+    rows.forEach(row->{
+      double val1 = Double.parseDouble(row.getColumn(2).getString());
+      double val2 = Double.parseDouble(row.getColumn(3).getString())/1000;
+      assertTrue(Math.abs(val1-val2)<Math.pow(10,-10));
+    });
+  }
+
   @Test
   public void testServicesQueries() {
     LOG.info("Services queries");
@@ -304,6 +313,17 @@ public class HTPinotQueriesTest {
     rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
     assertTrue(serviceNames.isEmpty());
     rows.forEach(row->assertTrue(row.getColumn(2).getString().equals(String.valueOf(Double.parseDouble(row.getColumn(3).getString())/1000))));
+  }
+
+  @Test
+  public void testServicesQueriesForAvgRateWithTimeAggregation() {
+    LOG.info("Services queries for AVG_RATE with time aggregation");
+    Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
+        ServicesQueries.buildAvgRateQueryWithTimeAggregation(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(4, rows.size());
+    validateRows(rows);
   }
 
   @Test

@@ -3,10 +3,12 @@ package org.hypertrace.core.query.service;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
+import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
+import org.hypertrace.core.query.service.util.QueryRequestUtil;
 
 public class QueryServiceTestUtils {
 
@@ -32,5 +34,29 @@ public class QueryServiceTestUtils {
         LiteralConstant.newBuilder().setValue(value).build();
     Expression rhs = Expression.newBuilder().setLiteral(constant).build();
     return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
+  }
+
+  public static Function.Builder createTimeColumnGroupByFunction(
+      String timeColumn, long periodSecs) {
+    return Function.newBuilder()
+        .setFunctionName("dateTimeConvert")
+        .addArguments(
+            QueryRequestUtil
+                .createColumnExpression(timeColumn))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString(periodSecs + ":SECONDS"))));
   }
 }
