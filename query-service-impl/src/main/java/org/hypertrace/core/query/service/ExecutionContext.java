@@ -1,10 +1,12 @@
 package org.hypertrace.core.query.service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
@@ -12,6 +14,7 @@ import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
@@ -35,12 +38,81 @@ public class ExecutionContext {
   // while the selectedColumns
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
+  private final Map<String,String> timeSeriesColumnMap;
+  private final Map<String,List<Long>> timeFilterMap;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
+    this.timeSeriesColumnMap = new HashMap<>();
+    this.timeFilterMap = new HashMap<String,List<Long>>();
+    analyzeForAvgRate(request);
     analyze(request);
+  }
+
+  private void analyzeForAvgRate(QueryRequest request){
+    setTimeSeriesColumnMap(request);
+    setTimeFilterMap(request);
+  }
+
+  private void setTimeSeriesColumnMap(QueryRequest request){
+
+    if(request.getGroupByCount() > 0){
+      for(Expression expression : request.getGroupByList()){
+        if(expression.getValueCase() == ValueCase.FUNCTION && expression.getFunction().getFunctionName().equals("dateTimeConvert")) {
+
+          String column = null;
+          String period = null;
+
+          //assuming only one column and one literal (with period in seconds) is present in one dateTimeConvert groupBy
+          for(Expression childExpression : expression.getFunction().getArgumentsList()) {
+            if(childExpression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+              column = childExpression.getColumnIdentifier().getColumnName().split("[.]")[0];
+            }
+            if(childExpression.getValueCase() == ValueCase.LITERAL){
+              if(childExpression.getLiteral().getValue().getString().split("[:]")[1].equals("SECONDS")){
+                period = childExpression.getLiteral().getValue().getString().split("[:]")[0];
+              }
+            }
+          }
+
+          if(column != null && period != null){
+            timeSeriesColumnMap.put(column,period);
+          }
+        }
+      }
+    }
+  }
+
+  private void setTimeFilterMap(QueryRequest request) {
+
+    if(request.getFilter().getChildFilterCount() > 0){
+      for(Filter filter : request.getFilter().getChildFilterList()){
+
+        String[] columnName = filter.getLhs().getColumnIdentifier().getColumnName().split("[.]");
+        Operator operator = filter.getOperator();
+        Long val = filter.getRhs().getLiteral().getValue().getLong();
+
+        //filtering by colName.startTime and colName.endTime for now. Can be changed accordingly
+        if(columnName.length > 1 && (columnName[1].equals("startTime") || columnName[1].equals("endTime"))){
+
+          if(!timeFilterMap.containsKey(columnName[0])){
+            timeFilterMap.put(columnName[0],new ArrayList<Long>());
+          }
+
+          //assuming only one startTime and endTime are present and startTime appears first in order
+          if(operator == Operator.GE || operator == Operator.GT){
+            timeFilterMap.get(columnName[0]).add(val);
+          }
+
+          if(operator == Operator.LE || operator == Operator.LT){
+            timeFilterMap.get(columnName[0]).add(val);
+          }
+
+        }
+      }
+    }
   }
 
   private void analyze(QueryRequest request) {
