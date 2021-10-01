@@ -41,8 +41,10 @@ public class DestinationColumnValueConverterTest {
   @Test
   public void testInValidNullFieldsForBytesColumn() {
     DestinationColumnValueConverter converter = DestinationColumnValueConverter.INSTANCE;
-    Assertions.assertThrows(DecoderException.class, () -> {
-      converter.convert(getStringValue("abc"), ValueType.BYTES);
-    });
+    Assertions.assertThrows(
+        DecoderException.class,
+        () -> {
+          converter.convert(getStringValue("abc"), ValueType.BYTES);
+        });
   }
 }

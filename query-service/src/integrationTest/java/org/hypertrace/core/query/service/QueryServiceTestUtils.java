@@ -11,8 +11,7 @@ import org.hypertrace.core.query.service.api.ValueType;
 public class QueryServiceTestUtils {
 
   public static Filter createFilter(
-      String columnName, Operator op,
-      ValueType valueType, Object valueObject) {
+      String columnName, Operator op, ValueType valueType, Object valueObject) {
     ColumnIdentifier startTimeColumn =
         ColumnIdentifier.newBuilder().setColumnName(columnName).build();
     Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
@@ -28,8 +27,7 @@ public class QueryServiceTestUtils {
       case STRING:
         value = Value.newBuilder(value).setString((String) valueObject).build();
     }
-    LiteralConstant constant =
-        LiteralConstant.newBuilder().setValue(value).build();
+    LiteralConstant constant = LiteralConstant.newBuilder().setValue(value).build();
     Expression rhs = Expression.newBuilder().setLiteral(constant).build();
     return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
   }

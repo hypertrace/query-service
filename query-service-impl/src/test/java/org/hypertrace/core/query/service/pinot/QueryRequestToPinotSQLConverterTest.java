@@ -173,8 +173,8 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testSQLiWithStringValueFilter() {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
-            createStringFilter("Span.displaySpanName", Operator.EQ,
-                "GET /login' OR tenant_id = 'tenant2"));
+            createStringFilter(
+                "Span.displaySpanName", Operator.EQ, "GET /login' OR tenant_id = 'tenant2"));
 
     assertPQLQuery(
         queryRequest,
@@ -425,13 +425,18 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_id IN ('" + spanId1 + "', '" + spanId2 + "')");
+            + "AND span_id IN ('"
+            + spanId1
+            + "', '"
+            + spanId2
+            + "')");
   }
 
   @Test
   public void testSQLiWithStringArrayFilter() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.displaySpanName").build();
+    ColumnIdentifier spanId =
+        ColumnIdentifier.newBuilder().setColumnName("Span.displaySpanName").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     String span1 = "1') OR tenant_id = 'tenant2' and span_name IN ('1";
@@ -571,15 +576,13 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestBuilderUtils
-        .createColumnValueFilter("Span.attributes.parent_span_id",
-            Operator.EQ, "042e5523ff6b2506").build();
+    Filter parentIdFilter =
+        QueryRequestBuilderUtils.createColumnValueFilter(
+                "Span.attributes.parent_span_id", Operator.EQ, "042e5523ff6b2506")
+            .build();
 
     Filter andFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(parentIdFilter)
-            .build();
+        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
     builder.setFilter(andFilter);
     builder.setLimit(5);
 
@@ -605,19 +608,19 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestBuilderUtils
-        .createColumnValueFilter("Span.attributes.parent_span_id",
-            Operator.EQ, "042e5523ff6b250L").build();
+    Filter parentIdFilter =
+        QueryRequestBuilderUtils.createColumnValueFilter(
+                "Span.attributes.parent_span_id", Operator.EQ, "042e5523ff6b250L")
+            .build();
 
     Filter andFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(parentIdFilter)
-            .build();
+        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
     builder.setFilter(andFilter);
     builder.setLimit(5);
 
-    assertExceptionOnPQLQuery(builder.build(), IllegalArgumentException.class,
+    assertExceptionOnPQLQuery(
+        builder.build(),
+        IllegalArgumentException.class,
         "Invalid input:{ string: \"042e5523ff6b250L\"\n"
             + " } for bytes column:{ parent_span_id }");
   }
@@ -631,15 +634,13 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestBuilderUtils
-        .createColumnValueFilter("Span.attributes.parent_span_id",
-            Operator.NEQ, "null").build();
+    Filter parentIdFilter =
+        QueryRequestBuilderUtils.createColumnValueFilter(
+                "Span.attributes.parent_span_id", Operator.NEQ, "null")
+            .build();
 
     Filter andFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(parentIdFilter)
-            .build();
+        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
     builder.setFilter(andFilter);
     builder.setLimit(5);
 
@@ -665,15 +666,13 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestBuilderUtils
-        .createColumnValueFilter("Span.attributes.parent_span_id",
-            Operator.NEQ, "''").build();
+    Filter parentIdFilter =
+        QueryRequestBuilderUtils.createColumnValueFilter(
+                "Span.attributes.parent_span_id", Operator.NEQ, "''")
+            .build();
 
     Filter andFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(parentIdFilter)
-            .build();
+        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
     builder.setFilter(andFilter);
     builder.setLimit(5);
 
@@ -693,19 +692,22 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithBytesColumnInFilter() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier durationColumn = ColumnIdentifier.newBuilder()
-        .setColumnName("Span.metrics.duration_millis").build();
+    ColumnIdentifier durationColumn =
+        ColumnIdentifier.newBuilder().setColumnName("Span.metrics.duration_millis").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(durationColumn));
 
     ColumnIdentifier.Builder spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id");
     // Though span id is bytes in Pinot, top layers send the value as hex string.
-    Value.Builder value = Value.newBuilder().setValueType(ValueType.STRING_ARRAY)
-        .addAllStringArray(List.of("042e5523ff6b2506"));
-    builder.setFilter(Filter.newBuilder()
-        .setLhs(Expression.newBuilder().setColumnIdentifier(spanId))
-        .setOperator(Operator.IN)
-        .setRhs(Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(value)))
-    );
+    Value.Builder value =
+        Value.newBuilder()
+            .setValueType(ValueType.STRING_ARRAY)
+            .addAllStringArray(List.of("042e5523ff6b2506"));
+    builder.setFilter(
+        Filter.newBuilder()
+            .setLhs(Expression.newBuilder().setColumnIdentifier(spanId))
+            .setOperator(Operator.IN)
+            .setRhs(
+                Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(value))));
 
     assertPQLQuery(
         builder.build(),
@@ -727,15 +729,11 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = QueryRequestBuilderUtils
-        .createColumnValueFilter("Span.id",
-            Operator.NEQ, "null").build();
+    Filter parentIdFilter =
+        QueryRequestBuilderUtils.createColumnValueFilter("Span.id", Operator.NEQ, "null").build();
 
     Filter andFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(parentIdFilter)
-            .build();
+        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
     builder.setFilter(andFilter);
     builder.setLimit(5);
 
@@ -761,16 +759,21 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create an and filter with Long literal type
-    ColumnIdentifier durationColumn = ColumnIdentifier.newBuilder()
-            .setColumnName("Span.metrics.duration_millis").build();
-    Filter andFilter = Filter.newBuilder()
+    ColumnIdentifier durationColumn =
+        ColumnIdentifier.newBuilder().setColumnName("Span.metrics.duration_millis").build();
+    Filter andFilter =
+        Filter.newBuilder()
             .setOperator(Operator.GE)
             .setLhs(Expression.newBuilder().setColumnIdentifier(durationColumn).build())
-            .setRhs(Expression.newBuilder()
-                    .setLiteral(LiteralConstant.newBuilder()
-                            .setValue(Value.newBuilder()
+            .setRhs(
+                Expression.newBuilder()
+                    .setLiteral(
+                        LiteralConstant.newBuilder()
+                            .setValue(
+                                Value.newBuilder()
                                     .setValueType(ValueType.LONG)
-                                    .setLong(1000L).build()))
+                                    .setLong(1000L)
+                                    .build()))
                     .build())
             .build();
 
@@ -780,14 +783,14 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest request = builder.build();
 
     assertPQLQuery(
-            request,
-            "SELECT span_id FROM SpanEventView "
-                    + "WHERE "
-                    + viewDefinition.getTenantIdColumn()
-                    + " = '"
-                    + TENANT_ID
-                    + "' "
-                    + "AND duration_millis >= 1000 limit 5");
+        request,
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND duration_millis >= 1000 limit 5");
   }
 
   @Test
@@ -796,29 +799,34 @@ public class QueryRequestToPinotSQLConverterTest {
     ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
-    ColumnIdentifier durationColumn = ColumnIdentifier.newBuilder()
-            .setColumnName("Span.metrics.duration_millis").build();
+    ColumnIdentifier durationColumn =
+        ColumnIdentifier.newBuilder().setColumnName("Span.metrics.duration_millis").build();
     Filter likeFilter =
-            Filter.newBuilder()
-                    .setOperator(Operator.LIKE)
-                    .setLhs(Expression.newBuilder().setColumnIdentifier(durationColumn).build())
-                    .setRhs(Expression.newBuilder()
-                            .setLiteral(LiteralConstant.newBuilder()
-                                    .setValue(Value.newBuilder().
-                                            setValueType(ValueType.LONG).setLong(5000L).build()))
-                            .build())
-                    .build();
+        Filter.newBuilder()
+            .setOperator(Operator.LIKE)
+            .setLhs(Expression.newBuilder().setColumnIdentifier(durationColumn).build())
+            .setRhs(
+                Expression.newBuilder()
+                    .setLiteral(
+                        LiteralConstant.newBuilder()
+                            .setValue(
+                                Value.newBuilder()
+                                    .setValueType(ValueType.LONG)
+                                    .setLong(5000L)
+                                    .build()))
+                    .build())
+            .build();
 
     builder.setFilter(likeFilter);
     assertPQLQuery(
-            builder.build(),
-            "SELECT span_id FROM SpanEventView "
-                    + "WHERE "
-                    + viewDefinition.getTenantIdColumn()
-                    + " = '"
-                    + TENANT_ID
-                    + "' "
-                    + "AND REGEXP_LIKE(duration_millis,5000)");
+        builder.build(),
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND REGEXP_LIKE(duration_millis,5000)");
   }
 
   @Test
@@ -826,11 +834,18 @@ public class QueryRequestToPinotSQLConverterTest {
     Filter startTimeFilter =
         createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
     Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
-    Expression percentileAgg = Expression.newBuilder().setFunction(
-      Function.newBuilder().setAlias("P99_duration").setFunctionName("PERCENTILE99")
-          .addArguments(Expression.newBuilder().setColumnIdentifier(
-              ColumnIdentifier.newBuilder().setColumnName("Span.metrics.duration_millis")))
-    ).build();
+    Expression percentileAgg =
+        Expression.newBuilder()
+            .setFunction(
+                Function.newBuilder()
+                    .setAlias("P99_duration")
+                    .setFunctionName("PERCENTILE99")
+                    .addArguments(
+                        Expression.newBuilder()
+                            .setColumnIdentifier(
+                                ColumnIdentifier.newBuilder()
+                                    .setColumnName("Span.metrics.duration_millis"))))
+            .build();
 
     QueryRequest queryRequest =
         QueryRequest.newBuilder()
@@ -860,30 +875,30 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testQueryWithNulls() {
     Expression conditionalString =
         Expression.newBuilder()
-                  .setFunction(
-                      Function.newBuilder()
-                              .setFunctionName(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL)
-                              .addArguments(createStringLiteralValueExpression("true"))
-                              .addArguments(createColumnExpression("Span.id"))
-                              .addArguments(createNullStringLiteralExpression()))
-                  .build();
+            .setFunction(
+                Function.newBuilder()
+                    .setFunctionName(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL)
+                    .addArguments(createStringLiteralValueExpression("true"))
+                    .addArguments(createColumnExpression("Span.id"))
+                    .addArguments(createNullStringLiteralExpression()))
+            .build();
 
     Expression conditionalNumber =
         Expression.newBuilder()
-                  .setFunction(
-                      Function.newBuilder()
-                              .setFunctionName(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL)
-                              .addArguments(createStringLiteralValueExpression("true"))
-                              .addArguments(createColumnExpression("Span.metrics.duration_millis"))
-                              .addArguments(createNullNumberLiteralExpression()))
-                  .build();
+            .setFunction(
+                Function.newBuilder()
+                    .setFunctionName(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL)
+                    .addArguments(createStringLiteralValueExpression("true"))
+                    .addArguments(createColumnExpression("Span.metrics.duration_millis"))
+                    .addArguments(createNullNumberLiteralExpression()))
+            .build();
 
     QueryRequest queryRequest =
         QueryRequest.newBuilder()
-                    .addSelection(conditionalString)
-                    .addSelection(conditionalNumber)
-                    .setLimit(15)
-                    .build();
+            .addSelection(conditionalString)
+            .addSelection(conditionalNumber)
+            .setLimit(15)
+            .build();
 
     assertPQLQuery(
         queryRequest,
@@ -1109,7 +1124,9 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
     Entry<String, Params> statementToParam =
-        converter.toSQL(new ExecutionContext("__default", queryRequest), queryRequest,
+        converter.toSQL(
+            new ExecutionContext("__default", queryRequest),
+            queryRequest,
             createSelectionsFromQueryRequest(queryRequest));
     PinotClient pinotClient = new PinotClient(connection);
     pinotClient.executeQuery(statementToParam.getKey(), statementToParam.getValue());
@@ -1119,14 +1136,21 @@ public class QueryRequestToPinotSQLConverterTest {
         expectedQuery.toLowerCase(), statementCaptor.getValue().getQuery().toLowerCase());
   }
 
-  private void assertExceptionOnPQLQuery(QueryRequest queryRequest, Class<? extends Throwable> exceptionClass,
+  private void assertExceptionOnPQLQuery(
+      QueryRequest queryRequest,
+      Class<? extends Throwable> exceptionClass,
       String expectedMessage) {
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
 
-    Throwable exception = Assertions.assertThrows(exceptionClass, () -> converter
-        .toSQL(new ExecutionContext("__default", queryRequest), queryRequest,
-            createSelectionsFromQueryRequest(queryRequest)));
+    Throwable exception =
+        Assertions.assertThrows(
+            exceptionClass,
+            () ->
+                converter.toSQL(
+                    new ExecutionContext("__default", queryRequest),
+                    queryRequest,
+                    createSelectionsFromQueryRequest(queryRequest)));
 
     String actualMessage = exception.getMessage();
     Assertions.assertTrue(actualMessage.contains(expectedMessage));

@@ -27,13 +27,14 @@ public class PinotQueryTest {
   public void testResolveStatement() {
     String statement =
         PinotClientFactory.PinotClient.resolveStatement(
-        "select * from table where team in (?, ?, ?)",
-        Params.newBuilder()
-            .addStringParam("abc")
-            .addStringParam("pqr with (?)")
-            .addStringParam("xyz")
-            .build());
+            "select * from table where team in (?, ?, ?)",
+            Params.newBuilder()
+                .addStringParam("abc")
+                .addStringParam("pqr with (?)")
+                .addStringParam("xyz")
+                .build());
 
-    Assertions.assertEquals("select * from table where team in ('abc', 'pqr with (?)', 'xyz')", statement);
+    Assertions.assertEquals(
+        "select * from table where team in ('abc', 'pqr with (?)', 'xyz')", statement);
   }
 }

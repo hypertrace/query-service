@@ -24,9 +24,7 @@ import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Converts {@link QueryRequest} to Pinot SQL query
- */
+/** Converts {@link QueryRequest} to Pinot SQL query */
 class QueryRequestToPinotSQLConverter {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryRequestToPinotSQLConverter.class);
@@ -201,9 +199,12 @@ class QueryRequestToPinotSQLConverter {
 
     String lhsColumnName = lhs.getColumnIdentifier().getColumnName();
     try {
-      Value value = DestinationColumnValueConverter.INSTANCE.convert(rhs.getLiteral().getValue(),
-          viewDefinition.getColumnType(lhsColumnName));
-      return Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(value)).build();
+      Value value =
+          DestinationColumnValueConverter.INSTANCE.convert(
+              rhs.getLiteral().getValue(), viewDefinition.getColumnType(lhsColumnName));
+      return Expression.newBuilder()
+          .setLiteral(LiteralConstant.newBuilder().setValue(value))
+          .build();
     } catch (Exception e) {
       throw new IllegalArgumentException(
           String.format(
@@ -326,9 +327,7 @@ class QueryRequestToPinotSQLConverter {
     return literals;
   }
 
-  /**
-   * TODO:Handle all types
-   */
+  /** TODO:Handle all types */
   private String convertLiteralToString(LiteralConstant literal, Params.Builder paramsBuilder) {
     Value value = literal.getValue();
     String ret = null;

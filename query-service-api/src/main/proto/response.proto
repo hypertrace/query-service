@@ -35,4 +35,3 @@ message ResultSetChunk {
 message Row {
   repeated Value column = 1;
 }
-

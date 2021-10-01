@@ -18,8 +18,8 @@ import org.hypertrace.core.query.service.api.ResultSetMetadata;
 import org.hypertrace.core.query.service.api.ValueType;
 
 /**
- * Wrapper class to hold the query execution context that is needed by different components
- * during the life cycles of a request.
+ * Wrapper class to hold the query execution context that is needed by different components during
+ * the life cycles of a request.
  */
 public class ExecutionContext {
 
