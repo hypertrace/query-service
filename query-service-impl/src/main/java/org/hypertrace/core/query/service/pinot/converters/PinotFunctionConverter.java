@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Function;
+import org.hypertrace.core.query.service.api.Function.Builder;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
@@ -38,9 +39,7 @@ public class PinotFunctionConverter {
     this.percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
   }
 
-  public String convert(
-      ExecutionContext executionContext,
-      Function function, java.util.function.Function<Expression, String> argumentConverter) {
+  public String convert(ExecutionContext executionContext, Function function, java.util.function.Function<Expression, String> argumentConverter) {
     switch (function.getFunctionName().toUpperCase()) {
       case QUERY_FUNCTION_COUNT:
         return this.convertCount();
@@ -49,7 +48,7 @@ public class PinotFunctionConverter {
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
       case QUERY_FUNCTION_AVG_RATE:
-        return this.functionToStringForAvgRate(function, argumentConverter);
+        return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
       default:
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
         // that logic
@@ -60,14 +59,45 @@ public class PinotFunctionConverter {
     }
   }
 
-  private String functionToStringForAvgRate(
-      Function function, java.util.function.Function<Expression, String> argumentConverter) {
+  private String functionToStringForAvgRate(Function function, java.util.function.Function<Expression, String> argumentConverter, ExecutionContext executionContext) {
+    function = updateFunctionForAvgRate(function, executionContext);
     String argumentString =
         function.getArgumentsList().stream()
             .map(argumentConverter::apply)
             .collect(Collectors.joining(","));
 
     return "SUM(DIV(" + argumentString + "))";
+  }
+
+  private Function updateFunctionForAvgRate(Function function, ExecutionContext executionContext){
+
+    Expression columnName = function.getArgumentsList().get(0);
+    Expression literal = function.getArgumentsList().get(1);
+
+    Builder builder = function.toBuilder();
+    builder.clearArguments();
+    builder.addArguments(columnName);
+    builder.addArguments(getUpdatedLiteral(columnName, literal, executionContext));
+
+    return builder.build();
+  }
+
+  private Expression getUpdatedLiteral(Expression column, Expression literal, ExecutionContext executionContext){
+
+    String columnName = column.getColumnIdentifier().getColumnName().split("[.]")[0];
+    long divisorInSeconds = literal.getLiteral().getValue().getLong();
+    double timeRangeInSeconds;
+
+    if(executionContext.getTimeSeriesColumnMap().containsKey(columnName)){
+      timeRangeInSeconds = Double.parseDouble(executionContext.getTimeSeriesColumnMap().get(columnName));
+    }
+    else{
+      timeRangeInSeconds = (double) executionContext.getTimeFilterMap().get(columnName).get(1)-executionContext.getTimeFilterMap().get(columnName).get(0);
+      timeRangeInSeconds = timeRangeInSeconds / 1000 ;
+    }
+    return Expression.newBuilder()
+        .setLiteral(LiteralConstant.newBuilder().setValue(Value.newBuilder().setDouble(timeRangeInSeconds / divisorInSeconds).setValueType(ValueType.DOUBLE).build()).build())
+        .build();
   }
 
   private String functionToString(

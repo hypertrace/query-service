@@ -278,11 +278,11 @@ public class HTPinotQueriesTest {
         .forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
   }
 
-  private static void validateRows(List<Row> rows){
+  private static void validateRows(List<Row> rows, double divisor){
     rows.forEach(row->{
       double val1 = Double.parseDouble(row.getColumn(2).getString());
-      double val2 = Double.parseDouble(row.getColumn(3).getString())/1000;
-      assertTrue(Math.abs(val1-val2)<Math.pow(10,-10));
+      double val2 = Double.parseDouble(row.getColumn(3).getString()) / divisor;
+      assertTrue(Math.abs(val1-val2)<Math.pow(10,-3));
     });
   }
 
@@ -312,7 +312,7 @@ public class HTPinotQueriesTest {
         Arrays.asList("frontend", "driver", "route", "customer"));
     rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
     assertTrue(serviceNames.isEmpty());
-    rows.forEach(row->assertTrue(row.getColumn(2).getString().equals(String.valueOf(Double.parseDouble(row.getColumn(3).getString())/1000))));
+    validateRows(rows,3.60001);
   }
 
   @Test
@@ -323,7 +323,7 @@ public class HTPinotQueriesTest {
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(4, rows.size());
-    validateRows(rows);
+    validateRows(rows,0.015);
   }
 
   @Test

@@ -245,4 +245,12 @@ public class ExecutionContext {
   public LinkedHashSet<Expression> getAllSelections() {
     return this.allSelections;
   }
+
+  public Map<String,String> getTimeSeriesColumnMap(){
+    return this.timeSeriesColumnMap;
+  }
+
+  public Map<String,List<Long>> getTimeFilterMap(){
+    return this.timeFilterMap;
+  }
 }
