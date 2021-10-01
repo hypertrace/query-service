@@ -7,6 +7,7 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -38,6 +39,7 @@ public class PinotFunctionConverter {
   }
 
   public String convert(
+      ExecutionContext executionContext,
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     switch (function.getFunctionName().toUpperCase()) {
       case QUERY_FUNCTION_COUNT:
@@ -52,7 +54,7 @@ public class PinotFunctionConverter {
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
         // that logic
         if (this.isHardcodedPercentile(function)) {
-          return this.convert(this.normalizeHardcodedPercentile(function), argumentConverter);
+          return this.convert(executionContext, this.normalizeHardcodedPercentile(function), argumentConverter);
         }
         return this.functionToString(function, argumentConverter);
     }

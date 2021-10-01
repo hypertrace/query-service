@@ -19,6 +19,7 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
+import org.hypertrace.core.query.service.pinot.Params.Builder;
 import org.hypertrace.core.query.service.pinot.converters.DestinationColumnValueConverter;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.slf4j.Logger;
@@ -65,7 +66,7 @@ class QueryRequestToPinotSQLConverter {
     // how it is created.
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
-      pqlBuilder.append(convertExpression2String(expr, paramsBuilder));
+      pqlBuilder.append(convertExpression2String(expr, paramsBuilder, executionContext));
       delim = ", ";
     }
 
@@ -77,7 +78,7 @@ class QueryRequestToPinotSQLConverter {
 
     if (request.hasFilter()) {
       pqlBuilder.append(" AND ");
-      String filterClause = convertFilter2String(request.getFilter(), paramsBuilder);
+      String filterClause = convertFilter2String(request.getFilter(), paramsBuilder, executionContext);
       pqlBuilder.append(filterClause);
     }
 
@@ -86,7 +87,7 @@ class QueryRequestToPinotSQLConverter {
       delim = "";
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
-        pqlBuilder.append(convertExpression2String(groupByExpression, paramsBuilder));
+        pqlBuilder.append(convertExpression2String(groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
     }
@@ -95,7 +96,7 @@ class QueryRequestToPinotSQLConverter {
       delim = "";
       for (OrderByExpression orderByExpression : request.getOrderByList()) {
         pqlBuilder.append(delim);
-        String orderBy = convertExpression2String(orderByExpression.getExpression(), paramsBuilder);
+        String orderBy = convertExpression2String(orderByExpression.getExpression(), paramsBuilder, executionContext);
         pqlBuilder.append(orderBy);
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
           pqlBuilder.append(" desc ");
@@ -121,7 +122,10 @@ class QueryRequestToPinotSQLConverter {
     return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
   }
 
-  private String convertFilter2String(Filter filter, Params.Builder paramsBuilder) {
+  private String convertFilter2String(
+      Filter filter,
+      Builder paramsBuilder,
+      ExecutionContext executionContext) {
     StringBuilder builder = new StringBuilder();
     String operator = convertOperator2String(filter.getOperator());
     if (filter.getChildFilterCount() > 0) {
@@ -129,7 +133,7 @@ class QueryRequestToPinotSQLConverter {
       builder.append("( ");
       for (Filter childFilter : filter.getChildFilterList()) {
         builder.append(delim);
-        builder.append(convertFilter2String(childFilter, paramsBuilder));
+        builder.append(convertFilter2String(childFilter, paramsBuilder, executionContext));
         builder.append(" ");
         delim = operator + " ";
       }
@@ -142,9 +146,9 @@ class QueryRequestToPinotSQLConverter {
               handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(operator);
           builder.append("(");
-          builder.append(convertExpression2String(filter.getLhs(), paramsBuilder));
+          builder.append(convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(",");
-          builder.append(convertExpression2String(rhs, paramsBuilder));
+          builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
           builder.append(")");
           break;
         case CONTAINS_KEY:
@@ -177,11 +181,11 @@ class QueryRequestToPinotSQLConverter {
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          builder.append(convertExpression2String(filter.getLhs(), paramsBuilder));
+          builder.append(convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(" ");
           builder.append(operator);
           builder.append(" ");
-          builder.append(convertExpression2String(rhs, paramsBuilder));
+          builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
       }
     }
     return builder.toString();
@@ -250,7 +254,10 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
-  private String convertExpression2String(Expression expression, Params.Builder paramsBuilder) {
+  private String convertExpression2String(
+      Expression expression,
+      Builder paramsBuilder,
+      ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
         String logicalColumnName = expression.getColumnIdentifier().getColumnName();
@@ -261,11 +268,12 @@ class QueryRequestToPinotSQLConverter {
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
         return this.functionConverter.convert(
+            executionContext,
             expression.getFunction(),
-            argExpression -> convertExpression2String(argExpression, paramsBuilder));
+            argExpression -> convertExpression2String(argExpression, paramsBuilder, executionContext));
       case ORDERBY:
         OrderByExpression orderBy = expression.getOrderBy();
-        return convertExpression2String(orderBy.getExpression(), paramsBuilder);
+        return convertExpression2String(orderBy.getExpression(), paramsBuilder, executionContext);
       case VALUE_NOT_SET:
         break;
     }
