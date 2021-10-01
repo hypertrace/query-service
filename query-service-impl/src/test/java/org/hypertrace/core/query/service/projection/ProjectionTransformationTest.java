@@ -404,7 +404,7 @@ class ProjectionTransformationTest {
             .build();
 
     this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
-    
+
     expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(createNullNumberLiteralExpression())

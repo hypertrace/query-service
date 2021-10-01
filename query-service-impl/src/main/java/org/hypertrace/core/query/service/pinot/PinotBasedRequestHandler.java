@@ -173,10 +173,10 @@ public class PinotBasedRequestHandler implements RequestHandler {
       return QueryCost.UNSUPPORTED;
     }
 
-//    TODO
-//    if (!this.viewDefinitionSupportsGranularity(viewDefinition, request.getGroupByList())) {
-//      return QueryCost.UNSUPPORTED;
-//    }
+    //    TODO
+    //    if (!this.viewDefinitionSupportsGranularity(viewDefinition, request.getGroupByList())) {
+    //      return QueryCost.UNSUPPORTED;
+    //    }
 
     double cost;
 

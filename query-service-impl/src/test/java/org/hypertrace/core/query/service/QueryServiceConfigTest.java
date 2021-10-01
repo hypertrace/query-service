@@ -23,9 +23,7 @@ public class QueryServiceConfigTest {
     appConfig =
         ConfigFactory.parseURL(
             requireNonNull(
-                QueryServiceConfigTest.class
-                    .getClassLoader()
-                    .getResource("application.conf")));
+                QueryServiceConfigTest.class.getClassLoader().getResource("application.conf")));
     queryServiceConfig = new QueryServiceConfig(appConfig.getConfig("service.config"));
   }
 

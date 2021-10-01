@@ -3,9 +3,9 @@ package org.hypertrace.core.query.service.pinot;
 import javax.inject.Inject;
 import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerClientConfig;
 import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerConfig;
-import org.hypertrace.core.query.service.RequestHandlerClientConfigRegistry;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.RequestHandlerBuilder;
+import org.hypertrace.core.query.service.RequestHandlerClientConfigRegistry;
 
 public class PinotRequestHandlerBuilder implements RequestHandlerBuilder {
 

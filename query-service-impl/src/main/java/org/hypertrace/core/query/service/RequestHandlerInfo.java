@@ -11,9 +11,7 @@ public class RequestHandlerInfo {
   private final Config config;
 
   public RequestHandlerInfo(
-      String name,
-      Class<? extends RequestHandler> requestHandlerClazz,
-      Config config) {
+      String name, Class<? extends RequestHandler> requestHandlerClazz, Config config) {
     this.name = name;
     this.requestHandlerClazz = requestHandlerClazz;
     this.config = config;

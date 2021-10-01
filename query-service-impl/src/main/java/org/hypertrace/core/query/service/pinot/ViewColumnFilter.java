@@ -1,7 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.typesafe.config.Config;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -10,27 +9,18 @@ import java.util.Set;
  * The main view and filtered view can be optimized different for queries and only the queries
  * matching the view filters will be routed to the filtered view.
  *
- * <p>Currently, we only support EQ and IN operators in these filters.</p>
- * Example EQ filter:
- * {
- *   column: "EVENT.isEntrySpan"
- *   operator: "EQ"
- *   value: "true"
- * }
+ * <p>Currently, we only support EQ and IN operators in these filters. Example EQ filter: { column:
+ * "EVENT.isEntrySpan" operator: "EQ" value: "true" }
  *
- * Example IN filter:
- * {
- *   column: "EVENT.statusCode"
- *   operator: "IN"
- *   values: ["500", "401"]
- * }
+ * <p>Example IN filter: { column: "EVENT.statusCode" operator: "IN" values: ["500", "401"] }
  */
 class ViewColumnFilter {
   private final Operator operator;
   private final Set<String> values;
 
   enum Operator {
-    IN, EQ
+    IN,
+    EQ
   }
 
   public ViewColumnFilter(Operator operator, Set<String> values) {

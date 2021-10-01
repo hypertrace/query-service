@@ -1,6 +1,5 @@
 package org.hypertrace.core.query.service;
 
-
 /**
  * Canonical query function names received in requests. These should be converted to data-store
  * specific names when handling a request.

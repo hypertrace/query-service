@@ -75,60 +75,64 @@ public class HTPinotQueriesTest {
   public static void setup() throws Exception {
     network = Network.newNetwork();
 
-    kafkaZk = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka"))
-        .withNetwork(network)
-        .withNetworkAliases("kafka", "zookeeper")
-        .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
-        .waitingFor(Wait.forListeningPort());
+    kafkaZk =
+        new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka"))
+            .withNetwork(network)
+            .withNetworkAliases("kafka", "zookeeper")
+            .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
+            .waitingFor(Wait.forListeningPort());
     kafkaZk.start();
 
-    pinotServiceManager = new GenericContainer<>(
-        DockerImageName.parse("hypertrace/pinot-servicemanager:main"))
-        .withNetwork(network)
-        .withNetworkAliases("pinot-controller", "pinot-server", "pinot-broker")
-        .withExposedPorts(8099)
-        .withExposedPorts(9000)
-        .dependsOn(kafkaZk)
-        .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
-        .waitingFor(Wait.forLogMessage(".*Completed schema installation.*", 1))
-        .withLogConsumer(logConsumer);
+    pinotServiceManager =
+        new GenericContainer<>(DockerImageName.parse("hypertrace/pinot-servicemanager:main"))
+            .withNetwork(network)
+            .withNetworkAliases("pinot-controller", "pinot-server", "pinot-broker")
+            .withExposedPorts(8099)
+            .withExposedPorts(9000)
+            .dependsOn(kafkaZk)
+            .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
+            .waitingFor(Wait.forLogMessage(".*Completed schema installation.*", 1))
+            .withLogConsumer(logConsumer);
     pinotServiceManager.start();
 
-    mongo = new GenericContainer<>(DockerImageName.parse("hypertrace/mongodb:main"))
-        .withNetwork(network)
-        .withNetworkAliases("mongo")
-        .withExposedPorts(27017)
-        .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
-        .waitingFor(Wait.forLogMessage(".*waiting for connections on port 27017.*", 1));
+    mongo =
+        new GenericContainer<>(DockerImageName.parse("hypertrace/mongodb:main"))
+            .withNetwork(network)
+            .withNetworkAliases("mongo")
+            .withExposedPorts(27017)
+            .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
+            .waitingFor(Wait.forLogMessage(".*waiting for connections on port 27017.*", 1));
     mongo.start();
     mongo.followOutput(logConsumer);
 
-    attributeService = new GenericContainer<>(
-        DockerImageName.parse("hypertrace/attribute-service:main"))
-        .withNetwork(network)
-        .withNetworkAliases("attribute-service")
-        .withEnv("MONGO_HOST", "mongo")
-        .withExposedPorts(9012)
-        .dependsOn(mongo)
-        .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
-        .waitingFor(Wait.forLogMessage(".*Started admin service on port: 9013.*", 1));
+    attributeService =
+        new GenericContainer<>(DockerImageName.parse("hypertrace/attribute-service:main"))
+            .withNetwork(network)
+            .withNetworkAliases("attribute-service")
+            .withEnv("MONGO_HOST", "mongo")
+            .withExposedPorts(9012)
+            .dependsOn(mongo)
+            .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
+            .waitingFor(Wait.forLogMessage(".*Started admin service on port: 9013.*", 1));
     attributeService.start();
     attributeService.followOutput(logConsumer);
 
-    List<String> topicsNames = List.of(
-        "enriched-structured-traces",
-        "raw-service-view-events",
-        "raw-trace-view-events",
-        "service-call-view-events",
-        "span-event-view",
-        "backend-entity-view-events",
-        "log-event-view",
-        "raw-logs");
+    List<String> topicsNames =
+        List.of(
+            "enriched-structured-traces",
+            "raw-service-view-events",
+            "raw-trace-view-events",
+            "service-call-view-events",
+            "span-event-view",
+            "backend-entity-view-events",
+            "log-event-view",
+            "raw-logs");
     bootstrapServers = kafkaZk.getBootstrapServers();
-    adminClient = AdminClient
-        .create(Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaZk.getBootstrapServers()));
-    List<NewTopic> topics = topicsNames.stream().map(v -> new NewTopic(v, 1, (short) 1))
-        .collect(Collectors.toList());
+    adminClient =
+        AdminClient.create(
+            Map.of(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaZk.getBootstrapServers()));
+    List<NewTopic> topics =
+        topicsNames.stream().map(v -> new NewTopic(v, 1, (short) 1)).collect(Collectors.toList());
     adminClient.createTopics(topics);
 
     assertTrue(bootstrapConfig());
@@ -136,13 +140,11 @@ public class HTPinotQueriesTest {
     assertTrue(generateData());
     LOG.info("Generate Data Complete");
 
-    withEnvironmentVariable(
-        "PINOT_CONNECTION_TYPE", "broker")
+    withEnvironmentVariable("PINOT_CONNECTION_TYPE", "broker")
         .and("ZK_CONNECT_STR", "localhost:" + pinotServiceManager.getMappedPort(8099).toString())
         .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
         .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
-        .execute(() ->
-            IntegrationTestServerUtil.startServices(new String[] {"query-service"}));
+        .execute(() -> IntegrationTestServerUtil.startServices(new String[] {"query-service"}));
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("host", "localhost");
@@ -162,24 +164,35 @@ public class HTPinotQueriesTest {
   }
 
   private static boolean bootstrapConfig() throws Exception {
-    GenericContainer<?> bootstrapper = new GenericContainer<>(
-        DockerImageName.parse("hypertrace/config-bootstrapper:main"))
-        .withNetwork(network)
-        .dependsOn(attributeService)
-        .withEnv("MONGO_HOST", "mongo")
-        .withEnv("ATTRIBUTE_SERVICE_HOST_CONFIG", "attribute-service")
-        .withCommand("-c", "/app/resources/configs/config-bootstrapper/application.conf", "-C", "/app/resources/configs/config-bootstrapper/attribute-service", "--upgrade")
-        .withLogConsumer(logConsumer);
+    GenericContainer<?> bootstrapper =
+        new GenericContainer<>(DockerImageName.parse("hypertrace/config-bootstrapper:main"))
+            .withNetwork(network)
+            .dependsOn(attributeService)
+            .withEnv("MONGO_HOST", "mongo")
+            .withEnv("ATTRIBUTE_SERVICE_HOST_CONFIG", "attribute-service")
+            .withCommand(
+                "-c",
+                "/app/resources/configs/config-bootstrapper/application.conf",
+                "-C",
+                "/app/resources/configs/config-bootstrapper/attribute-service",
+                "--upgrade")
+            .withLogConsumer(logConsumer);
     bootstrapper.start();
 
-    ManagedChannel channel = ManagedChannelBuilder
-        .forAddress(attributeService.getHost(), attributeService.getMappedPort(9012)).usePlaintext()
-        .build();
+    ManagedChannel channel =
+        ManagedChannelBuilder.forAddress(
+                attributeService.getHost(), attributeService.getMappedPort(9012))
+            .usePlaintext()
+            .build();
     AttributeServiceClient client = new AttributeServiceClient(channel);
     int retry = 0;
     while (Streams.stream(
-        client.findAttributes(TENANT_ID_MAP, AttributeMetadataFilter.getDefaultInstance()))
-        .collect(Collectors.toList()).size() == 0 && retry++ < 5) {
+                    client.findAttributes(
+                        TENANT_ID_MAP, AttributeMetadataFilter.getDefaultInstance()))
+                .collect(Collectors.toList())
+                .size()
+            == 0
+        && retry++ < 5) {
       Thread.sleep(2000);
     }
     channel.shutdown();
@@ -189,50 +202,58 @@ public class HTPinotQueriesTest {
 
   private static boolean generateData() throws Exception {
     // start view-gen service
-    GenericContainer<?> viewGen = new GenericContainer(
-        DockerImageName.parse("hypertrace/hypertrace-view-generator:main"))
-        .withNetwork(network)
-        .dependsOn(kafkaZk)
-        .withEnv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-        .withEnv("DEFAULT_KEY_SERDE", "org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde")
-        .withEnv("DEFAULT_VALUE_SERDE", "org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde")
-        .withEnv("NUM_STREAM_THREADS", "1")
-        .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
-        .waitingFor(Wait.forLogMessage(".* Started admin service on port: 8099.*", 1));
+    GenericContainer<?> viewGen =
+        new GenericContainer(DockerImageName.parse("hypertrace/hypertrace-view-generator:main"))
+            .withNetwork(network)
+            .dependsOn(kafkaZk)
+            .withEnv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+            .withEnv(
+                "DEFAULT_KEY_SERDE", "org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde")
+            .withEnv(
+                "DEFAULT_VALUE_SERDE",
+                "org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde")
+            .withEnv("NUM_STREAM_THREADS", "1")
+            .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
+            .waitingFor(Wait.forLogMessage(".* Started admin service on port: 8099.*", 1));
     viewGen.start();
     viewGen.followOutput(logConsumer);
 
     // produce data
-    SpecificDatumReader<StructuredTrace> datumReader = new SpecificDatumReader<>(
-        StructuredTrace.getClassSchema());
+    SpecificDatumReader<StructuredTrace> datumReader =
+        new SpecificDatumReader<>(StructuredTrace.getClassSchema());
 
-    DataFileReader<StructuredTrace> dfrStructuredTrace = new DataFileReader<>(
-        new File(Thread.currentThread()
-            .getContextClassLoader()
-            .getResource("StructuredTrace-Hotrod.avro").getPath()),
-        datumReader);
+    DataFileReader<StructuredTrace> dfrStructuredTrace =
+        new DataFileReader<>(
+            new File(
+                Thread.currentThread()
+                    .getContextClassLoader()
+                    .getResource("StructuredTrace-Hotrod.avro")
+                    .getPath()),
+            datumReader);
 
     StructuredTrace trace = dfrStructuredTrace.next();
     dfrStructuredTrace.close();
 
     updateTraceTimeStamp(trace);
-    KafkaProducer<String, StructuredTrace> producer = new KafkaProducer<>(
-        ImmutableMap.of(
-            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-            ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString()
-        ),
-        new StringSerializer(),
-        new AvroSerde<StructuredTrace>().serializer()
-    );
+    KafkaProducer<String, StructuredTrace> producer =
+        new KafkaProducer<>(
+            ImmutableMap.of(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                bootstrapServers,
+                ProducerConfig.CLIENT_ID_CONFIG,
+                UUID.randomUUID().toString()),
+            new StringSerializer(),
+            new AvroSerde<StructuredTrace>().serializer());
     producer.send(new ProducerRecord<>("enriched-structured-traces", "", trace)).get();
 
-    Map<String, Long> endOffSetMap = Map.of(
-        "raw-service-view-events", 13L,
-        "backend-entity-view-events", 11L,
-        "raw-trace-view-events", 1L,
-        "service-call-view-events", 27L,
-        "span-event-view", 50L,
-        "log-event-view", 0L);
+    Map<String, Long> endOffSetMap =
+        Map.of(
+            "raw-service-view-events", 13L,
+            "backend-entity-view-events", 11L,
+            "raw-trace-view-events", 1L,
+            "service-call-view-events", 27L,
+            "span-event-view", 50L,
+            "log-event-view", 0L);
     int retry = 0;
     while (!areMessagesConsumed(endOffSetMap) && retry++ < 5) {
       Thread.sleep(2000);
@@ -244,8 +265,8 @@ public class HTPinotQueriesTest {
   }
 
   private static boolean areMessagesConsumed(Map<String, Long> endOffSetMap) throws Exception {
-    ListConsumerGroupOffsetsResult consumerGroupOffsetsResult = adminClient
-        .listConsumerGroupOffsets("");
+    ListConsumerGroupOffsetsResult consumerGroupOffsetsResult =
+        adminClient.listConsumerGroupOffsets("");
     Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap =
         consumerGroupOffsetsResult.partitionsToOffsetAndMetadata().get();
     if (offsetAndMetadataMap.size() < 6) {
@@ -263,30 +284,36 @@ public class HTPinotQueriesTest {
     trace.getEventList().forEach(e -> e.setStartTimeMillis(e.getStartTimeMillis() + delta));
     trace.getEventList().forEach(e -> e.setEndTimeMillis(e.getEndTimeMillis() + delta));
     // updates edges
-    trace.getEntityEdgeList()
+    trace
+        .getEntityEdgeList()
         .forEach(edge -> edge.setStartTimeMillis(edge.getStartTimeMillis() + delta));
-    trace.getEntityEdgeList()
+    trace
+        .getEntityEdgeList()
         .forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
-    trace.getEventEdgeList()
+    trace
+        .getEventEdgeList()
         .forEach(edge -> edge.setStartTimeMillis(edge.getStartTimeMillis() + delta));
-    trace.getEventEdgeList()
+    trace
+        .getEventEdgeList()
         .forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
-    trace.getEntityEventEdgeList()
+    trace
+        .getEntityEventEdgeList()
         .forEach(edge -> edge.setStartTimeMillis(edge.getStartTimeMillis() + delta));
-    trace.getEntityEventEdgeList()
+    trace
+        .getEntityEventEdgeList()
         .forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
   }
 
   @Test
   public void testServicesQueries() {
     LOG.info("Services queries");
-    Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
-        ServicesQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(ServicesQueries.buildQuery1(), TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(4, rows.size());
-    List<String> serviceNames = new ArrayList<>(
-        Arrays.asList("frontend", "driver", "route", "customer"));
+    List<String> serviceNames =
+        new ArrayList<>(Arrays.asList("frontend", "driver", "route", "customer"));
     rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
     assertTrue(serviceNames.isEmpty());
   }
@@ -294,8 +321,8 @@ public class HTPinotQueriesTest {
   @Test
   public void testBackendsQueries() {
     LOG.info("Backends queries");
-    Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
-        BackendsQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(BackendsQueries.buildQuery1(), TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(1, rows.size());
@@ -307,8 +334,8 @@ public class HTPinotQueriesTest {
   @Test
   public void testExplorerQueries() {
     LOG.info("Explorer queries");
-    Iterator<ResultSetChunk> itr = queryServiceClient.executeQuery(
-        ExplorerQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(ExplorerQueries.buildQuery1(), TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(1, rows.size());

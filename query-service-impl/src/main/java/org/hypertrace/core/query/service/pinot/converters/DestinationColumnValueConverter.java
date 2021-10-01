@@ -15,11 +15,11 @@ import org.slf4j.LoggerFactory;
 public class DestinationColumnValueConverter {
   private static final Logger LOG = LoggerFactory.getLogger(DestinationColumnValueConverter.class);
 
-  public static final DestinationColumnValueConverter INSTANCE = new DestinationColumnValueConverter();
+  public static final DestinationColumnValueConverter INSTANCE =
+      new DestinationColumnValueConverter();
   private static final String EMPTY = "";
 
-  private DestinationColumnValueConverter() {
-  }
+  private DestinationColumnValueConverter() {}
 
   public Value convert(Value value, ValueType valueType) throws Exception {
     // Currently, only Pinot's BYTES columns needs transformation since they're actually
@@ -47,16 +47,23 @@ public class DestinationColumnValueConverter {
         return valueBuilder.build();
 
       default:
-        String msg = String.format("Unsupported value of type: %s while transforming to BYTES.",
-            value.getValueType().name());
+        String msg =
+            String.format(
+                "Unsupported value of type: %s while transforming to BYTES.",
+                value.getValueType().name());
         LOG.warn(msg);
         throw new IllegalArgumentException(msg);
     }
   }
 
   private ByteString convertToByteString(String inValue) throws DecoderException {
-    String outValue = (Strings.isNullOrEmpty(inValue) || inValue.trim().equals("null") ||
-        inValue.trim().equals("''") || inValue.trim().equals("{}")) ? EMPTY : inValue;
+    String outValue =
+        (Strings.isNullOrEmpty(inValue)
+                || inValue.trim().equals("null")
+                || inValue.trim().equals("''")
+                || inValue.trim().equals("{}"))
+            ? EMPTY
+            : inValue;
     byte[] bytes = Hex.decodeHex(outValue);
     return ByteString.copyFrom(bytes);
   }
