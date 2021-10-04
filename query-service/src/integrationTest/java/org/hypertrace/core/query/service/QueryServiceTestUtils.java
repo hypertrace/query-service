@@ -55,4 +55,12 @@ public class QueryServiceTestUtils {
                     LiteralConstant.newBuilder()
                         .setValue(Value.newBuilder().setString(periodSecs + ":SECONDS"))));
   }
+
+  public static ColumnIdentifier createColumnIdentifier(String columnName) {
+    return ColumnIdentifier.newBuilder().setColumnName(columnName).build();
+  }
+
+  public static ColumnIdentifier createColumnIdentifier(String columnName, String alias) {
+    return ColumnIdentifier.newBuilder().setColumnName(columnName).setAlias(alias).build();
+  }
 }

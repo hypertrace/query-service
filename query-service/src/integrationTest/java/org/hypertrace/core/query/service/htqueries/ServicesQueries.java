@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.htqueries;
 
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createColumnIdentifier;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFilter;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createTimeColumnGroupByFunction;
 
@@ -28,12 +29,8 @@ class ServicesQueries {
    */
   static QueryRequest buildQuery1() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier serviceId = ColumnIdentifier.newBuilder().setColumnName("SERVICE.id").build();
-    ColumnIdentifier serviceName =
-        ColumnIdentifier.newBuilder()
-            .setColumnName("SERVICE.name")
-            .setAlias("SERVICE.name")
-            .build();
+    ColumnIdentifier serviceId = createColumnIdentifier("SERVICE.id");
+    ColumnIdentifier serviceName = createColumnIdentifier("SERVICE.name", "SERVICE.name");
     Function serviceIdFunction =
         Function.newBuilder()
             .addArguments(Expression.newBuilder().setColumnIdentifier(serviceId).build())
@@ -87,14 +84,9 @@ class ServicesQueries {
 
   static QueryRequest buildAvgRateQuery() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier serviceId = ColumnIdentifier.newBuilder().setColumnName("SERVICE.id").build();
-    ColumnIdentifier serviceDuration =
-        ColumnIdentifier.newBuilder().setColumnName("SERVICE.duration").build();
-    ColumnIdentifier serviceName =
-        ColumnIdentifier.newBuilder()
-            .setColumnName("SERVICE.name")
-            .setAlias("SERVICE.name")
-            .build();
+    ColumnIdentifier serviceId = createColumnIdentifier("SERVICE.id");
+    ColumnIdentifier serviceDuration = createColumnIdentifier("SERVICE.duration");
+    ColumnIdentifier serviceName = createColumnIdentifier("SERVICE.name", "SERVICE.name");
     LiteralConstant oneSec =
         LiteralConstant.newBuilder()
             .setValue(Value.newBuilder().setLong(1000).setValueType(ValueType.LONG).build())
@@ -160,9 +152,8 @@ class ServicesQueries {
 
   static QueryRequest buildAvgRateQueryWithTimeAggregation() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier serviceId = ColumnIdentifier.newBuilder().setColumnName("SERVICE.id").build();
-    ColumnIdentifier serviceNumCalls =
-        ColumnIdentifier.newBuilder().setColumnName("SERVICE.numCalls").build();
+    ColumnIdentifier serviceId = createColumnIdentifier("SERVICE.id");
+    ColumnIdentifier serviceNumCalls = createColumnIdentifier("SERVICE.numCalls");
     LiteralConstant oneSec =
         LiteralConstant.newBuilder()
             .setValue(Value.newBuilder().setLong(1000).setValueType(ValueType.LONG).build())

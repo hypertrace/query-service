@@ -21,7 +21,7 @@ public class PinotFunctionConverter {
    * reasonably accurate, hence use that as the default.
    *
    * <p>AVG_RATE not supported directly in Pinot. So AVG_RATE is computed by summing over all values
-   * and then dividing by a constant (1s in this case).
+   * and then dividing by a constant.
    */
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
 
@@ -91,8 +91,8 @@ public class PinotFunctionConverter {
 
   private Expression getUpdatedLiteral(Expression literal, ExecutionContext executionContext) {
 
-    long divisorInSeconds = literal.getLiteral().getValue().getLong();
-    double timeRangeInSeconds =
+    long rateIntervalInSeconds = literal.getLiteral().getValue().getLong();
+    double aggregateIntervalInSeconds =
         executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration());
 
     return Expression.newBuilder()
@@ -100,7 +100,7 @@ public class PinotFunctionConverter {
             LiteralConstant.newBuilder()
                 .setValue(
                     Value.newBuilder()
-                        .setDouble(timeRangeInSeconds / divisorInSeconds)
+                        .setDouble(aggregateIntervalInSeconds / rateIntervalInSeconds)
                         .setValueType(ValueType.DOUBLE)
                         .build())
                 .build())
