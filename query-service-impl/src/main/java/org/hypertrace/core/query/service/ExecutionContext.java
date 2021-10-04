@@ -1,12 +1,12 @@
 package org.hypertrace.core.query.service;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
@@ -15,7 +15,6 @@ import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
-import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
@@ -39,89 +38,59 @@ public class ExecutionContext {
   // while the selectedColumns
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
-  private final Map<String, String> timeSeriesColumnMap;
-  private final Map<String, List<Long>> timeFilterMap;
+  private final Optional<Double> timeSeriesPeriod;
+  private final Optional<Double> timeRangeDuration;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
-    this.timeSeriesColumnMap = new HashMap<>();
-    this.timeFilterMap = new HashMap<String, List<Long>>();
-    analyzeForAvgRate(request);
+    this.timeSeriesPeriod = setTimeSeriesPeriod(request);
+    this.timeRangeDuration = setTimeFilterMap(request);
     analyze(request);
   }
 
-  private void analyzeForAvgRate(QueryRequest request) {
-    setTimeSeriesColumnMap(request);
-    setTimeFilterMap(request);
-  }
-
-  private void setTimeSeriesColumnMap(QueryRequest request) {
-
+  private Optional<Double> setTimeSeriesPeriod(QueryRequest request) {
+    Optional<Double> period = Optional.empty();
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
         if (expression.getValueCase() == ValueCase.FUNCTION
             && expression.getFunction().getFunctionName().equals("dateTimeConvert")) {
-
-          String column = null;
-          String period = null;
-
-          // assuming only one column and one literal (with period in seconds) is present in one
-          // dateTimeConvert groupBy
-          for (Expression childExpression : expression.getFunction().getArgumentsList()) {
-            if (childExpression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
-              column = childExpression.getColumnIdentifier().getColumnName().split("[.]")[0];
-            }
-            if (childExpression.getValueCase() == ValueCase.LITERAL) {
-              if (childExpression
+          String periodInIso =
+              expression
+                  .getFunction()
+                  .getArgumentsList()
+                  .get(3)
                   .getLiteral()
                   .getValue()
-                  .getString()
-                  .split("[:]")[1]
-                  .equals("SECONDS")) {
-                period = childExpression.getLiteral().getValue().getString().split("[:]")[0];
-              }
-            }
-          }
-
-          if (column != null && period != null) {
-            timeSeriesColumnMap.put(column, period);
-          }
+                  .getString();
+          period = Optional.of((double) isoDurationToSeconds(periodInIso));
         }
       }
     }
+    return period;
   }
 
-  private void setTimeFilterMap(QueryRequest request) {
-
+  private Optional<Double> setTimeFilterMap(QueryRequest request) {
+    Optional<Long> duration = Optional.empty();
     if (request.getFilter().getChildFilterCount() > 0) {
       for (Filter filter : request.getFilter().getChildFilterList()) {
-
-        String[] columnName = filter.getLhs().getColumnIdentifier().getColumnName().split("[.]");
-        Operator operator = filter.getOperator();
-        Long val = filter.getRhs().getLiteral().getValue().getLong();
-
-        // filtering by colName.startTime and colName.endTime for now. Can be changed accordingly
-        if (columnName.length > 1
-            && (columnName[1].equals("startTime") || columnName[1].equals("endTime"))) {
-
-          if (!timeFilterMap.containsKey(columnName[0])) {
-            timeFilterMap.put(columnName[0], new ArrayList<Long>());
+        // will extract columnName as a part of follow up PR
+        if (filter
+            .getLhs()
+            .getColumnIdentifier()
+            .getColumnName()
+            .split("[.]")[1]
+            .equals("startTime")) {
+          Long val = filter.getRhs().getLiteral().getValue().getLong();
+          if (duration.isPresent()) {
+            val = val - duration.get();
           }
-
-          // assuming only one startTime and endTime are present and startTime appears first in
-          // order
-          if (operator == Operator.GE || operator == Operator.GT) {
-            timeFilterMap.get(columnName[0]).add(val);
-          }
-
-          if (operator == Operator.LE || operator == Operator.LT) {
-            timeFilterMap.get(columnName[0]).add(val);
-          }
+          duration = Optional.of(val);
         }
       }
     }
+    return Optional.of((double) duration.get());
   }
 
   private void analyze(QueryRequest request) {
@@ -235,6 +204,11 @@ public class ExecutionContext {
     }
   }
 
+  private static long isoDurationToSeconds(String duration) {
+    Duration d = java.time.Duration.parse(duration);
+    return d.get(ChronoUnit.SECONDS);
+  }
+
   public String getTenantId() {
     return this.tenantId;
   }
@@ -255,16 +229,11 @@ public class ExecutionContext {
     return this.allSelections;
   }
 
-  public Optional<Double> getTimeSeriesColumn(String columnName) {
-    if (this.timeSeriesColumnMap.containsKey(columnName)) {
-      return Optional.of(Double.parseDouble(this.timeSeriesColumnMap.get(columnName)));
-    }
-    return Optional.empty();
+  public Optional<Double> getTimeSeriesPeriod() {
+    return this.timeSeriesPeriod;
   }
 
-  public double getTimeFilterDuration(String columnName) {
-    long durationInMillis =
-        this.timeFilterMap.get(columnName).get(1) - this.timeFilterMap.get(columnName).get(0);
-    return (double) durationInMillis / 1000;
+  public double getTimeFilterDuration() {
+    return this.timeRangeDuration.get();
   }
 }

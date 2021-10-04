@@ -95,9 +95,7 @@ public class PinotFunctionConverter {
     String columnName = column.getColumnIdentifier().getColumnName().split("[.]")[0];
     long divisorInSeconds = literal.getLiteral().getValue().getLong();
     double timeRangeInSeconds =
-        executionContext
-            .getTimeSeriesColumn(columnName)
-            .orElse(executionContext.getTimeFilterDuration(columnName));
+        executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeFilterDuration());
 
     return Expression.newBuilder()
         .setLiteral(
