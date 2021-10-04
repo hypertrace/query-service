@@ -93,7 +93,7 @@ public class PinotFunctionConverter {
 
     long divisorInSeconds = literal.getLiteral().getValue().getLong();
     double timeRangeInSeconds =
-        executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeFilterDuration());
+        executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration());
 
     return Expression.newBuilder()
         .setLiteral(

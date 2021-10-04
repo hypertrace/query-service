@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
 import org.hypertrace.core.query.service.api.Expression;
@@ -89,7 +90,7 @@ public class ExecutionContext {
     }
 
     if (duration.isPresent()) {
-      return (double) duration.get() / 1000;
+      return (double) TimeUnit.SECONDS.convert(duration.get(), TimeUnit.MILLISECONDS);
     }
     return 0;
   }
@@ -234,7 +235,7 @@ public class ExecutionContext {
     return this.timeSeriesPeriod;
   }
 
-  public double getTimeFilterDuration() {
+  public double getTimeRangeDuration() {
     return this.timeRangeDuration;
   }
 }
