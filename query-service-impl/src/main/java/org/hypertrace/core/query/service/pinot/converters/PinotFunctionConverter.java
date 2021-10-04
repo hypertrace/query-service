@@ -94,17 +94,11 @@ public class PinotFunctionConverter {
 
     String columnName = column.getColumnIdentifier().getColumnName().split("[.]")[0];
     long divisorInSeconds = literal.getLiteral().getValue().getLong();
-    double timeRangeInSeconds;
+    double timeRangeInSeconds =
+        executionContext
+            .getTimeSeriesColumn(columnName)
+            .orElse(executionContext.getTimeFilterDuration(columnName));
 
-    if (executionContext.getTimeSeriesColumnMap().containsKey(columnName)) {
-      timeRangeInSeconds =
-          Double.parseDouble(executionContext.getTimeSeriesColumnMap().get(columnName));
-    } else {
-      timeRangeInSeconds =
-          (double) executionContext.getTimeFilterMap().get(columnName).get(1)
-              - executionContext.getTimeFilterMap().get(columnName).get(0);
-      timeRangeInSeconds = timeRangeInSeconds / 1000;
-    }
     return Expression.newBuilder()
         .setLiteral(
             LiteralConstant.newBuilder()

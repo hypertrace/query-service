@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
@@ -254,11 +255,16 @@ public class ExecutionContext {
     return this.allSelections;
   }
 
-  public Map<String, String> getTimeSeriesColumnMap() {
-    return this.timeSeriesColumnMap;
+  public Optional<Double> getTimeSeriesColumn(String columnName) {
+    if (this.timeSeriesColumnMap.containsKey(columnName)) {
+      return Optional.of(Double.parseDouble(this.timeSeriesColumnMap.get(columnName)));
+    }
+    return Optional.empty();
   }
 
-  public Map<String, List<Long>> getTimeFilterMap() {
-    return this.timeFilterMap;
+  public double getTimeFilterDuration(String columnName) {
+    long durationInMillis =
+        this.timeFilterMap.get(columnName).get(1) - this.timeFilterMap.get(columnName).get(0);
+    return (double) durationInMillis / 1000;
   }
 }
