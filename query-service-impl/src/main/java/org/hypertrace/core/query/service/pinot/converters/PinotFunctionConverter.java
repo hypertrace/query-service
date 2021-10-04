@@ -84,15 +84,13 @@ public class PinotFunctionConverter {
     Builder builder = function.toBuilder();
     builder.clearArguments();
     builder.addArguments(columnName);
-    builder.addArguments(getUpdatedLiteral(columnName, literal, executionContext));
+    builder.addArguments(getUpdatedLiteral(literal, executionContext));
 
     return builder.build();
   }
 
-  private Expression getUpdatedLiteral(
-      Expression column, Expression literal, ExecutionContext executionContext) {
+  private Expression getUpdatedLiteral(Expression literal, ExecutionContext executionContext) {
 
-    String columnName = column.getColumnIdentifier().getColumnName().split("[.]")[0];
     long divisorInSeconds = literal.getLiteral().getValue().getLong();
     double timeRangeInSeconds =
         executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeFilterDuration());

@@ -39,14 +39,14 @@ public class ExecutionContext {
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
   private final Optional<Double> timeSeriesPeriod;
-  private final Optional<Double> timeRangeDuration;
+  private final double timeRangeDuration;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
     this.timeSeriesPeriod = setTimeSeriesPeriod(request);
-    this.timeRangeDuration = setTimeFilterMap(request);
+    this.timeRangeDuration = setTimeRangeDuration(request);
     analyze(request);
   }
 
@@ -71,26 +71,27 @@ public class ExecutionContext {
     return period;
   }
 
-  private Optional<Double> setTimeFilterMap(QueryRequest request) {
+  private double setTimeRangeDuration(QueryRequest request) {
     Optional<Long> duration = Optional.empty();
     if (request.getFilter().getChildFilterCount() > 0) {
       for (Filter filter : request.getFilter().getChildFilterList()) {
         // will extract columnName as a part of follow up PR
-        if (filter
-            .getLhs()
-            .getColumnIdentifier()
-            .getColumnName()
-            .split("[.]")[1]
-            .equals("startTime")) {
+        String columnName = filter.getLhs().getColumnIdentifier().getColumnName();
+        int colLength = columnName.length();
+        if (colLength >= 9 && columnName.substring(colLength - 9).equals("startTime")) {
           Long val = filter.getRhs().getLiteral().getValue().getLong();
           if (duration.isPresent()) {
             val = val - duration.get();
           }
-          duration = Optional.of(val);
+          duration = Optional.of(Math.abs(val));
         }
       }
     }
-    return Optional.of((double) duration.get());
+
+    if (duration.isPresent()) {
+      return (double) duration.get() / 1000;
+    }
+    return 0;
   }
 
   private void analyze(QueryRequest request) {
@@ -234,6 +235,6 @@ public class ExecutionContext {
   }
 
   public double getTimeFilterDuration() {
-    return this.timeRangeDuration.get();
+    return this.timeRangeDuration;
   }
 }
