@@ -20,7 +20,7 @@ public class PinotFunctionConverter {
    * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster and
    * reasonably accurate, hence use that as the default.
    *
-   * AVG_RATE not supported directly in Pinot. So AVG_RATE is computed by summing over all values
+   * <p>AVG_RATE not supported directly in Pinot. So AVG_RATE is computed by summing over all values
    * and then dividing by a constant (1s in this case).
    */
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
@@ -39,7 +39,10 @@ public class PinotFunctionConverter {
     this.percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
   }
 
-  public String convert(ExecutionContext executionContext, Function function, java.util.function.Function<Expression, String> argumentConverter) {
+  public String convert(
+      ExecutionContext executionContext,
+      Function function,
+      java.util.function.Function<Expression, String> argumentConverter) {
     switch (function.getFunctionName().toUpperCase()) {
       case QUERY_FUNCTION_COUNT:
         return this.convertCount();
@@ -53,13 +56,17 @@ public class PinotFunctionConverter {
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
         // that logic
         if (this.isHardcodedPercentile(function)) {
-          return this.convert(executionContext, this.normalizeHardcodedPercentile(function), argumentConverter);
+          return this.convert(
+              executionContext, this.normalizeHardcodedPercentile(function), argumentConverter);
         }
         return this.functionToString(function, argumentConverter);
     }
   }
 
-  private String functionToStringForAvgRate(Function function, java.util.function.Function<Expression, String> argumentConverter, ExecutionContext executionContext) {
+  private String functionToStringForAvgRate(
+      Function function,
+      java.util.function.Function<Expression, String> argumentConverter,
+      ExecutionContext executionContext) {
     function = updateFunctionForAvgRate(function, executionContext);
     String argumentString =
         function.getArgumentsList().stream()
@@ -69,7 +76,7 @@ public class PinotFunctionConverter {
     return "SUM(DIV(" + argumentString + "))";
   }
 
-  private Function updateFunctionForAvgRate(Function function, ExecutionContext executionContext){
+  private Function updateFunctionForAvgRate(Function function, ExecutionContext executionContext) {
 
     Expression columnName = function.getArgumentsList().get(0);
     Expression literal = function.getArgumentsList().get(1);
@@ -82,21 +89,31 @@ public class PinotFunctionConverter {
     return builder.build();
   }
 
-  private Expression getUpdatedLiteral(Expression column, Expression literal, ExecutionContext executionContext){
+  private Expression getUpdatedLiteral(
+      Expression column, Expression literal, ExecutionContext executionContext) {
 
     String columnName = column.getColumnIdentifier().getColumnName().split("[.]")[0];
     long divisorInSeconds = literal.getLiteral().getValue().getLong();
     double timeRangeInSeconds;
 
-    if(executionContext.getTimeSeriesColumnMap().containsKey(columnName)){
-      timeRangeInSeconds = Double.parseDouble(executionContext.getTimeSeriesColumnMap().get(columnName));
-    }
-    else{
-      timeRangeInSeconds = (double) executionContext.getTimeFilterMap().get(columnName).get(1)-executionContext.getTimeFilterMap().get(columnName).get(0);
-      timeRangeInSeconds = timeRangeInSeconds / 1000 ;
+    if (executionContext.getTimeSeriesColumnMap().containsKey(columnName)) {
+      timeRangeInSeconds =
+          Double.parseDouble(executionContext.getTimeSeriesColumnMap().get(columnName));
+    } else {
+      timeRangeInSeconds =
+          (double) executionContext.getTimeFilterMap().get(columnName).get(1)
+              - executionContext.getTimeFilterMap().get(columnName).get(0);
+      timeRangeInSeconds = timeRangeInSeconds / 1000;
     }
     return Expression.newBuilder()
-        .setLiteral(LiteralConstant.newBuilder().setValue(Value.newBuilder().setDouble(timeRangeInSeconds / divisorInSeconds).setValueType(ValueType.DOUBLE).build()).build())
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder()
+                        .setDouble(timeRangeInSeconds / divisorInSeconds)
+                        .setValueType(ValueType.DOUBLE)
+                        .build())
+                .build())
         .build();
   }
 

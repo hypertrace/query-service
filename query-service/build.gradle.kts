@@ -18,10 +18,10 @@ dependencies {
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.14.1")
   runtimeOnly("io.grpc:grpc-netty:1.36.1")
   constraints {
-    runtimeOnly("io.netty:netty-codec-http2:4.1.63.Final") {
+    runtimeOnly("io.netty:netty-codec-http2:4.1.68.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1089809")
     }
-    runtimeOnly("io.netty:netty-handler-proxy:4.1.63.Final") {
+    runtimeOnly("io.netty:netty-handler-proxy:4.1.68.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1089809")
     }
   }
@@ -52,7 +52,7 @@ application {
 
 // Config for gw run to be able to run this locally. Just execute gw run here on Intellij or on the console.
 tasks.run<JavaExec> {
-  jvmArgs = listOf("-Dbootstrap.config.uri=file:${projectDir}/src/main/resources/configs", "-Dservice.name=${project.name}")
+  jvmArgs = listOf("-Dbootstrap.config.uri=file:$projectDir/src/main/resources/configs", "-Dservice.name=${project.name}")
 }
 
 tasks.integrationTest {

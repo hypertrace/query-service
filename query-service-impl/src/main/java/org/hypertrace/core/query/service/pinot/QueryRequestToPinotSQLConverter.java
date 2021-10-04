@@ -25,9 +25,7 @@ import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Converts {@link QueryRequest} to Pinot SQL query
- */
+/** Converts {@link QueryRequest} to Pinot SQL query */
 class QueryRequestToPinotSQLConverter {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryRequestToPinotSQLConverter.class);
@@ -78,7 +76,8 @@ class QueryRequestToPinotSQLConverter {
 
     if (request.hasFilter()) {
       pqlBuilder.append(" AND ");
-      String filterClause = convertFilter2String(request.getFilter(), paramsBuilder, executionContext);
+      String filterClause =
+          convertFilter2String(request.getFilter(), paramsBuilder, executionContext);
       pqlBuilder.append(filterClause);
     }
 
@@ -87,7 +86,8 @@ class QueryRequestToPinotSQLConverter {
       delim = "";
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
-        pqlBuilder.append(convertExpression2String(groupByExpression, paramsBuilder, executionContext));
+        pqlBuilder.append(
+            convertExpression2String(groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
     }
@@ -96,7 +96,9 @@ class QueryRequestToPinotSQLConverter {
       delim = "";
       for (OrderByExpression orderByExpression : request.getOrderByList()) {
         pqlBuilder.append(delim);
-        String orderBy = convertExpression2String(orderByExpression.getExpression(), paramsBuilder, executionContext);
+        String orderBy =
+            convertExpression2String(
+                orderByExpression.getExpression(), paramsBuilder, executionContext);
         pqlBuilder.append(orderBy);
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
           pqlBuilder.append(" desc ");
@@ -123,9 +125,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertFilter2String(
-      Filter filter,
-      Builder paramsBuilder,
-      ExecutionContext executionContext) {
+      Filter filter, Builder paramsBuilder, ExecutionContext executionContext) {
     StringBuilder builder = new StringBuilder();
     String operator = convertOperator2String(filter.getOperator());
     if (filter.getChildFilterCount() > 0) {
@@ -146,7 +146,8 @@ class QueryRequestToPinotSQLConverter {
               handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(operator);
           builder.append("(");
-          builder.append(convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+          builder.append(
+              convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(",");
           builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
           builder.append(")");
@@ -181,7 +182,8 @@ class QueryRequestToPinotSQLConverter {
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          builder.append(convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+          builder.append(
+              convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(" ");
           builder.append(operator);
           builder.append(" ");
@@ -205,9 +207,12 @@ class QueryRequestToPinotSQLConverter {
 
     String lhsColumnName = lhs.getColumnIdentifier().getColumnName();
     try {
-      Value value = DestinationColumnValueConverter.INSTANCE.convert(rhs.getLiteral().getValue(),
-          viewDefinition.getColumnType(lhsColumnName));
-      return Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(value)).build();
+      Value value =
+          DestinationColumnValueConverter.INSTANCE.convert(
+              rhs.getLiteral().getValue(), viewDefinition.getColumnType(lhsColumnName));
+      return Expression.newBuilder()
+          .setLiteral(LiteralConstant.newBuilder().setValue(value))
+          .build();
     } catch (Exception e) {
       throw new IllegalArgumentException(
           String.format(
@@ -255,9 +260,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpression2String(
-      Expression expression,
-      Builder paramsBuilder,
-      ExecutionContext executionContext) {
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
         String logicalColumnName = expression.getColumnIdentifier().getColumnName();
@@ -270,7 +273,8 @@ class QueryRequestToPinotSQLConverter {
         return this.functionConverter.convert(
             executionContext,
             expression.getFunction(),
-            argExpression -> convertExpression2String(argExpression, paramsBuilder, executionContext));
+            argExpression ->
+                convertExpression2String(argExpression, paramsBuilder, executionContext));
       case ORDERBY:
         OrderByExpression orderBy = expression.getOrderBy();
         return convertExpression2String(orderBy.getExpression(), paramsBuilder, executionContext);
@@ -334,9 +338,7 @@ class QueryRequestToPinotSQLConverter {
     return literals;
   }
 
-  /**
-   * TODO:Handle all types
-   */
+  /** TODO:Handle all types */
   private String convertLiteralToString(LiteralConstant literal, Params.Builder paramsBuilder) {
     Value value = literal.getValue();
     String ret = null;

@@ -19,10 +19,10 @@ dependencies {
     implementation("org.apache.zookeeper:zookeeper:3.6.2") {
       because("Multiple vulnerabilities")
     }
-    implementation("io.netty:netty-transport-native-epoll:4.1.63.Final") {
+    implementation("io.netty:netty-transport-native-epoll:4.1.68.Final") {
       because("Multiple vulnerabilities")
     }
-    implementation("io.netty:netty-handler:4.1.63.Final") {
+    implementation("io.netty:netty-handler:4.1.68.Final") {
       because("Multiple vulnerabilities")
     }
   }

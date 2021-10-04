@@ -21,8 +21,8 @@ import org.hypertrace.core.query.service.api.ResultSetMetadata;
 import org.hypertrace.core.query.service.api.ValueType;
 
 /**
- * Wrapper class to hold the query execution context that is needed by different components
- * during the life cycles of a request.
+ * Wrapper class to hold the query execution context that is needed by different components during
+ * the life cycles of a request.
  */
 public class ExecutionContext {
 
@@ -38,47 +38,54 @@ public class ExecutionContext {
   // while the selectedColumns
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
-  private final Map<String,String> timeSeriesColumnMap;
-  private final Map<String,List<Long>> timeFilterMap;
+  private final Map<String, String> timeSeriesColumnMap;
+  private final Map<String, List<Long>> timeFilterMap;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
     this.timeSeriesColumnMap = new HashMap<>();
-    this.timeFilterMap = new HashMap<String,List<Long>>();
+    this.timeFilterMap = new HashMap<String, List<Long>>();
     analyzeForAvgRate(request);
     analyze(request);
   }
 
-  private void analyzeForAvgRate(QueryRequest request){
+  private void analyzeForAvgRate(QueryRequest request) {
     setTimeSeriesColumnMap(request);
     setTimeFilterMap(request);
   }
 
-  private void setTimeSeriesColumnMap(QueryRequest request){
+  private void setTimeSeriesColumnMap(QueryRequest request) {
 
-    if(request.getGroupByCount() > 0){
-      for(Expression expression : request.getGroupByList()){
-        if(expression.getValueCase() == ValueCase.FUNCTION && expression.getFunction().getFunctionName().equals("dateTimeConvert")) {
+    if (request.getGroupByCount() > 0) {
+      for (Expression expression : request.getGroupByList()) {
+        if (expression.getValueCase() == ValueCase.FUNCTION
+            && expression.getFunction().getFunctionName().equals("dateTimeConvert")) {
 
           String column = null;
           String period = null;
 
-          //assuming only one column and one literal (with period in seconds) is present in one dateTimeConvert groupBy
-          for(Expression childExpression : expression.getFunction().getArgumentsList()) {
-            if(childExpression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+          // assuming only one column and one literal (with period in seconds) is present in one
+          // dateTimeConvert groupBy
+          for (Expression childExpression : expression.getFunction().getArgumentsList()) {
+            if (childExpression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
               column = childExpression.getColumnIdentifier().getColumnName().split("[.]")[0];
             }
-            if(childExpression.getValueCase() == ValueCase.LITERAL){
-              if(childExpression.getLiteral().getValue().getString().split("[:]")[1].equals("SECONDS")){
+            if (childExpression.getValueCase() == ValueCase.LITERAL) {
+              if (childExpression
+                  .getLiteral()
+                  .getValue()
+                  .getString()
+                  .split("[:]")[1]
+                  .equals("SECONDS")) {
                 period = childExpression.getLiteral().getValue().getString().split("[:]")[0];
               }
             }
           }
 
-          if(column != null && period != null){
-            timeSeriesColumnMap.put(column,period);
+          if (column != null && period != null) {
+            timeSeriesColumnMap.put(column, period);
           }
         }
       }
@@ -87,29 +94,30 @@ public class ExecutionContext {
 
   private void setTimeFilterMap(QueryRequest request) {
 
-    if(request.getFilter().getChildFilterCount() > 0){
-      for(Filter filter : request.getFilter().getChildFilterList()){
+    if (request.getFilter().getChildFilterCount() > 0) {
+      for (Filter filter : request.getFilter().getChildFilterList()) {
 
         String[] columnName = filter.getLhs().getColumnIdentifier().getColumnName().split("[.]");
         Operator operator = filter.getOperator();
         Long val = filter.getRhs().getLiteral().getValue().getLong();
 
-        //filtering by colName.startTime and colName.endTime for now. Can be changed accordingly
-        if(columnName.length > 1 && (columnName[1].equals("startTime") || columnName[1].equals("endTime"))){
+        // filtering by colName.startTime and colName.endTime for now. Can be changed accordingly
+        if (columnName.length > 1
+            && (columnName[1].equals("startTime") || columnName[1].equals("endTime"))) {
 
-          if(!timeFilterMap.containsKey(columnName[0])){
-            timeFilterMap.put(columnName[0],new ArrayList<Long>());
+          if (!timeFilterMap.containsKey(columnName[0])) {
+            timeFilterMap.put(columnName[0], new ArrayList<Long>());
           }
 
-          //assuming only one startTime and endTime are present and startTime appears first in order
-          if(operator == Operator.GE || operator == Operator.GT){
+          // assuming only one startTime and endTime are present and startTime appears first in
+          // order
+          if (operator == Operator.GE || operator == Operator.GT) {
             timeFilterMap.get(columnName[0]).add(val);
           }
 
-          if(operator == Operator.LE || operator == Operator.LT){
+          if (operator == Operator.LE || operator == Operator.LT) {
             timeFilterMap.get(columnName[0]).add(val);
           }
-
         }
       }
     }
@@ -246,11 +254,11 @@ public class ExecutionContext {
     return this.allSelections;
   }
 
-  public Map<String,String> getTimeSeriesColumnMap(){
+  public Map<String, String> getTimeSeriesColumnMap() {
     return this.timeSeriesColumnMap;
   }
 
-  public Map<String,List<Long>> getTimeFilterMap(){
+  public Map<String, List<Long>> getTimeFilterMap() {
     return this.timeFilterMap;
   }
 }

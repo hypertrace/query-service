@@ -59,14 +59,20 @@ public class Params {
 
   @Override
   public String toString() {
-    return "Params{" +
-        "integerParams=" + integerParams +
-        ", longParams=" + longParams +
-        ", stringParams=" + stringParams +
-        ", floatParams=" + floatParams +
-        ", doubleParams=" + doubleParams +
-        ", byteStringParams=" + byteStringParams +
-        '}';
+    return "Params{"
+        + "integerParams="
+        + integerParams
+        + ", longParams="
+        + longParams
+        + ", stringParams="
+        + stringParams
+        + ", floatParams="
+        + floatParams
+        + ", doubleParams="
+        + doubleParams
+        + ", byteStringParams="
+        + byteStringParams
+        + '}';
   }
 
   @Override
@@ -164,8 +170,8 @@ public class Params {
     }
 
     public Params build() {
-      return new Params(integerParams, longParams, stringParams, floatParams, doubleParams,
-          byteStringParams);
+      return new Params(
+          integerParams, longParams, stringParams, floatParams, doubleParams, byteStringParams);
     }
   }
 }
