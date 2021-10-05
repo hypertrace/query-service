@@ -5,12 +5,15 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_PERCENTILE;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Function;
-import org.hypertrace.core.query.service.api.Function.Builder;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
@@ -63,50 +66,6 @@ public class PinotFunctionConverter {
     }
   }
 
-  private String functionToStringForAvgRate(
-      Function function,
-      java.util.function.Function<Expression, String> argumentConverter,
-      ExecutionContext executionContext) {
-    function = updateFunctionForAvgRate(function, executionContext);
-    String argumentString =
-        function.getArgumentsList().stream()
-            .map(argumentConverter::apply)
-            .collect(Collectors.joining(","));
-
-    return "SUM(DIV(" + argumentString + "))";
-  }
-
-  private Function updateFunctionForAvgRate(Function function, ExecutionContext executionContext) {
-
-    Expression columnName = function.getArgumentsList().get(0);
-    Expression literal = function.getArgumentsList().get(1);
-
-    Builder builder = function.toBuilder();
-    builder.clearArguments();
-    builder.addArguments(columnName);
-    builder.addArguments(getUpdatedLiteral(literal, executionContext));
-
-    return builder.build();
-  }
-
-  private Expression getUpdatedLiteral(Expression literal, ExecutionContext executionContext) {
-
-    long rateIntervalInSeconds = literal.getLiteral().getValue().getLong();
-    double aggregateIntervalInSeconds =
-        executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration());
-
-    return Expression.newBuilder()
-        .setLiteral(
-            LiteralConstant.newBuilder()
-                .setValue(
-                    Value.newBuilder()
-                        .setDouble(aggregateIntervalInSeconds / rateIntervalInSeconds)
-                        .setValueType(ValueType.DOUBLE)
-                        .build())
-                .build())
-        .build();
-  }
-
   private String functionToString(
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     String argumentString =
@@ -115,6 +74,21 @@ public class PinotFunctionConverter {
             .collect(Collectors.joining(","));
 
     return function.getFunctionName() + "(" + argumentString + ")";
+  }
+
+  private String functionToStringForAvgRate(
+      Function function,
+      java.util.function.Function<Expression, String> argumentConverter,
+      ExecutionContext executionContext) {
+
+    List<Expression> argumentsList = new ArrayList<>();
+    argumentsList.add(getColumnForAvgRate(function));
+    argumentsList.add(getLiteralForAvgRate(function, executionContext));
+
+    String argumentString =
+        argumentsList.stream().map(argumentConverter::apply).collect(Collectors.joining(","));
+
+    return "SUM(DIV(" + argumentString + "))";
   }
 
   private String convertCount() {
@@ -192,5 +166,32 @@ public class PinotFunctionConverter {
       default:
         return Optional.empty();
     }
+  }
+
+  private Expression getColumnForAvgRate(Function function) {
+    return function.getArgumentsList().get(0);
+  }
+
+  private Expression getLiteralForAvgRate(Function function, ExecutionContext executionContext) {
+    String rateIntervalInIso =
+        function.getArgumentsList().get(1).getLiteral().getValue().getString();
+    long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
+    double aggregateIntervalInSeconds =
+        executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration());
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder()
+                        .setDouble(aggregateIntervalInSeconds / rateIntervalInSeconds)
+                        .setValueType(ValueType.DOUBLE)
+                        .build())
+                .build())
+        .build();
+  }
+
+  private static long isoDurationToSeconds(String duration) {
+    Duration d = java.time.Duration.parse(duration);
+    return d.get(ChronoUnit.SECONDS);
   }
 }

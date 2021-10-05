@@ -89,7 +89,7 @@ class ServicesQueries {
     ColumnIdentifier serviceName = createColumnIdentifier("SERVICE.name", "SERVICE.name");
     LiteralConstant oneSec =
         LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setLong(1000).setValueType(ValueType.LONG).build())
+            .setValue(Value.newBuilder().setString("PT1S").setValueType(ValueType.STRING).build())
             .build();
 
     Function durationAvgRateFunction =
@@ -156,7 +156,7 @@ class ServicesQueries {
     ColumnIdentifier serviceNumCalls = createColumnIdentifier("SERVICE.numCalls");
     LiteralConstant oneSec =
         LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setLong(1000).setValueType(ValueType.LONG).build())
+            .setValue(Value.newBuilder().setString("PT1S").setValueType(ValueType.STRING).build())
             .build();
 
     Function durationAvgRateFunction =
