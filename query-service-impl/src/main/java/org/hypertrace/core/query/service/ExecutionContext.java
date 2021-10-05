@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -37,8 +38,8 @@ public class ExecutionContext {
   // while the selectedColumns
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
-  private final Optional<Double> timeSeriesPeriod;
-  private final double timeRangeDuration;
+  private final Duration timeSeriesPeriod;
+  private final Duration timeRangeDuration;
   //  private final String colName;
   // add request handler in execution context
   // add another method in interface getStartTimeAttribute
@@ -52,8 +53,8 @@ public class ExecutionContext {
     analyze(request);
   }
 
-  private Optional<Double> setTimeSeriesPeriod(QueryRequest request) {
-    Optional<Double> period = Optional.empty();
+  private Duration setTimeSeriesPeriod(QueryRequest request) {
+    Duration period = Duration.ZERO;
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
         if (expression.getValueCase() == ValueCase.FUNCTION
@@ -67,14 +68,14 @@ public class ExecutionContext {
                   .getValue()
                   .getString()
                   .split("[:]")[0];
-          period = Optional.of(Double.parseDouble(periodInSec));
+          period = Duration.ofSeconds(Long.parseLong(periodInSec));
         }
       }
     }
     return period;
   }
 
-  private double setTimeRangeDuration(QueryRequest request) {
+  private Duration setTimeRangeDuration(QueryRequest request) {
     Optional<Long> duration = Optional.empty();
     if (request.getFilter().getChildFilterCount() > 0) {
       for (Filter filter : request.getFilter().getChildFilterList()) {
@@ -92,9 +93,9 @@ public class ExecutionContext {
     }
 
     if (duration.isPresent()) {
-      return (double) TimeUnit.SECONDS.convert(duration.get(), TimeUnit.MILLISECONDS);
+      return Duration.ofSeconds(TimeUnit.SECONDS.convert(duration.get(), TimeUnit.MILLISECONDS));
     }
-    return 0;
+    return Duration.ZERO;
   }
 
   private void analyze(QueryRequest request) {
@@ -229,10 +230,13 @@ public class ExecutionContext {
   }
 
   public Optional<Double> getTimeSeriesPeriod() {
-    return this.timeSeriesPeriod;
+    if (this.timeSeriesPeriod.isZero()) {
+      return Optional.empty();
+    }
+    return Optional.of((double) this.timeSeriesPeriod.getSeconds());
   }
 
   public double getTimeRangeDuration() {
-    return this.timeRangeDuration;
+    return this.timeRangeDuration.getSeconds();
   }
 }
