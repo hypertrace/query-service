@@ -340,7 +340,7 @@ public class HTPinotQueriesTest {
         new ArrayList<>(Arrays.asList("frontend", "driver", "route", "customer"));
     rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
     assertTrue(serviceNames.isEmpty());
-    validateRows(rows, 3.60001);
+    validateRows(rows, 3600);
   }
 
   @Disabled // enable after changing period format to ISO in the query
