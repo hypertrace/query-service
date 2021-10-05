@@ -1,7 +1,5 @@
 package org.hypertrace.core.query.service;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -41,6 +39,9 @@ public class ExecutionContext {
   private final LinkedHashSet<Expression> allSelections;
   private final Optional<Double> timeSeriesPeriod;
   private final double timeRangeDuration;
+  //  private final String colName;
+  // add request handler in execution context
+  // add another method in interface getStartTimeAttribute
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
@@ -57,15 +58,16 @@ public class ExecutionContext {
       for (Expression expression : request.getGroupByList()) {
         if (expression.getValueCase() == ValueCase.FUNCTION
             && expression.getFunction().getFunctionName().equals("dateTimeConvert")) {
-          String periodInIso =
+          String periodInSec =
               expression
                   .getFunction()
                   .getArgumentsList()
                   .get(3)
                   .getLiteral()
                   .getValue()
-                  .getString();
-          period = Optional.of((double) isoDurationToSeconds(periodInIso));
+                  .getString()
+                  .split("[:]")[0];
+          period = Optional.of(Double.parseDouble(periodInSec));
         }
       }
     }
@@ -204,11 +206,6 @@ public class ExecutionContext {
       case VALUE_NOT_SET:
         break;
     }
-  }
-
-  private static long isoDurationToSeconds(String duration) {
-    Duration d = java.time.Duration.parse(duration);
-    return d.get(ChronoUnit.SECONDS);
   }
 
   public String getTenantId() {

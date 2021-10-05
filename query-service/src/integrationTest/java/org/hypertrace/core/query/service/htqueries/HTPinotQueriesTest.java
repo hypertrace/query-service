@@ -41,7 +41,6 @@ import org.hypertrace.core.query.service.client.QueryServiceConfig;
 import org.hypertrace.core.serviceframework.IntegrationTestServerUtil;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -343,7 +342,6 @@ public class HTPinotQueriesTest {
     validateRows(rows, 3600);
   }
 
-  @Disabled // enable after changing period format to ISO in the query
   @Test
   public void testServicesQueriesForAvgRateWithTimeAggregation() {
     LOG.info("Services queries for AVG_RATE with time aggregation");
@@ -353,7 +351,7 @@ public class HTPinotQueriesTest {
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(4, rows.size());
-    validateRows(rows, 0.015);
+    validateRows(rows, 15);
   }
 
   @Test
@@ -369,7 +367,6 @@ public class HTPinotQueriesTest {
     assertTrue(backendNames.isEmpty());
   }
 
-  @Disabled // enable after changing period format to ISO in the query
   @Test
   public void testExplorerQueries() {
     LOG.info("Explorer queries");
