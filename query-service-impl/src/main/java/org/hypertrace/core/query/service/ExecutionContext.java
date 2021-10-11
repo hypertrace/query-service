@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
 import org.hypertrace.core.query.service.api.Expression;
@@ -76,26 +77,24 @@ public class ExecutionContext {
   }
 
   private Duration setTimeRangeDuration(QueryRequest request) {
-    Optional<Long> duration = Optional.empty();
+    AtomicLong lessThanFilter = new AtomicLong(-1);
+    AtomicLong greaterThanFilter = new AtomicLong(-1);
+    String timeFilterColumn = getTimeFilterColumn();
+
     if (request.getFilter().getChildFilterCount() > 0) {
       for (Filter filter : request.getFilter().getChildFilterList()) {
-        // will extract columnName as a part of follow up PR
-        String columnName = filter.getLhs().getColumnIdentifier().getColumnName();
-        int colLength = columnName.length();
-        if (colLength >= 9 && columnName.substring(colLength - 9).equals("startTime")) {
-          Long val = filter.getRhs().getLiteral().getValue().getLong();
-          if (duration.isPresent()) {
-            val = val - duration.get();
-          }
-          duration = Optional.of(Math.abs(val));
-        }
+        treeTraversal(filter, lessThanFilter, greaterThanFilter, timeFilterColumn);
       }
     }
 
-    if (duration.isPresent()) {
-      return Duration.ofSeconds(TimeUnit.SECONDS.convert(duration.get(), TimeUnit.MILLISECONDS));
+    if (lessThanFilter.longValue() >= 0 && greaterThanFilter.longValue() >= 0) {
+      return Duration.ofSeconds(
+          TimeUnit.SECONDS.convert(
+              Math.abs(lessThanFilter.longValue() - greaterThanFilter.longValue()),
+              TimeUnit.MILLISECONDS));
+    } else {
+      return Duration.ZERO;
     }
-    return Duration.ZERO;
   }
 
   private void analyze(QueryRequest request) {
@@ -218,6 +217,39 @@ public class ExecutionContext {
       default:
         return Long.parseLong(period);
     }
+  }
+
+  private void treeTraversal(
+      Filter filter,
+      AtomicLong lessThanFilter,
+      AtomicLong greaterThanFilter,
+      String timeFilterColumn) {
+
+    if (lessThanFilter.longValue() >= 0 && greaterThanFilter.longValue() >= 0) {
+      return;
+    }
+
+    String columnName = filter.getLhs().getColumnIdentifier().getColumnName();
+    if (columnName.equals(timeFilterColumn)) {
+
+      long val = filter.getRhs().getLiteral().getValue().getLong();
+      String operator = filter.getOperator().toString();
+
+      if (operator.equals("GE") || operator.equals("GT")) {
+        greaterThanFilter.set(val);
+      } else if (operator.equals("LE") || operator.equals("LT")) {
+        lessThanFilter.set(val);
+      }
+    }
+
+    for (Filter childFilter : filter.getChildFilterList()) {
+      treeTraversal(childFilter, lessThanFilter, greaterThanFilter, timeFilterColumn);
+    }
+  }
+
+  private String getTimeFilterColumn() {
+    // will add implementation in follow up PR
+    return "SERVICE.startTime";
   }
 
   public String getTenantId() {
