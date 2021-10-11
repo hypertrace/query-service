@@ -7,8 +7,6 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -81,14 +79,15 @@ public class PinotFunctionConverter {
       java.util.function.Function<Expression, String> argumentConverter,
       ExecutionContext executionContext) {
 
-    List<Expression> argumentsList = new ArrayList<>();
-    argumentsList.add(getColumnForAvgRate(function));
-    argumentsList.add(getLiteralForAvgRate(function, executionContext));
+    String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
+    String rateIntervalInIso =
+        function.getArgumentsList().get(1).getLiteral().getValue().getString();
+    long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
+    double aggregateIntervalInSeconds =
+        executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration());
 
-    String argumentString =
-        argumentsList.stream().map(argumentConverter::apply).collect(Collectors.joining(","));
-
-    return "SUM(DIV(" + argumentString + "))";
+    return String.format(
+        "SUM(DIV(%s, %s))", columnName, aggregateIntervalInSeconds / rateIntervalInSeconds);
   }
 
   private String convertCount() {
@@ -166,28 +165,6 @@ public class PinotFunctionConverter {
       default:
         return Optional.empty();
     }
-  }
-
-  private Expression getColumnForAvgRate(Function function) {
-    return function.getArgumentsList().get(0);
-  }
-
-  private Expression getLiteralForAvgRate(Function function, ExecutionContext executionContext) {
-    String rateIntervalInIso =
-        function.getArgumentsList().get(1).getLiteral().getValue().getString();
-    long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
-    double aggregateIntervalInSeconds =
-        executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration());
-    return Expression.newBuilder()
-        .setLiteral(
-            LiteralConstant.newBuilder()
-                .setValue(
-                    Value.newBuilder()
-                        .setDouble(aggregateIntervalInSeconds / rateIntervalInSeconds)
-                        .setValueType(ValueType.DOUBLE)
-                        .build())
-                .build())
-        .build();
   }
 
   private static long isoDurationToSeconds(String duration) {
