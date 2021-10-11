@@ -32,6 +32,7 @@ public class ExecutionContext {
   private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
   private String timeFilterColumn;
+  private Duration timeRangeDuration;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
   // There should be a one-to-one mapping between this and the columnMetadataSet in
@@ -41,10 +42,6 @@ public class ExecutionContext {
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
   private final Duration timeSeriesPeriod;
-  private Duration timeRangeDuration;
-  //  private final String colName;
-  // add request handler in execution context
-  // add another method in interface getStartTimeAttribute
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
