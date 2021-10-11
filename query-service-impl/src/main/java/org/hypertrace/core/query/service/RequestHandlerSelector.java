@@ -36,6 +36,7 @@ public class RequestHandlerSelector {
     }
 
     if (selectedHandler != null) {
+      executionContext.setTimeFilterColumn(selectedHandler.getTimeFilterColumn());
       if (LOG.isDebugEnabled()) {
         LOG.debug(
             "Selected requestHandler: {} for the query: {}; referencedColumns: {}, cost: {}",

@@ -31,6 +31,7 @@ public class ExecutionContext {
   private Set<String> referencedColumns;
   private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
+  private String timeFilterColumn;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
   // There should be a one-to-one mapping between this and the columnMetadataSet in
@@ -79,11 +80,10 @@ public class ExecutionContext {
   private Duration setTimeRangeDuration(QueryRequest request) {
     AtomicLong lessThanFilter = new AtomicLong(-1);
     AtomicLong greaterThanFilter = new AtomicLong(-1);
-    String timeFilterColumn = getTimeFilterColumn();
 
     if (request.getFilter().getChildFilterCount() > 0) {
       for (Filter filter : request.getFilter().getChildFilterList()) {
-        treeTraversal(filter, lessThanFilter, greaterThanFilter, timeFilterColumn);
+        treeTraversal(filter, lessThanFilter, greaterThanFilter, this.timeFilterColumn);
       }
     }
 
@@ -247,9 +247,8 @@ public class ExecutionContext {
     }
   }
 
-  private String getTimeFilterColumn() {
-    // will add implementation in follow up PR
-    return "SERVICE.startTime";
+  public void setTimeFilterColumn(String timeFilterColumn) {
+    this.timeFilterColumn = timeFilterColumn;
   }
 
   public String getTenantId() {
