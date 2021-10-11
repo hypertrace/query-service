@@ -59,7 +59,7 @@ public class ExecutionContext {
       for (Expression expression : request.getGroupByList()) {
         if (expression.getValueCase() == ValueCase.FUNCTION
             && expression.getFunction().getFunctionName().equals("dateTimeConvert")) {
-          String periodInSec =
+          String[] timeSeriesPeriod =
               expression
                   .getFunction()
                   .getArgumentsList()
@@ -67,8 +67,8 @@ public class ExecutionContext {
                   .getLiteral()
                   .getValue()
                   .getString()
-                  .split("[:]")[0];
-          period = Duration.ofSeconds(Long.parseLong(periodInSec));
+                  .split("[:]");
+          period = Duration.ofSeconds(getPeriodInSeconds(timeSeriesPeriod));
         }
       }
     }
@@ -206,6 +206,17 @@ public class ExecutionContext {
         break;
       case VALUE_NOT_SET:
         break;
+    }
+  }
+
+  private long getPeriodInSeconds(String[] timeSeriesPeriod) {
+    String period = timeSeriesPeriod[0];
+    // add cases for other units when added
+    switch (timeSeriesPeriod[1]) {
+      case "MILLISECONDS":
+        return Long.parseLong(period) / 1000;
+      default:
+        return Long.parseLong(period);
     }
   }
 
