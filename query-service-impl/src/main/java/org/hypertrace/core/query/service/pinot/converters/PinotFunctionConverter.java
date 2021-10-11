@@ -83,11 +83,13 @@ public class PinotFunctionConverter {
     String rateIntervalInIso =
         function.getArgumentsList().get(1).getLiteral().getValue().getString();
     long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
-    double aggregateIntervalInSeconds =
-        executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration());
+    long aggregateIntervalInSeconds =
+        (executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration()))
+            .getSeconds();
 
     return String.format(
-        "SUM(DIV(%s, %s))", columnName, aggregateIntervalInSeconds / rateIntervalInSeconds);
+        "SUM(DIV(%s, %s))",
+        columnName, (double) aggregateIntervalInSeconds / rateIntervalInSeconds);
   }
 
   private String convertCount() {

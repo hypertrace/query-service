@@ -272,14 +272,11 @@ public class ExecutionContext {
     return this.allSelections;
   }
 
-  public Optional<Double> getTimeSeriesPeriod() {
-    if (this.timeSeriesPeriod.isZero()) {
-      return Optional.empty();
-    }
-    return Optional.of((double) this.timeSeriesPeriod.getSeconds());
+  public Optional<Duration> getTimeSeriesPeriod() {
+    return this.timeSeriesPeriod.isZero() ? Optional.empty() : Optional.of(this.timeSeriesPeriod);
   }
 
-  public double getTimeRangeDuration() {
-    return this.timeRangeDuration.getSeconds();
+  public Duration getTimeRangeDuration() {
+    return this.timeRangeDuration;
   }
 }
