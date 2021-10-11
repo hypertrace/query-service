@@ -66,7 +66,12 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
                 Status.FAILED_PRECONDITION
                     .withDescription("No handler available matching request")
                     .asException()))
-        .flatMapObservable(handler -> handler.handleRequest(transformedRequest, context))
+        .flatMapObservable(
+            handler -> {
+              context.setTimeFilterColumn(handler.getTimeFilterColumn());
+              context.setTimeRangeDuration(transformedRequest);
+              return handler.handleRequest(transformedRequest, context);
+            })
         .lift(chunkRows(context.getResultSetMetadata()));
   }
 }

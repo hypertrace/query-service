@@ -20,6 +20,8 @@ public interface RequestHandler {
 
   String getName();
 
+  String getTimeFilterColumn();
+
   QueryCost canHandle(QueryRequest request, ExecutionContext context);
 
   /** Handle the request and add rows to the collector. */

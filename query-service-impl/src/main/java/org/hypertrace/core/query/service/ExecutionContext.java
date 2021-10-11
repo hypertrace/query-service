@@ -31,6 +31,7 @@ public class ExecutionContext {
   private Set<String> referencedColumns;
   private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
+  private String timeFilterColumn;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
   // There should be a one-to-one mapping between this and the columnMetadataSet in
@@ -40,7 +41,7 @@ public class ExecutionContext {
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
   private final Duration timeSeriesPeriod;
-  private final Duration timeRangeDuration;
+  private Duration timeRangeDuration;
   //  private final String colName;
   // add request handler in execution context
   // add another method in interface getStartTimeAttribute
@@ -50,7 +51,6 @@ public class ExecutionContext {
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
     this.timeSeriesPeriod = setTimeSeriesPeriod(request);
-    this.timeRangeDuration = setTimeRangeDuration(request);
     analyze(request);
   }
 
@@ -74,27 +74,6 @@ public class ExecutionContext {
       }
     }
     return period;
-  }
-
-  private Duration setTimeRangeDuration(QueryRequest request) {
-    AtomicLong lessThanFilter = new AtomicLong(-1);
-    AtomicLong greaterThanFilter = new AtomicLong(-1);
-    String timeFilterColumn = getTimeFilterColumn();
-
-    if (request.getFilter().getChildFilterCount() > 0) {
-      for (Filter filter : request.getFilter().getChildFilterList()) {
-        treeTraversal(filter, lessThanFilter, greaterThanFilter, timeFilterColumn);
-      }
-    }
-
-    if (lessThanFilter.longValue() >= 0 && greaterThanFilter.longValue() >= 0) {
-      return Duration.ofSeconds(
-          TimeUnit.SECONDS.convert(
-              Math.abs(lessThanFilter.longValue() - greaterThanFilter.longValue()),
-              TimeUnit.MILLISECONDS));
-    } else {
-      return Duration.ZERO;
-    }
   }
 
   private void analyze(QueryRequest request) {
@@ -247,9 +226,29 @@ public class ExecutionContext {
     }
   }
 
-  private String getTimeFilterColumn() {
-    // will add implementation in follow up PR
-    return "SERVICE.startTime";
+  public void setTimeRangeDuration(QueryRequest request) {
+    AtomicLong lessThanFilter = new AtomicLong(-1);
+    AtomicLong greaterThanFilter = new AtomicLong(-1);
+
+    if (request.getFilter().getChildFilterCount() > 0) {
+      for (Filter filter : request.getFilter().getChildFilterList()) {
+        treeTraversal(filter, lessThanFilter, greaterThanFilter, this.timeFilterColumn);
+      }
+    }
+
+    if (lessThanFilter.longValue() >= 0 && greaterThanFilter.longValue() >= 0) {
+      this.timeRangeDuration =
+          Duration.ofSeconds(
+              TimeUnit.SECONDS.convert(
+                  Math.abs(lessThanFilter.longValue() - greaterThanFilter.longValue()),
+                  TimeUnit.MILLISECONDS));
+    } else {
+      this.timeRangeDuration = Duration.ZERO;
+    }
+  }
+
+  public void setTimeFilterColumn(String timeFilterColumn) {
+    this.timeFilterColumn = timeFilterColumn;
   }
 
   public String getTenantId() {
