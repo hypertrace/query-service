@@ -33,7 +33,7 @@ public class ExecutionContext {
   private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
   private String timeFilterColumn;
-  private Duration timeRangeDuration;
+  private Duration timeRangeDuration = Duration.ZERO;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
   // There should be a one-to-one mapping between this and the columnMetadataSet in
@@ -191,6 +191,7 @@ public class ExecutionContext {
     switch (timeSeriesPeriod.split("[:]")[1]) {
       case "MILLISECONDS":
         periodInSeconds = Long.parseLong(period) / 1000;
+        break;
       default:
         periodInSeconds = Long.parseLong(period);
     }
@@ -198,17 +199,15 @@ public class ExecutionContext {
   }
 
   private void treeTraversal(
-      Filter filter,
-      AtomicLong lessThanFilter,
-      AtomicLong greaterThanFilter,
-      String timeFilterColumn) {
+      Filter filter, AtomicLong lessThanFilter, AtomicLong greaterThanFilter) {
 
+    // if filter already found, then return
     if (lessThanFilter.longValue() >= 0 && greaterThanFilter.longValue() >= 0) {
       return;
     }
 
     String columnName = filter.getLhs().getColumnIdentifier().getColumnName();
-    if (columnName.equals(timeFilterColumn)) {
+    if (columnName.equals(this.timeFilterColumn)) {
 
       long val = filter.getRhs().getLiteral().getValue().getLong();
       Operator operator = filter.getOperator();
@@ -221,7 +220,7 @@ public class ExecutionContext {
     }
 
     for (Filter childFilter : filter.getChildFilterList()) {
-      treeTraversal(childFilter, lessThanFilter, greaterThanFilter, timeFilterColumn);
+      treeTraversal(childFilter, lessThanFilter, greaterThanFilter);
     }
   }
 
@@ -231,7 +230,7 @@ public class ExecutionContext {
 
     if (request.getFilter().getChildFilterCount() > 0) {
       for (Filter filter : request.getFilter().getChildFilterList()) {
-        treeTraversal(filter, lessThanFilter, greaterThanFilter, this.timeFilterColumn);
+        treeTraversal(filter, lessThanFilter, greaterThanFilter);
       }
     }
 
@@ -241,8 +240,6 @@ public class ExecutionContext {
               TimeUnit.SECONDS.convert(
                   Math.abs(lessThanFilter.longValue() - greaterThanFilter.longValue()),
                   TimeUnit.MILLISECONDS));
-    } else {
-      this.timeRangeDuration = Duration.ZERO;
     }
   }
 
