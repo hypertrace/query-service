@@ -16,6 +16,7 @@ import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
@@ -57,16 +58,15 @@ public class ExecutionContext {
       for (Expression expression : request.getGroupByList()) {
         if (expression.getValueCase() == ValueCase.FUNCTION
             && expression.getFunction().getFunctionName().equals("dateTimeConvert")) {
-          String[] timeSeriesPeriod =
+          String timeSeriesPeriod =
               expression
                   .getFunction()
                   .getArgumentsList()
                   .get(3)
                   .getLiteral()
                   .getValue()
-                  .getString()
-                  .split("[:]");
-          period = Duration.ofSeconds(getPeriodInSeconds(timeSeriesPeriod));
+                  .getString();
+          period = getPeriodInDuration(timeSeriesPeriod);
         }
       }
     }
@@ -184,15 +184,17 @@ public class ExecutionContext {
     }
   }
 
-  private long getPeriodInSeconds(String[] timeSeriesPeriod) {
-    String period = timeSeriesPeriod[0];
+  private Duration getPeriodInDuration(String timeSeriesPeriod) {
+    String period = timeSeriesPeriod.split("[:]")[0];
+    long periodInSeconds;
     // add cases for other units when added
-    switch (timeSeriesPeriod[1]) {
+    switch (timeSeriesPeriod.split("[:]")[1]) {
       case "MILLISECONDS":
-        return Long.parseLong(period) / 1000;
+        periodInSeconds = Long.parseLong(period) / 1000;
       default:
-        return Long.parseLong(period);
+        periodInSeconds = Long.parseLong(period);
     }
+    return Duration.ofSeconds(periodInSeconds);
   }
 
   private void treeTraversal(
@@ -209,11 +211,11 @@ public class ExecutionContext {
     if (columnName.equals(timeFilterColumn)) {
 
       long val = filter.getRhs().getLiteral().getValue().getLong();
-      String operator = filter.getOperator().toString();
+      Operator operator = filter.getOperator();
 
-      if (operator.equals("GE") || operator.equals("GT")) {
+      if (operator == Operator.GE || operator == Operator.GT) {
         greaterThanFilter.set(val);
-      } else if (operator.equals("LE") || operator.equals("LT")) {
+      } else if (operator == Operator.LE || operator == Operator.LT) {
         lessThanFilter.set(val);
       }
     }
@@ -244,8 +246,8 @@ public class ExecutionContext {
     }
   }
 
-  public void setTimeFilterColumn(String timeFilterColumn) {
-    this.timeFilterColumn = timeFilterColumn;
+  public void setTimeFilterColumn(Optional<String> timeFilterColumn) {
+    this.timeFilterColumn = timeFilterColumn.orElse(null);
   }
 
   public String getTenantId() {

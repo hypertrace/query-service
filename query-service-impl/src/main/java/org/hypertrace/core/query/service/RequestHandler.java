@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service;
 
 import io.reactivex.rxjava3.core.Observable;
+import java.util.Optional;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
 
@@ -20,7 +21,7 @@ public interface RequestHandler {
 
   String getName();
 
-  String getTimeFilterColumn();
+  Optional<String> getTimeFilterColumn();
 
   QueryCost canHandle(QueryRequest request, ExecutionContext context);
 
