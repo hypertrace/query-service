@@ -225,7 +225,7 @@ public class ExecutionContext {
     }
   }
 
-  public void setTimeRangeDuration(QueryRequest request) {
+  public void computeTimeRangeDuration(QueryRequest request) {
     AtomicLong lessThanFilter = new AtomicLong(-1);
     AtomicLong greaterThanFilter = new AtomicLong(-1);
 
