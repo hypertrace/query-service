@@ -3,14 +3,15 @@ package org.hypertrace.core.query.service;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
 import org.hypertrace.core.query.service.api.Expression;
@@ -34,7 +35,7 @@ public class ExecutionContext {
   private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
   private String timeFilterColumn;
-  private Duration timeRangeDuration = Duration.ZERO;
+  private Optional<Duration> timeRangeDuration;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
   // There should be a one-to-one mapping between this and the columnMetadataSet in
@@ -192,49 +193,52 @@ public class ExecutionContext {
     return Duration.of(amount, unit);
   }
 
-  private void treeTraversal(
-      Filter filter, AtomicLong lessThanFilter, AtomicLong greaterThanFilter) {
+  private Optional<Duration> findTimeRangeDuration(Filter filter, String timeFilterColumn) {
 
-    // if filter already found, then return
-    if (lessThanFilter.longValue() >= 0 && greaterThanFilter.longValue() >= 0) {
-      return;
+    // time filter will always be present with AND operator
+    if (filter.getOperator() != Operator.AND) {
+      return Optional.empty();
     }
 
-    String columnName = filter.getLhs().getColumnIdentifier().getColumnName();
-    if (columnName.equals(this.timeFilterColumn)) {
+    Optional<Long> timeRangeStart =
+        filter.getChildFilterList().stream()
+            .filter(
+                childFilter ->
+                    this.isMatchingFilter(
+                        childFilter, timeFilterColumn, List.of(Operator.GE, Operator.GT)))
+            .map(matchingFilter -> matchingFilter.getRhs().getLiteral().getValue().getLong())
+            .findFirst();
 
-      long val = filter.getRhs().getLiteral().getValue().getLong();
-      Operator operator = filter.getOperator();
+    Optional<Long> timeRangeEnd =
+        filter.getChildFilterList().stream()
+            .filter(
+                childFilter ->
+                    this.isMatchingFilter(
+                        childFilter, timeFilterColumn, List.of(Operator.LT, Operator.LE)))
+            .map(matchingFilter -> matchingFilter.getRhs().getLiteral().getValue().getLong())
+            .findFirst();
 
-      if (operator == Operator.GE || operator == Operator.GT) {
-        greaterThanFilter.set(val);
-      } else if (operator == Operator.LE || operator == Operator.LT) {
-        lessThanFilter.set(val);
-      }
-    }
-
-    for (Filter childFilter : filter.getChildFilterList()) {
-      treeTraversal(childFilter, lessThanFilter, greaterThanFilter);
-    }
-  }
-
-  public void computeTimeRangeDuration(QueryRequest request) {
-    AtomicLong lessThanFilter = new AtomicLong(-1);
-    AtomicLong greaterThanFilter = new AtomicLong(-1);
-
-    if (request.getFilter().getChildFilterCount() > 0) {
-      for (Filter filter : request.getFilter().getChildFilterList()) {
-        treeTraversal(filter, lessThanFilter, greaterThanFilter);
-      }
-    }
-
-    if (lessThanFilter.longValue() >= 0 && greaterThanFilter.longValue() >= 0) {
-      this.timeRangeDuration =
+    if (timeRangeStart.isPresent() && timeRangeEnd.isPresent()) {
+      return Optional.of(
           Duration.ofSeconds(
               TimeUnit.SECONDS.convert(
-                  Math.abs(lessThanFilter.longValue() - greaterThanFilter.longValue()),
-                  TimeUnit.MILLISECONDS));
+                  timeRangeEnd.get() - timeRangeStart.get(), TimeUnit.MILLISECONDS)));
     }
+
+    return filter.getChildFilterList().stream()
+        .map(childFilter -> this.findTimeRangeDuration(childFilter, timeFilterColumn))
+        .flatMap(Optional::stream)
+        .findFirst();
+  }
+
+  private boolean isMatchingFilter(Filter filter, String column, Collection<Operator> operators) {
+    return column.equals(filter.getLhs().getColumnIdentifier().getColumnName())
+        && (operators.stream()
+            .anyMatch(operator -> Objects.equals(operator, filter.getOperator())));
+  }
+
+  public void computeTimeRangeDuration(QueryRequest queryRequest) {
+    this.timeRangeDuration = findTimeRangeDuration(queryRequest.getFilter(), this.timeFilterColumn);
   }
 
   public void setTimeFilterColumn(String timeFilterColumn) {
@@ -266,6 +270,6 @@ public class ExecutionContext {
   }
 
   public Duration getTimeRangeDuration() {
-    return this.timeRangeDuration;
+    return this.timeRangeDuration.get();
   }
 }
