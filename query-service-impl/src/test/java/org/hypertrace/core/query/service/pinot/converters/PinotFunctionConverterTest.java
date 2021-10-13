@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.pinot.converters;
 
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG_RATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_DISTINCTCOUNT;
@@ -11,12 +12,15 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createIntLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -32,7 +36,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PinotFunctionConverterTest {
 
   @Mock java.util.function.Function<Expression, String> mockArgumentConverter;
-
+  @Mock ExecutionContext mockingExecutionContext;
   ExecutionContext testExecutionContext =
       new ExecutionContext("__default", QueryRequest.newBuilder().build());
 
@@ -196,6 +200,47 @@ class PinotFunctionConverterTest {
             .convert(
                 testExecutionContext,
                 buildFunction(QUERY_FUNCTION_CONCAT, column1.toBuilder(), column2.toBuilder()),
+                this.mockArgumentConverter));
+  }
+
+  @Test
+  void convertAvgRateFunction() {
+    Expression column1 = createColumnExpression("foo").build();
+    Expression column2 = createStringLiteralValueExpression("PT2S");
+
+    when(this.mockArgumentConverter.apply(column1)).thenReturn("foo");
+    when(this.mockingExecutionContext.getTimeSeriesPeriod())
+        .thenReturn(Optional.of(Duration.ofSeconds(10)));
+
+    assertEquals(
+        "SUM(DIV(foo, 5.0))",
+        new PinotFunctionConverter()
+            .convert(
+                mockingExecutionContext,
+                buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                this.mockArgumentConverter));
+
+    when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
+    when(this.mockingExecutionContext.getTimeRangeDuration()).thenReturn(Duration.ofSeconds(10));
+
+    assertEquals(
+        "SUM(DIV(foo, 5.0))",
+        new PinotFunctionConverter()
+            .convert(
+                mockingExecutionContext,
+                buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                this.mockArgumentConverter));
+
+    when(this.mockingExecutionContext.getTimeSeriesPeriod())
+        .thenReturn(Optional.of(Duration.ofSeconds(20)));
+    when(this.mockingExecutionContext.getTimeRangeDuration()).thenReturn(Duration.ofSeconds(10));
+
+    assertEquals(
+        "SUM(DIV(foo, 10.0))",
+        new PinotFunctionConverter()
+            .convert(
+                mockingExecutionContext,
+                buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
                 this.mockArgumentConverter));
   }
 
