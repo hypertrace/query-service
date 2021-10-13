@@ -140,7 +140,7 @@ public class ExecutionContextTest {
 
   @Test
   public void testReferencedColumns() {
-    long currentTimeInMillis =
+    long startTimeInMillis =
         Instant.ofEpochSecond(TimeUnit.SECONDS.convert(1, TimeUnit.HOURS)).toEpochMilli();
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(
@@ -160,10 +160,12 @@ public class ExecutionContextTest {
             .setOperator(Operator.EQ);
     Filter startTimeFilter =
         QueryRequestBuilderUtils.createTimeFilter(
-            "Trace.start_time_millis", Operator.GT, currentTimeInMillis - 1000 * 60 * 60 * 24);
+            "Trace.start_time_millis",
+            Operator.GT,
+            startTimeInMillis - Duration.ofHours(24).toMillis());
     Filter endTimeFilter =
         QueryRequestBuilderUtils.createTimeFilter(
-            "Trace.end_time_millis", Operator.LT, currentTimeInMillis);
+            "Trace.end_time_millis", Operator.LT, startTimeInMillis);
 
     Filter andFilter =
         Filter.newBuilder()
@@ -360,7 +362,7 @@ public class ExecutionContextTest {
   }
 
   @Test
-  public void testSetTimeSeriesPeriodInMilliSecondsForTimeSeriesRequest() {
+  public void testSetTimeSeriesPeriodInMillisecondsForTimeSeriesRequest() {
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(
         Expression.newBuilder()
@@ -377,11 +379,11 @@ public class ExecutionContextTest {
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     context.setTimeFilterColumn("SERVICE.startTime");
     context.computeTimeRangeDuration(queryRequest);
-    assertEquals(3600, context.getTimeRangeDuration().get().getSeconds());
+    assertEquals(Optional.of(Duration.ofMinutes(60)), context.getTimeRangeDuration());
   }
 
   private static QueryRequest getQueryRequestWithTimeFilter(Duration timeRange) {
-    long currentTimeInMillis =
+    long startTimeInMillis =
         Instant.ofEpochSecond(TimeUnit.SECONDS.convert(1, TimeUnit.HOURS)).toEpochMilli();
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(
@@ -393,9 +395,9 @@ public class ExecutionContextTest {
             "SERVICE.startTime",
             Operator.GE,
             ValueType.LONG,
-            currentTimeInMillis - timeRange.toMillis());
+            startTimeInMillis - timeRange.toMillis());
     Filter filter2 =
-        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, currentTimeInMillis);
+        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, startTimeInMillis);
     Filter filter3 = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
 
     builder.setFilter(

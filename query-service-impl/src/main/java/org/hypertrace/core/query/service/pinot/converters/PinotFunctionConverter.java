@@ -87,7 +87,8 @@ public class PinotFunctionConverter {
     long aggregateIntervalInSeconds =
         (executionContext
                 .getTimeSeriesPeriod()
-                .orElseGet(() -> executionContext.getTimeRangeDuration().get()))
+                .or(executionContext::getTimeRangeDuration)
+                .orElseThrow(RuntimeException::new))
             .getSeconds();
 
     return String.format(

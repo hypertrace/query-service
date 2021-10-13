@@ -56,7 +56,6 @@ public class ExecutionContext {
   }
 
   private Optional<Duration> calculateTimeSeriesPeriod(QueryRequest request) {
-    Duration period = Duration.ZERO;
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
         if (expression.getValueCase() == ValueCase.FUNCTION
@@ -69,11 +68,11 @@ public class ExecutionContext {
                   .getLiteral()
                   .getValue()
                   .getString();
-          period = parseDuration(timeSeriesPeriod);
+          return Optional.of(parseDuration(timeSeriesPeriod));
         }
       }
     }
-    return period.isZero() ? Optional.empty() : Optional.of(period);
+    return Optional.empty();
   }
 
   private void analyze(QueryRequest request) {

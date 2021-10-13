@@ -223,10 +223,10 @@ class PinotFunctionConverterTest {
 
     when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
     when(this.mockingExecutionContext.getTimeRangeDuration())
-        .thenReturn(Optional.of(Duration.ofSeconds(1)));
+        .thenReturn(Optional.of(Duration.ofSeconds(20)));
 
     assertEquals(
-        "SUM(DIV(foo, 0.2))",
+        "SUM(DIV(foo, 4.0))",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
