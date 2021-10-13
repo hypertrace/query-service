@@ -20,6 +20,7 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
 import org.hypertrace.core.query.service.api.Value;
+import org.hypertrace.core.query.service.api.ValueType;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -356,6 +357,41 @@ public class ExecutionContextTest {
     assertEquals(Optional.of(Duration.ofSeconds(15)), context.getTimeSeriesPeriod());
   }
 
+  @Test
+  public void testComputeTimeRangeDuration() {
+    QueryRequest queryRequest = getQueryRequestWithTimeFilter();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
+    context.setTimeFilterColumn("SERVICE.startTime");
+    context.computeTimeRangeDuration(queryRequest);
+    assertEquals(Duration.ofSeconds(3600), context.getTimeRangeDuration());
+  }
+
+  private static QueryRequest getQueryRequestWithTimeFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addGroupBy(
+        Expression.newBuilder()
+            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", 15))
+            .build());
+    Filter filter1 =
+        createFilter(
+            "SERVICE.startTime",
+            Operator.GE,
+            ValueType.LONG,
+            System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+    Filter filter2 =
+        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, System.currentTimeMillis());
+    Filter filter3 = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
+
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(filter1)
+            .addChildFilter(filter2)
+            .addChildFilter(filter3)
+            .build());
+    return builder.build();
+  }
+
   private static Function.Builder createTimeColumnGroupByFunction(
       String timeColumn, long periodSecs) {
     return Function.newBuilder()
@@ -381,5 +417,27 @@ public class ExecutionContextTest {
   private static Expression.Builder createColumnExpression(String columnName) {
     return Expression.newBuilder()
         .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
+  }
+
+  private static Filter createFilter(
+      String columnName, Operator op, ValueType valueType, Object valueObject) {
+    ColumnIdentifier startTimeColumn =
+        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
+    Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
+
+    Value value = Value.newBuilder().setValueType(valueType).buildPartial();
+    switch (valueType) {
+      case LONG:
+        value = Value.newBuilder(value).setLong((long) valueObject).build();
+        break;
+      case INT:
+        value = Value.newBuilder(value).setInt((int) valueObject).build();
+        break;
+      case STRING:
+        value = Value.newBuilder(value).setString((String) valueObject).build();
+    }
+    LiteralConstant constant = LiteralConstant.newBuilder().setValue(value).build();
+    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
+    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
   }
 }
