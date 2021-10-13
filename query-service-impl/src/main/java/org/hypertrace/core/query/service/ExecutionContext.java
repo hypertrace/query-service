@@ -51,11 +51,11 @@ public class ExecutionContext {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
-    this.timeSeriesPeriod = setTimeSeriesPeriod(request);
+    this.timeSeriesPeriod = calculateTimeSeriesPeriod(request);
     analyze(request);
   }
 
-  private Duration setTimeSeriesPeriod(QueryRequest request) {
+  private Duration calculateTimeSeriesPeriod(QueryRequest request) {
     Duration period = Duration.ZERO;
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
@@ -220,10 +220,7 @@ public class ExecutionContext {
             .findFirst();
 
     if (timeRangeStart.isPresent() && timeRangeEnd.isPresent()) {
-      return Optional.of(
-          Duration.ofSeconds(
-              TimeUnit.SECONDS.convert(
-                  timeRangeEnd.get() - timeRangeStart.get(), TimeUnit.MILLISECONDS)));
+      return Optional.of(Duration.ofMillis(timeRangeEnd.get() - timeRangeStart.get()));
     }
 
     return filter.getChildFilterList().stream()

@@ -363,7 +363,7 @@ public class ExecutionContextTest {
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     context.setTimeFilterColumn("SERVICE.startTime");
     context.computeTimeRangeDuration(queryRequest);
-    assertEquals(Duration.ofSeconds(3600), context.getTimeRangeDuration().get());
+    assertEquals(3600, context.getTimeRangeDuration().get().getSeconds());
   }
 
   private static QueryRequest getQueryRequestWithTimeFilter() {

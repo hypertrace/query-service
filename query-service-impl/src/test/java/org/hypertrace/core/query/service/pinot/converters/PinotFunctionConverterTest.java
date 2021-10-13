@@ -207,14 +207,14 @@ class PinotFunctionConverterTest {
   @Test
   void convertAvgRateFunction() {
     Expression column1 = createColumnExpression("foo").build();
-    Expression column2 = createStringLiteralValueExpression("PT2S");
+    Expression column2 = createStringLiteralValueExpression("PT5S");
 
     when(this.mockArgumentConverter.apply(column1)).thenReturn("foo");
     when(this.mockingExecutionContext.getTimeSeriesPeriod())
         .thenReturn(Optional.of(Duration.ofSeconds(10)));
 
     assertEquals(
-        "SUM(DIV(foo, 5.0))",
+        "SUM(DIV(foo, 2.0))",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
@@ -223,10 +223,10 @@ class PinotFunctionConverterTest {
 
     when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
     when(this.mockingExecutionContext.getTimeRangeDuration())
-        .thenReturn(Optional.of(Duration.ofSeconds(10)));
+        .thenReturn(Optional.of(Duration.ofSeconds(1)));
 
     assertEquals(
-        "SUM(DIV(foo, 5.0))",
+        "SUM(DIV(foo, 0.2))",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
