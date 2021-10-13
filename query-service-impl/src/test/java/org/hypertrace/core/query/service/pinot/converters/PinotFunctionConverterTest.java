@@ -222,22 +222,11 @@ class PinotFunctionConverterTest {
                 this.mockArgumentConverter));
 
     when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
-    when(this.mockingExecutionContext.getTimeRangeDuration()).thenReturn(Duration.ofSeconds(10));
+    when(this.mockingExecutionContext.getTimeRangeDuration())
+        .thenReturn(Optional.of(Duration.ofSeconds(10)));
 
     assertEquals(
         "SUM(DIV(foo, 5.0))",
-        new PinotFunctionConverter()
-            .convert(
-                mockingExecutionContext,
-                buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
-                this.mockArgumentConverter));
-
-    when(this.mockingExecutionContext.getTimeSeriesPeriod())
-        .thenReturn(Optional.of(Duration.ofSeconds(20)));
-    when(this.mockingExecutionContext.getTimeRangeDuration()).thenReturn(Duration.ofSeconds(10));
-
-    assertEquals(
-        "SUM(DIV(foo, 10.0))",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,

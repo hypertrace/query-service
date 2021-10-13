@@ -85,7 +85,9 @@ public class PinotFunctionConverter {
         function.getArgumentsList().get(1).getLiteral().getValue().getString();
     long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
     long aggregateIntervalInSeconds =
-        (executionContext.getTimeSeriesPeriod().orElse(executionContext.getTimeRangeDuration()))
+        (executionContext
+                .getTimeSeriesPeriod()
+                .orElseGet(() -> executionContext.getTimeRangeDuration().get()))
             .getSeconds();
 
     return String.format(

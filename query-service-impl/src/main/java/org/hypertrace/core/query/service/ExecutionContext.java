@@ -34,7 +34,8 @@ public class ExecutionContext {
   private Set<String> referencedColumns;
   private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
-  private String timeFilterColumn;
+  // default value null
+  private String timeFilterColumn = null;
   private Optional<Duration> timeRangeDuration;
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
@@ -269,7 +270,7 @@ public class ExecutionContext {
     return this.timeSeriesPeriod.isZero() ? Optional.empty() : Optional.of(this.timeSeriesPeriod);
   }
 
-  public Duration getTimeRangeDuration() {
-    return this.timeRangeDuration.get();
+  public Optional<Duration> getTimeRangeDuration() {
+    return this.timeRangeDuration;
   }
 }
