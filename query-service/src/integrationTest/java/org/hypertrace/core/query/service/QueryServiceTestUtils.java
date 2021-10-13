@@ -8,7 +8,6 @@ import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
-import org.hypertrace.core.query.service.util.QueryRequestUtil;
 
 public class QueryServiceTestUtils {
 
@@ -38,7 +37,7 @@ public class QueryServiceTestUtils {
       String timeColumn, long periodSecs) {
     return Function.newBuilder()
         .setFunctionName("dateTimeConvert")
-        .addArguments(QueryRequestUtil.createColumnExpression(timeColumn))
+        .addArguments(createColumnExpression(timeColumn))
         .addArguments(
             Expression.newBuilder()
                 .setLiteral(
@@ -62,5 +61,10 @@ public class QueryServiceTestUtils {
 
   public static ColumnIdentifier createColumnIdentifier(String columnName, String alias) {
     return ColumnIdentifier.newBuilder().setColumnName(columnName).setAlias(alias).build();
+  }
+
+  public static Expression.Builder createColumnExpression(String columnName) {
+    return Expression.newBuilder()
+        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
   }
 }

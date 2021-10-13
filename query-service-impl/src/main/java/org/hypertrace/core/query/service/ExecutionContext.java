@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -66,7 +67,7 @@ public class ExecutionContext {
                   .getLiteral()
                   .getValue()
                   .getString();
-          period = getPeriodInDuration(timeSeriesPeriod);
+          period = parseDuration(timeSeriesPeriod);
         }
       }
     }
@@ -184,18 +185,11 @@ public class ExecutionContext {
     }
   }
 
-  private Duration getPeriodInDuration(String timeSeriesPeriod) {
-    String period = timeSeriesPeriod.split("[:]")[0];
-    long periodInSeconds;
-    // add cases for other units when added
-    switch (timeSeriesPeriod.split("[:]")[1]) {
-      case "MILLISECONDS":
-        periodInSeconds = Long.parseLong(period) / 1000;
-        break;
-      default:
-        periodInSeconds = Long.parseLong(period);
-    }
-    return Duration.ofSeconds(periodInSeconds);
+  private Duration parseDuration(String timeSeriesPeriod) {
+    String[] splitPeriodString = timeSeriesPeriod.split(":");
+    long amount = Long.parseLong(splitPeriodString[0]);
+    ChronoUnit unit = TimeUnit.valueOf(splitPeriodString[1]).toChronoUnit();
+    return Duration.of(amount, unit);
   }
 
   private void treeTraversal(
@@ -243,8 +237,8 @@ public class ExecutionContext {
     }
   }
 
-  public void setTimeFilterColumn(Optional<String> timeFilterColumn) {
-    this.timeFilterColumn = timeFilterColumn.orElse(null);
+  public void setTimeFilterColumn(String timeFilterColumn) {
+    this.timeFilterColumn = timeFilterColumn;
   }
 
   public String getTenantId() {
