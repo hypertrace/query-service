@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.google.common.collect.ImmutableSet;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
@@ -138,6 +140,8 @@ public class ExecutionContextTest {
 
   @Test
   public void testReferencedColumns() {
+    long currentTimeInMillis =
+        Instant.ofEpochSecond(TimeUnit.SECONDS.convert(1, TimeUnit.HOURS)).toEpochMilli();
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(
         Expression.newBuilder()
@@ -156,12 +160,10 @@ public class ExecutionContextTest {
             .setOperator(Operator.EQ);
     Filter startTimeFilter =
         QueryRequestBuilderUtils.createTimeFilter(
-            "Trace.start_time_millis",
-            Operator.GT,
-            System.currentTimeMillis() - 1000 * 60 * 60 * 24);
+            "Trace.start_time_millis", Operator.GT, currentTimeInMillis - 1000 * 60 * 60 * 24);
     Filter endTimeFilter =
         QueryRequestBuilderUtils.createTimeFilter(
-            "Trace.end_time_millis", Operator.LT, System.currentTimeMillis());
+            "Trace.end_time_millis", Operator.LT, currentTimeInMillis);
 
     Filter andFilter =
         Filter.newBuilder()
@@ -379,8 +381,8 @@ public class ExecutionContextTest {
   }
 
   private static QueryRequest getQueryRequestWithTimeFilter(Duration timeRange) {
-    //    long currentTimeInMillis = Instant.ofEpochSecond(TimeUnit.SECONDS.convert(1,
-    //        TimeUnit.HOURS)).toEpochMilli();
+    long currentTimeInMillis =
+        Instant.ofEpochSecond(TimeUnit.SECONDS.convert(1, TimeUnit.HOURS)).toEpochMilli();
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(
         Expression.newBuilder()
@@ -391,9 +393,9 @@ public class ExecutionContextTest {
             "SERVICE.startTime",
             Operator.GE,
             ValueType.LONG,
-            System.currentTimeMillis() - timeRange.toMillis());
+            currentTimeInMillis - timeRange.toMillis());
     Filter filter2 =
-        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, System.currentTimeMillis());
+        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, currentTimeInMillis);
     Filter filter3 = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
 
     builder.setFilter(
