@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.google.common.collect.ImmutableSet;
+import java.time.Duration;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.Set;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
@@ -307,5 +309,77 @@ public class ExecutionContextTest {
     assertEquals(Expression.newBuilder().setFunction(count).build(), selectionsIterator.next());
     assertEquals(
         Expression.newBuilder().setFunction(minFunction).build(), selectionsIterator.next());
+  }
+
+  @Test
+  public void testSetTimeSeriesPeriod() {
+
+    // no group by
+    Builder builder = QueryRequest.newBuilder();
+    QueryRequest queryRequest = builder.build();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
+    assertEquals(Optional.empty(), context.getTimeSeriesPeriod());
+
+    // group by on column
+    builder.addGroupBy(
+        Expression.newBuilder()
+            .setColumnIdentifier(
+                ColumnIdentifier.newBuilder().setColumnName("Trace.service_name")));
+    queryRequest = builder.build();
+    context = new ExecutionContext("test", queryRequest);
+    assertEquals(Optional.empty(), context.getTimeSeriesPeriod());
+
+    // group by on other functions
+    Function count =
+        Function.newBuilder()
+            .setFunctionName("Count")
+            .setAlias("myCountAlias")
+            .addArguments(
+                Expression.newBuilder()
+                    .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName("Trace.id")))
+            .build();
+    builder.addGroupBy(Expression.newBuilder().setFunction(count));
+    queryRequest = builder.build();
+    context = new ExecutionContext("test", queryRequest);
+    assertEquals(Optional.empty(), context.getTimeSeriesPeriod());
+  }
+
+  @Test
+  public void testSetTimeSeriesPeriodForTimeSeriesRequest() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addGroupBy(
+        Expression.newBuilder()
+            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", 15))
+            .build());
+    QueryRequest queryRequest = builder.build();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
+    assertEquals(Optional.of(Duration.ofSeconds(15)), context.getTimeSeriesPeriod());
+  }
+
+  private static Function.Builder createTimeColumnGroupByFunction(
+      String timeColumn, long periodSecs) {
+    return Function.newBuilder()
+        .setFunctionName("dateTimeConvert")
+        .addArguments(createColumnExpression(timeColumn))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString(periodSecs + ":SECONDS"))));
+  }
+
+  private static Expression.Builder createColumnExpression(String columnName) {
+    return Expression.newBuilder()
+        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
   }
 }
