@@ -346,11 +346,23 @@ public class ExecutionContextTest {
   }
 
   @Test
-  public void testSetTimeSeriesPeriodForTimeSeriesRequest() {
+  public void testSetTimeSeriesPeriodInSecondsForTimeSeriesRequest() {
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(
         Expression.newBuilder()
-            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", 15))
+            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
+            .build());
+    QueryRequest queryRequest = builder.build();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
+    assertEquals(Optional.of(Duration.ofSeconds(15)), context.getTimeSeriesPeriod());
+  }
+
+  @Test
+  public void testSetTimeSeriesPeriodInMilliSecondsForTimeSeriesRequest() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addGroupBy(
+        Expression.newBuilder()
+            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15000:MILLISECONDS"))
             .build());
     QueryRequest queryRequest = builder.build();
     ExecutionContext context = new ExecutionContext("test", queryRequest);
@@ -359,25 +371,27 @@ public class ExecutionContextTest {
 
   @Test
   public void testComputeTimeRangeDuration() {
-    QueryRequest queryRequest = getQueryRequestWithTimeFilter();
+    QueryRequest queryRequest = getQueryRequestWithTimeFilter(Duration.ofMinutes(60));
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     context.setTimeFilterColumn("SERVICE.startTime");
     context.computeTimeRangeDuration(queryRequest);
     assertEquals(3600, context.getTimeRangeDuration().get().getSeconds());
   }
 
-  private static QueryRequest getQueryRequestWithTimeFilter() {
+  private static QueryRequest getQueryRequestWithTimeFilter(Duration timeRange) {
+    //    long currentTimeInMillis = Instant.ofEpochSecond(TimeUnit.SECONDS.convert(1,
+    //        TimeUnit.HOURS)).toEpochMilli();
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(
         Expression.newBuilder()
-            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", 15))
+            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
             .build());
     Filter filter1 =
         createFilter(
             "SERVICE.startTime",
             Operator.GE,
             ValueType.LONG,
-            System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+            System.currentTimeMillis() - timeRange.toMillis());
     Filter filter2 =
         createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, System.currentTimeMillis());
     Filter filter3 = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
@@ -393,7 +407,7 @@ public class ExecutionContextTest {
   }
 
   private static Function.Builder createTimeColumnGroupByFunction(
-      String timeColumn, long periodSecs) {
+      String timeColumn, String periodSecs) {
     return Function.newBuilder()
         .setFunctionName("dateTimeConvert")
         .addArguments(createColumnExpression(timeColumn))
@@ -411,7 +425,7 @@ public class ExecutionContextTest {
             Expression.newBuilder()
                 .setLiteral(
                     LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString(periodSecs + ":SECONDS"))));
+                        .setValue(Value.newBuilder().setString(periodSecs))));
   }
 
   private static Expression.Builder createColumnExpression(String columnName) {

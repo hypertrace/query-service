@@ -45,7 +45,7 @@ public class ExecutionContext {
   // while the selectedColumns
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
-  private final Duration timeSeriesPeriod;
+  private final Optional<Duration> timeSeriesPeriod;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
@@ -55,7 +55,7 @@ public class ExecutionContext {
     analyze(request);
   }
 
-  private Duration calculateTimeSeriesPeriod(QueryRequest request) {
+  private Optional<Duration> calculateTimeSeriesPeriod(QueryRequest request) {
     Duration period = Duration.ZERO;
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
@@ -73,7 +73,7 @@ public class ExecutionContext {
         }
       }
     }
-    return period;
+    return period.isZero() ? Optional.empty() : Optional.of(period);
   }
 
   private void analyze(QueryRequest request) {
@@ -264,7 +264,7 @@ public class ExecutionContext {
   }
 
   public Optional<Duration> getTimeSeriesPeriod() {
-    return this.timeSeriesPeriod.isZero() ? Optional.empty() : Optional.of(this.timeSeriesPeriod);
+    return this.timeSeriesPeriod;
   }
 
   public Optional<Duration> getTimeRangeDuration() {
