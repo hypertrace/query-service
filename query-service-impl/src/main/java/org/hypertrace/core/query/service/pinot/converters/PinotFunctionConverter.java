@@ -6,6 +6,7 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_PERCENTILE;
 
 import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -170,7 +171,13 @@ public class PinotFunctionConverter {
   }
 
   private static long isoDurationToSeconds(String duration) {
-    Duration d = java.time.Duration.parse(duration);
-    return d.get(ChronoUnit.SECONDS);
+    try {
+      Duration d = java.time.Duration.parse(duration);
+      return d.get(ChronoUnit.SECONDS);
+    } catch (DateTimeParseException ex) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unsupported string format for duration: %s, expects iso string format", duration));
+    }
   }
 }

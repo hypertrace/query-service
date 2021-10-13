@@ -27,6 +27,7 @@ import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.Builder;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.QueryRequest;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -242,6 +243,24 @@ class PinotFunctionConverterTest {
                 mockingExecutionContext,
                 buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
                 this.mockArgumentConverter));
+  }
+
+  @Test
+  void testIllegalDurationFormat() {
+    Expression column1 = createColumnExpression("foo").build();
+    Expression column2 = createStringLiteralValueExpression("2S");
+
+    when(this.mockArgumentConverter.apply(column1)).thenReturn("foo");
+
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new PinotFunctionConverter()
+                .convert(
+                    mockingExecutionContext,
+                    buildFunction(
+                        QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                    this.mockArgumentConverter));
   }
 
   private Function buildFunction(String name, Builder... arguments) {
