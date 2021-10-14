@@ -1,9 +1,10 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.getQueryRequestWithTimeFilter1;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.getQueryRequestWithTimeFilter2;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.getQueryRequestWithTimeFilter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -401,8 +402,37 @@ public class ExecutionContextTest {
   }
 
   private static Stream<Arguments> provideQueryRequest() {
+
+    long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
+    long endTimeInMillis = startTimeInMillis + Duration.ofMinutes(60).toMillis();
+
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, startTimeInMillis);
+    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, endTimeInMillis);
+    Filter idFilter =
+        createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
+
+    Filter filter1 =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .addChildFilter(idFilter)
+            .build();
+
+    Filter filter2 =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(idFilter)
+            .addChildFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .build();
+
     return Stream.of(
-        Arguments.arguments(getQueryRequestWithTimeFilter1(Duration.ofMinutes(60))),
-        Arguments.arguments(getQueryRequestWithTimeFilter2(Duration.ofMinutes(60))));
+        Arguments.arguments(getQueryRequestWithTimeFilter(filter1)),
+        Arguments.arguments(getQueryRequestWithTimeFilter(filter2)));
   }
 }

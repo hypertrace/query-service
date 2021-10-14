@@ -1,9 +1,7 @@
 package org.hypertrace.core.query.service;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -209,48 +207,10 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
-  public static QueryRequest getQueryRequestWithTimeFilter1(Duration timeRangeDuration) {
-    long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
+  public static QueryRequest getQueryRequestWithTimeFilter(Filter filter) {
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
-    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, startTimeInMillis);
-    Filter endTimeFilter =
-        createTimeFilter(
-            "SERVICE.startTime", Operator.LT, startTimeInMillis + timeRangeDuration.toMillis());
-    Filter idFilter =
-        createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
-    builder.setFilter(
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(startTimeFilter)
-            .addChildFilter(endTimeFilter)
-            .addChildFilter(idFilter)
-            .build());
-    return builder.build();
-  }
-
-  public static QueryRequest getQueryRequestWithTimeFilter2(Duration timeRangeDuration) {
-    long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
-    Builder builder = QueryRequest.newBuilder();
-    builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
-    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, startTimeInMillis);
-    Filter endTimeFilter =
-        createTimeFilter(
-            "SERVICE.startTime", Operator.LT, startTimeInMillis + timeRangeDuration.toMillis());
-    Filter idFilter =
-        createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
-
-    builder.setFilter(
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(idFilter)
-            .addChildFilter(
-                Filter.newBuilder()
-                    .setOperator(Operator.AND)
-                    .addChildFilter(startTimeFilter)
-                    .addChildFilter(endTimeFilter)
-                    .build())
-            .build());
+    builder.setFilter(filter);
     return builder.build();
   }
 }
