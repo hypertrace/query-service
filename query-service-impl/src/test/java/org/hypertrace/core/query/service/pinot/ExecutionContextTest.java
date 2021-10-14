@@ -1,7 +1,9 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByFunction;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -12,7 +14,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.query.service.ExecutionContext;
-import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -23,7 +24,6 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
 import org.hypertrace.core.query.service.api.Value;
-import org.hypertrace.core.query.service.api.ValueType;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,13 +159,11 @@ public class ExecutionContextTest {
             .setRhs(expression)
             .setOperator(Operator.EQ);
     Filter startTimeFilter =
-        QueryRequestBuilderUtils.createTimeFilter(
+        createTimeFilter(
             "Trace.start_time_millis",
             Operator.GT,
             endTimeInMillis - Duration.ofHours(24).toMillis());
-    Filter endTimeFilter =
-        QueryRequestBuilderUtils.createTimeFilter(
-            "Trace.end_time_millis", Operator.LT, endTimeInMillis);
+    Filter endTimeFilter = createTimeFilter("Trace.end_time_millis", Operator.LT, endTimeInMillis);
 
     Filter andFilter =
         Filter.newBuilder()
@@ -388,22 +386,17 @@ public class ExecutionContextTest {
         Expression.newBuilder()
             .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
             .build());
-    Filter filter1 =
-        createFilter(
-            "SERVICE.startTime",
-            Operator.GE,
-            ValueType.LONG,
-            endTimeInMillis - timeRange.toMillis());
-    Filter filter2 =
-        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, endTimeInMillis);
-    Filter filter3 = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
-
+    Filter startTimeFilter =
+        createTimeFilter("SERVICE.startTime", Operator.GE, endTimeInMillis - timeRange.toMillis());
+    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, endTimeInMillis);
+    Filter idFilter =
+        createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
     builder.setFilter(
         Filter.newBuilder()
             .setOperator(Operator.AND)
-            .addChildFilter(filter1)
-            .addChildFilter(filter2)
-            .addChildFilter(filter3)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .addChildFilter(idFilter)
             .build());
     return builder.build();
   }
