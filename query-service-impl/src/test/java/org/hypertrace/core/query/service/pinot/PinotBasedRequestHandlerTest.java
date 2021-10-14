@@ -1400,6 +1400,7 @@ public class PinotBasedRequestHandlerTest {
   }
 
   private static Stream<Arguments> provideHandlerValue() {
+    // test with more configs later
     return Stream.of(Arguments.arguments(0, "Trace.start_time_millis"));
   }
 

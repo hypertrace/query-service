@@ -1,7 +1,9 @@
 package org.hypertrace.core.query.service;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -10,6 +12,8 @@ import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
+import org.hypertrace.core.query.service.api.QueryRequest;
+import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
@@ -181,23 +185,72 @@ public class QueryRequestBuilderUtils {
         .setExpression(createColumnExpression(columnName));
   }
 
-  public static Function.Builder createTimeColumnGroupByFunction(String timeColumn, String period) {
-    return Function.newBuilder()
-        .setFunctionName("dateTimeConvert")
-        .addArguments(createColumnExpression(timeColumn))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder().setValue(Value.newBuilder().setString(period))));
+  public static Expression createTimeColumnGroupByExpression(String timeColumn, String period) {
+    return Expression.newBuilder()
+        .setFunction(
+            Function.newBuilder()
+                .setFunctionName("dateTimeConvert")
+                .addArguments(createColumnExpression(timeColumn))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString(period)))))
+        .build();
+  }
+
+  public static QueryRequest getQueryRequestWithTimeFilter1(Duration timeRangeDuration) {
+    long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
+    Builder builder = QueryRequest.newBuilder();
+    builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, startTimeInMillis);
+    Filter endTimeFilter =
+        createTimeFilter(
+            "SERVICE.startTime", Operator.LT, startTimeInMillis + timeRangeDuration.toMillis());
+    Filter idFilter =
+        createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .addChildFilter(idFilter)
+            .build());
+    return builder.build();
+  }
+
+  public static QueryRequest getQueryRequestWithTimeFilter2(Duration timeRangeDuration) {
+    long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
+    Builder builder = QueryRequest.newBuilder();
+    builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, startTimeInMillis);
+    Filter endTimeFilter =
+        createTimeFilter(
+            "SERVICE.startTime", Operator.LT, startTimeInMillis + timeRangeDuration.toMillis());
+    Filter idFilter =
+        createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
+
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(idFilter)
+            .addChildFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .build());
+    return builder.build();
   }
 }

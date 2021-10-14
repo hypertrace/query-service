@@ -1,9 +1,9 @@
 package org.hypertrace.core.query.service.pinot;
 
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByFunction;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.getQueryRequestWithTimeFilter1;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.getQueryRequestWithTimeFilter2;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -25,6 +26,9 @@ import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
 import org.hypertrace.core.query.service.api.Value;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -350,56 +354,55 @@ public class ExecutionContextTest {
 
   @Test
   public void testSetTimeSeriesPeriodInSecondsForTimeSeriesRequest() {
-    Builder builder = QueryRequest.newBuilder();
-    builder.addGroupBy(
-        Expression.newBuilder()
-            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
-            .build());
-    QueryRequest queryRequest = builder.build();
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"))
+            .build();
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     assertEquals(Optional.of(Duration.ofSeconds(15)), context.getTimeSeriesPeriod());
   }
 
   @Test
   public void testSetTimeSeriesPeriodInMillisecondsForTimeSeriesRequest() {
-    Builder builder = QueryRequest.newBuilder();
-    builder.addGroupBy(
-        Expression.newBuilder()
-            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15000:MILLISECONDS"))
-            .build());
-    QueryRequest queryRequest = builder.build();
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addGroupBy(
+                createTimeColumnGroupByExpression("SERVICE.startTime", "15000:MILLISECONDS"))
+            .build();
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     assertEquals(Optional.of(Duration.ofSeconds(15)), context.getTimeSeriesPeriod());
   }
 
   @Test
-  public void testComputeTimeRangeDuration() {
-    QueryRequest queryRequest = getQueryRequestWithTimeFilter(Duration.ofMinutes(60));
+  public void testEmptyGetTimeRangeDuration() {
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.OR)
+                    .addChildFilter(
+                        createTimeFilter(
+                            "SERVICE.startTime",
+                            Operator.GE,
+                            TimeUnit.MILLISECONDS.convert(Duration.ofHours(1))))
+                    .build())
+            .build();
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
+    context.setTimeFilterColumn("SERVICE.startTime");
+    assertEquals(Optional.empty(), context.getTimeRangeDuration());
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideQueryRequest")
+  public void testGetTimeRangeDuration(QueryRequest queryRequest) {
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     context.setTimeFilterColumn("SERVICE.startTime");
     assertEquals(Optional.of(Duration.ofMinutes(60)), context.getTimeRangeDuration());
   }
 
-  private static QueryRequest getQueryRequestWithTimeFilter(Duration timeRangeDuration) {
-    long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
-    Builder builder = QueryRequest.newBuilder();
-    builder.addGroupBy(
-        Expression.newBuilder()
-            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
-            .build());
-    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, startTimeInMillis);
-    Filter endTimeFilter =
-        createTimeFilter(
-            "SERVICE.startTime", Operator.LT, startTimeInMillis + timeRangeDuration.toMillis());
-    Filter idFilter =
-        createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
-    builder.setFilter(
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(startTimeFilter)
-            .addChildFilter(endTimeFilter)
-            .addChildFilter(idFilter)
-            .build());
-    return builder.build();
+  private static Stream<Arguments> provideQueryRequest() {
+    return Stream.of(
+        Arguments.arguments(getQueryRequestWithTimeFilter1(Duration.ofMinutes(60))),
+        Arguments.arguments(getQueryRequestWithTimeFilter2(Duration.ofMinutes(60))));
   }
 }

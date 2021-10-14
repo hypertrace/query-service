@@ -32,13 +32,9 @@ import org.hypertrace.core.query.service.api.ValueType;
  */
 public class ExecutionContext {
 
-  private final String tenantId;
   private Set<String> referencedColumns;
-  private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
-  // default value null
   private String timeFilterColumn = null;
-  private Supplier<Optional<Duration>> timeRangeDurationSupplier;
 
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
@@ -47,9 +43,12 @@ public class ExecutionContext {
   // The difference between this and selectedColumns above is that this is a set of Expressions
   // while the selectedColumns
   // is a set of column names.
+  private final String tenantId;
+  private final LinkedHashSet<String> selectedColumns;
   private final LinkedHashSet<Expression> allSelections;
   private final Optional<Duration> timeSeriesPeriod;
   private final Filter queryRequestFilter;
+  private final Supplier<Optional<Duration>> timeRangeDurationSupplier;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
@@ -66,8 +65,7 @@ public class ExecutionContext {
   private Optional<Duration> calculateTimeSeriesPeriod(QueryRequest request) {
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
-        if (expression.getValueCase() == ValueCase.FUNCTION
-            && expression.getFunction().getFunctionName().equals("dateTimeConvert")) {
+        if (isDateTimeFunction(expression)) {
           String timeSeriesPeriod =
               expression
                   .getFunction()
@@ -194,13 +192,6 @@ public class ExecutionContext {
     }
   }
 
-  private Duration parseDuration(String timeSeriesPeriod) {
-    String[] splitPeriodString = timeSeriesPeriod.split(":");
-    long amount = Long.parseLong(splitPeriodString[0]);
-    ChronoUnit unit = TimeUnit.valueOf(splitPeriodString[1]).toChronoUnit();
-    return Duration.of(amount, unit);
-  }
-
   private Optional<Duration> findTimeRangeDuration(Filter filter, String timeFilterColumn) {
 
     // time filter will always be present with AND operator
@@ -240,6 +231,18 @@ public class ExecutionContext {
     return column.equals(filter.getLhs().getColumnIdentifier().getColumnName())
         && (operators.stream()
             .anyMatch(operator -> Objects.equals(operator, filter.getOperator())));
+  }
+
+  private Duration parseDuration(String timeSeriesPeriod) {
+    String[] splitPeriodString = timeSeriesPeriod.split(":");
+    long amount = Long.parseLong(splitPeriodString[0]);
+    ChronoUnit unit = TimeUnit.valueOf(splitPeriodString[1]).toChronoUnit();
+    return Duration.of(amount, unit);
+  }
+
+  private boolean isDateTimeFunction(Expression expression) {
+    return expression.getValueCase() == ValueCase.FUNCTION
+        && expression.getFunction().getFunctionName().equals("dateTimeConvert");
   }
 
   public void setTimeFilterColumn(String timeFilterColumn) {
