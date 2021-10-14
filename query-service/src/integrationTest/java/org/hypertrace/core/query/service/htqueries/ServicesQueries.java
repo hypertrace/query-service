@@ -1,22 +1,20 @@
 package org.hypertrace.core.query.service.htqueries;
 
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createColumnExpression;
-import static org.hypertrace.core.query.service.QueryServiceTestUtils.createColumnIdentifier;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFilter;
-import static org.hypertrace.core.query.service.QueryServiceTestUtils.createTimeColumnGroupByFunction;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFunctionExpression;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createOrderByExpression;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createStringLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createTimeColumnGroupByFunctionExpression;
 
 import java.time.Duration;
-import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
-import org.hypertrace.core.query.service.api.Function;
-import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.SortOrder;
-import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
 class ServicesQueries {
@@ -30,14 +28,13 @@ class ServicesQueries {
    */
   static QueryRequest buildQuery1() {
     Builder builder = QueryRequest.newBuilder();
-    Expression serviceId = createColumnExpression("SERVICE.id").build();
-    ColumnIdentifier serviceName = createColumnIdentifier("SERVICE.name", "SERVICE.name");
-    Function serviceIdFunction =
-        Function.newBuilder().addArguments(serviceId).setFunctionName("COUNT").build();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+    Expression serviceIdFunction = createFunctionExpression("COUNT", serviceId);
 
     builder.addSelection(serviceId);
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName).build());
-    builder.addSelection(Expression.newBuilder().setFunction(serviceIdFunction));
+    builder.addSelection(serviceName);
+    builder.addSelection(serviceIdFunction);
 
     Filter filter1 =
         createFilter(
@@ -58,51 +55,34 @@ class ServicesQueries {
             .build());
 
     builder.addGroupBy(serviceId);
-    builder.addGroupBy(Expression.newBuilder().setColumnIdentifier(serviceName));
-    Function serviceDurationPercentileFunc =
-        Function.newBuilder()
-            .addArguments(
-                Expression.newBuilder()
-                    .setColumnIdentifier(
-                        ColumnIdentifier.newBuilder().setColumnName("SERVICE.duration").build())
-                    .build())
-            .setFunctionName("PERCENTILE99")
-            .build();
+    builder.addGroupBy(serviceName);
+
+    Expression serviceDurationPercentileFunc =
+        createFunctionExpression("PERCENTILE99", createColumnExpression("SERVICE.duration"));
     OrderByExpression orderByExpression =
-        OrderByExpression.newBuilder()
-            .setOrder(SortOrder.DESC)
-            .setExpression(
-                Expression.newBuilder().setFunction(serviceDurationPercentileFunc).build())
-            .build();
+        createOrderByExpression(serviceDurationPercentileFunc, SortOrder.DESC);
+
     builder.addOrderBy(orderByExpression);
     builder.setLimit(10000);
-
     return builder.build();
   }
 
   static QueryRequest buildAvgRateQuery() {
     Builder builder = QueryRequest.newBuilder();
-    Expression serviceId = createColumnExpression("SERVICE.id").build();
-    Expression serviceDuration = createColumnExpression("SERVICE.duration").build();
-    ColumnIdentifier serviceName = createColumnIdentifier("SERVICE.name", "SERVICE.name");
-    LiteralConstant oneSec =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setString("PT1S").setValueType(ValueType.STRING).build())
-            .build();
-
-    Function durationAvgRateFunction =
-        Function.newBuilder()
-            .addArguments(serviceDuration)
-            .addArguments(Expression.newBuilder().setLiteral(oneSec).build())
-            .setFunctionName("AVG_RATE")
-            .build();
-    Function durationSumFunction =
-        Function.newBuilder().addArguments(serviceDuration).setFunctionName("SUM").build();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceDuration = createColumnExpression("SERVICE.duration");
+    Expression serviceName = createColumnExpression("SERVICE.name");
 
     builder.addSelection(serviceId);
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName).build());
-    builder.addSelection(Expression.newBuilder().setFunction(durationAvgRateFunction));
-    builder.addSelection(Expression.newBuilder().setFunction(durationSumFunction));
+    builder.addSelection(serviceName);
+
+    Expression durationSumFunction = createFunctionExpression("SUM", serviceDuration);
+    Expression durationAvgRateFunction =
+        createFunctionExpression(
+            "AVG_RATE", serviceDuration, createStringLiteralValueExpression("PT1S"));
+
+    builder.addSelection(durationAvgRateFunction);
+    builder.addSelection(durationSumFunction);
 
     Filter filter1 =
         createFilter(
@@ -123,49 +103,31 @@ class ServicesQueries {
             .build());
 
     builder.addGroupBy(serviceId);
-    builder.addGroupBy(Expression.newBuilder().setColumnIdentifier(serviceName));
-    Function serviceDurationPercentileFunc =
-        Function.newBuilder()
-            .addArguments(
-                Expression.newBuilder()
-                    .setColumnIdentifier(
-                        ColumnIdentifier.newBuilder().setColumnName("SERVICE.duration").build())
-                    .build())
-            .setFunctionName("PERCENTILE99")
-            .build();
+    builder.addGroupBy(serviceName);
+
+    Expression serviceDurationPercentileFunc =
+        createFunctionExpression("PERCENTILE99", serviceDuration);
     OrderByExpression orderByExpression =
-        OrderByExpression.newBuilder()
-            .setOrder(SortOrder.DESC)
-            .setExpression(
-                Expression.newBuilder().setFunction(serviceDurationPercentileFunc).build())
-            .build();
+        createOrderByExpression(serviceDurationPercentileFunc, SortOrder.DESC);
+
     builder.addOrderBy(orderByExpression);
     builder.setLimit(10000);
-
     return builder.build();
   }
 
   static QueryRequest buildAvgRateQueryWithTimeAggregation() {
     Builder builder = QueryRequest.newBuilder();
-    Expression serviceId = createColumnExpression("SERVICE.id").build();
-    Expression serviceNumCalls = createColumnExpression("SERVICE.numCalls").build();
-    LiteralConstant oneSec =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setString("PT1S").setValueType(ValueType.STRING).build())
-            .build();
-
-    Function durationAvgRateFunction =
-        Function.newBuilder()
-            .addArguments(serviceNumCalls)
-            .addArguments(Expression.newBuilder().setLiteral(oneSec).build())
-            .setFunctionName("AVG_RATE")
-            .build();
-    Function durationSumFunction =
-        Function.newBuilder().addArguments(serviceNumCalls).setFunctionName("SUM").build();
-
+    Expression serviceId = createColumnExpression("SERVICE.id");
     builder.addSelection(serviceId);
-    builder.addSelection(Expression.newBuilder().setFunction(durationAvgRateFunction));
-    builder.addSelection(Expression.newBuilder().setFunction(durationSumFunction));
+
+    Expression serviceNumCalls = createColumnExpression("SERVICE.numCalls");
+    Expression durationAvgRateFunction =
+        createFunctionExpression(
+            "AVG_RATE", serviceNumCalls, createStringLiteralValueExpression("PT1S"));
+    Expression durationSumFunction = createFunctionExpression("SUM", serviceNumCalls);
+
+    builder.addSelection(durationAvgRateFunction);
+    builder.addSelection(durationSumFunction);
 
     Filter filter1 =
         createFilter(
@@ -186,9 +148,7 @@ class ServicesQueries {
             .build());
 
     builder.addGroupBy(
-        Expression.newBuilder()
-            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
-            .build());
+        createTimeColumnGroupByFunctionExpression("SERVICE.startTime", "15:SECONDS"));
     builder.addGroupBy(serviceId);
     builder.setLimit(10000);
 

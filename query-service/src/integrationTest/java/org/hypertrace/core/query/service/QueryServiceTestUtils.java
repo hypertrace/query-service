@@ -6,6 +6,8 @@ import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
+import org.hypertrace.core.query.service.api.OrderByExpression;
+import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
@@ -33,40 +35,69 @@ public class QueryServiceTestUtils {
     return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
   }
 
-  public static Function.Builder createTimeColumnGroupByFunction(
+  public static Expression createTimeColumnGroupByFunctionExpression(
       String timeColumn, String periodSecs) {
-    return Function.newBuilder()
-        .setFunctionName("dateTimeConvert")
-        .addArguments(
-            Expression.newBuilder()
-                .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(timeColumn)))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString(periodSecs))));
-  }
-
-  public static ColumnIdentifier createColumnIdentifier(String columnName) {
-    return ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-  }
-
-  public static Expression.Builder createColumnExpression(String columnName) {
     return Expression.newBuilder()
-        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
+        .setFunction(
+            Function.newBuilder()
+                .setFunctionName("dateTimeConvert")
+                .addArguments(
+                    Expression.newBuilder()
+                        .setColumnIdentifier(
+                            ColumnIdentifier.newBuilder().setColumnName(timeColumn)))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString(periodSecs))))
+                .build())
+        .build();
   }
 
-  public static ColumnIdentifier createColumnIdentifier(String columnName, String alias) {
-    return ColumnIdentifier.newBuilder().setColumnName(columnName).setAlias(alias).build();
+  public static Expression createColumnExpression(String columnName) {
+    return Expression.newBuilder()
+        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName))
+        .build();
+  }
+
+  public static Expression createFunctionExpression(String functionName, Expression columnNameArg) {
+    return Expression.newBuilder()
+        .setFunction(
+            Function.newBuilder().setFunctionName(functionName).addArguments(columnNameArg))
+        .build();
+  }
+
+  public static Expression createFunctionExpression(
+      String functionName, Expression columnNameArg1, Expression columnNameArg2) {
+    return Expression.newBuilder()
+        .setFunction(
+            Function.newBuilder()
+                .setFunctionName(functionName)
+                .addArguments(columnNameArg1)
+                .addArguments(columnNameArg2))
+        .build();
+  }
+
+  public static OrderByExpression createOrderByExpression(
+      Expression expression, SortOrder sortOrder) {
+    return OrderByExpression.newBuilder().setExpression(expression).setOrder(sortOrder).build();
+  }
+
+  public static Expression createStringLiteralValueExpression(String value) {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(Value.newBuilder().setString(value).setValueType(ValueType.STRING)))
+        .build();
   }
 }
