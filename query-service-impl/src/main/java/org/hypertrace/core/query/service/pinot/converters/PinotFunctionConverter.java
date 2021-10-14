@@ -88,7 +88,7 @@ public class PinotFunctionConverter {
         (executionContext
                 .getTimeSeriesPeriod()
                 .or(executionContext::getTimeRangeDuration)
-                .orElseThrow(RuntimeException::new))
+                .orElseThrow())
             .getSeconds();
 
     return String.format(

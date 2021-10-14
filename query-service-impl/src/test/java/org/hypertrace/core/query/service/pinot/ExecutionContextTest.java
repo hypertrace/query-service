@@ -1,11 +1,12 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.createFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createTimeColumnGroupByFunction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.google.common.collect.ImmutableSet;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
@@ -140,8 +141,7 @@ public class ExecutionContextTest {
 
   @Test
   public void testReferencedColumns() {
-    long startTimeInMillis =
-        Instant.ofEpochSecond(TimeUnit.SECONDS.convert(1, TimeUnit.HOURS)).toEpochMilli();
+    long endTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(48));
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(
         Expression.newBuilder()
@@ -162,10 +162,10 @@ public class ExecutionContextTest {
         QueryRequestBuilderUtils.createTimeFilter(
             "Trace.start_time_millis",
             Operator.GT,
-            startTimeInMillis - Duration.ofHours(24).toMillis());
+            endTimeInMillis - Duration.ofHours(24).toMillis());
     Filter endTimeFilter =
         QueryRequestBuilderUtils.createTimeFilter(
-            "Trace.end_time_millis", Operator.LT, startTimeInMillis);
+            "Trace.end_time_millis", Operator.LT, endTimeInMillis);
 
     Filter andFilter =
         Filter.newBuilder()
@@ -383,8 +383,7 @@ public class ExecutionContextTest {
   }
 
   private static QueryRequest getQueryRequestWithTimeFilter(Duration timeRange) {
-    long startTimeInMillis =
-        Instant.ofEpochSecond(TimeUnit.SECONDS.convert(1, TimeUnit.HOURS)).toEpochMilli();
+    long endTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(
         Expression.newBuilder()
@@ -395,9 +394,9 @@ public class ExecutionContextTest {
             "SERVICE.startTime",
             Operator.GE,
             ValueType.LONG,
-            startTimeInMillis - timeRange.toMillis());
+            endTimeInMillis - timeRange.toMillis());
     Filter filter2 =
-        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, startTimeInMillis);
+        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, endTimeInMillis);
     Filter filter3 = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
 
     builder.setFilter(
@@ -408,54 +407,5 @@ public class ExecutionContextTest {
             .addChildFilter(filter3)
             .build());
     return builder.build();
-  }
-
-  private static Function.Builder createTimeColumnGroupByFunction(
-      String timeColumn, String periodSecs) {
-    return Function.newBuilder()
-        .setFunctionName("dateTimeConvert")
-        .addArguments(createColumnExpression(timeColumn))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString(periodSecs))));
-  }
-
-  private static Expression.Builder createColumnExpression(String columnName) {
-    return Expression.newBuilder()
-        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
-  }
-
-  private static Filter createFilter(
-      String columnName, Operator op, ValueType valueType, Object valueObject) {
-    ColumnIdentifier startTimeColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
-
-    Value value = Value.newBuilder().setValueType(valueType).buildPartial();
-    switch (valueType) {
-      case LONG:
-        value = Value.newBuilder(value).setLong((long) valueObject).build();
-        break;
-      case INT:
-        value = Value.newBuilder(value).setInt((int) valueObject).build();
-        break;
-      case STRING:
-        value = Value.newBuilder(value).setString((String) valueObject).build();
-    }
-    LiteralConstant constant = LiteralConstant.newBuilder().setValue(value).build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
   }
 }

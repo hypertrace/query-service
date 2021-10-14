@@ -116,6 +116,28 @@ public class QueryRequestUtil {
                         .setValue(Value.newBuilder().setString(periodSecs + ":SECONDS"))));
   }
 
+  public static Function.Builder createTimeColumnGroupByFunction(
+      String timeColumn, String periodSecs) {
+    return Function.newBuilder()
+        .setFunctionName("dateTimeConvert")
+        .addArguments(createColumnExpression(timeColumn))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+        .addArguments(
+            Expression.newBuilder()
+                .setLiteral(
+                    LiteralConstant.newBuilder()
+                        .setValue(Value.newBuilder().setString(periodSecs))));
+  }
+
   public static ColumnIdentifier createColumnIdentifier(String columnName) {
     return ColumnIdentifier.newBuilder().setColumnName(columnName).build();
   }
