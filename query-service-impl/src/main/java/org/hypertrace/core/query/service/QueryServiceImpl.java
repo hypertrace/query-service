@@ -69,7 +69,6 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
         .flatMapObservable(
             handler -> {
               handler.getTimeFilterColumn().ifPresent(context::setTimeFilterColumn);
-              context.computeTimeRangeDuration(transformedRequest);
               return handler.handleRequest(transformedRequest, context);
             })
         .lift(chunkRows(context.getResultSetMetadata()));

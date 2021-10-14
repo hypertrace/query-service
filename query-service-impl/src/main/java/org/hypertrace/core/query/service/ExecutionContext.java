@@ -46,12 +46,14 @@ public class ExecutionContext {
   // is a set of column names.
   private final LinkedHashSet<Expression> allSelections;
   private final Optional<Duration> timeSeriesPeriod;
+  private final Filter queryRequestFilter;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
     this.timeSeriesPeriod = calculateTimeSeriesPeriod(request);
+    this.queryRequestFilter = request.getFilter();
     analyze(request);
   }
 
@@ -234,10 +236,6 @@ public class ExecutionContext {
             .anyMatch(operator -> Objects.equals(operator, filter.getOperator())));
   }
 
-  public void computeTimeRangeDuration(QueryRequest queryRequest) {
-    this.timeRangeDuration = findTimeRangeDuration(queryRequest.getFilter(), this.timeFilterColumn);
-  }
-
   public void setTimeFilterColumn(String timeFilterColumn) {
     this.timeFilterColumn = timeFilterColumn;
   }
@@ -267,6 +265,7 @@ public class ExecutionContext {
   }
 
   public Optional<Duration> getTimeRangeDuration() {
+    this.timeRangeDuration = findTimeRangeDuration(this.queryRequestFilter, this.timeFilterColumn);
     return this.timeRangeDuration;
   }
 }
