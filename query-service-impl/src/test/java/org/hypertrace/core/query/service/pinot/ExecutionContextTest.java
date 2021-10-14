@@ -4,7 +4,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createF
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.getQueryRequestWithTimeFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.getQueryRequestWithFilter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -432,7 +432,7 @@ public class ExecutionContextTest {
             .build();
 
     return Stream.of(
-        Arguments.arguments(getQueryRequestWithTimeFilter(filter1)),
-        Arguments.arguments(getQueryRequestWithTimeFilter(filter2)));
+        Arguments.arguments(getQueryRequestWithFilter(filter1)),
+        Arguments.arguments(getQueryRequestWithFilter(filter2)));
   }
 }

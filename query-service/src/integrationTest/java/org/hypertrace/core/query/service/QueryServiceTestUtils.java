@@ -36,7 +36,7 @@ public class QueryServiceTestUtils {
   }
 
   public static Expression createTimeColumnGroupByFunctionExpression(
-      String timeColumn, String periodSecs) {
+      String timeColumn, String pinotFormattedDuration) {
     return Expression.newBuilder()
         .setFunction(
             Function.newBuilder()
@@ -59,7 +59,7 @@ public class QueryServiceTestUtils {
                     Expression.newBuilder()
                         .setLiteral(
                             LiteralConstant.newBuilder()
-                                .setValue(Value.newBuilder().setString(periodSecs))))
+                                .setValue(Value.newBuilder().setString(pinotFormattedDuration))))
                 .build())
         .build();
   }
@@ -70,21 +70,22 @@ public class QueryServiceTestUtils {
         .build();
   }
 
-  public static Expression createFunctionExpression(String functionName, Expression columnNameArg) {
+  public static Expression createFunctionExpression(
+      String functionName, Expression argumentExpression) {
     return Expression.newBuilder()
         .setFunction(
-            Function.newBuilder().setFunctionName(functionName).addArguments(columnNameArg))
+            Function.newBuilder().setFunctionName(functionName).addArguments(argumentExpression))
         .build();
   }
 
   public static Expression createFunctionExpression(
-      String functionName, Expression columnNameArg1, Expression columnNameArg2) {
+      String functionName, Expression argumentExpression1, Expression argumentExpression2) {
     return Expression.newBuilder()
         .setFunction(
             Function.newBuilder()
                 .setFunctionName(functionName)
-                .addArguments(columnNameArg1)
-                .addArguments(columnNameArg2))
+                .addArguments(argumentExpression1)
+                .addArguments(argumentExpression2))
         .build();
   }
 

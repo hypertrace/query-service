@@ -207,7 +207,7 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
-  public static QueryRequest getQueryRequestWithTimeFilter(Filter filter) {
+  public static QueryRequest getQueryRequestWithFilter(Filter filter) {
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
     builder.setFilter(filter);
