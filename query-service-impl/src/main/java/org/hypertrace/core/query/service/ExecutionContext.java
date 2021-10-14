@@ -265,7 +265,10 @@ public class ExecutionContext {
   }
 
   public Optional<Duration> getTimeRangeDuration() {
-    this.timeRangeDuration = findTimeRangeDuration(this.queryRequestFilter, this.timeFilterColumn);
+    if (this.timeRangeDuration == null) {
+      this.timeRangeDuration =
+          findTimeRangeDuration(this.queryRequestFilter, this.timeFilterColumn);
+    }
     return this.timeRangeDuration;
   }
 }
