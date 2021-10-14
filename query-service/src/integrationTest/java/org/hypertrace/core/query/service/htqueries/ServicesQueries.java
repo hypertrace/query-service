@@ -195,7 +195,7 @@ class ServicesQueries {
 
     builder.addGroupBy(
         Expression.newBuilder()
-            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", 15))
+            .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
             .build());
     builder.addGroupBy(Expression.newBuilder().setColumnIdentifier(serviceId));
     builder.setLimit(10000);

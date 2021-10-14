@@ -34,32 +34,12 @@ public class QueryServiceTestUtils {
   }
 
   public static Function.Builder createTimeColumnGroupByFunction(
-      String timeColumn, long periodSecs) {
-    return Function.newBuilder()
-        .setFunctionName("dateTimeConvert")
-        .addArguments(createColumnExpression(timeColumn))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-        .addArguments(
-            Expression.newBuilder()
-                .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString(periodSecs + ":SECONDS"))));
-  }
-
-  public static Function.Builder createTimeColumnGroupByFunction(
       String timeColumn, String periodSecs) {
     return Function.newBuilder()
         .setFunctionName("dateTimeConvert")
-        .addArguments(createColumnExpression(timeColumn))
+        .addArguments(
+            Expression.newBuilder()
+                .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(timeColumn)))
         .addArguments(
             Expression.newBuilder()
                 .setLiteral(
@@ -83,10 +63,5 @@ public class QueryServiceTestUtils {
 
   public static ColumnIdentifier createColumnIdentifier(String columnName, String alias) {
     return ColumnIdentifier.newBuilder().setColumnName(columnName).setAlias(alias).build();
-  }
-
-  public static Expression.Builder createColumnExpression(String columnName) {
-    return Expression.newBuilder()
-        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
   }
 }
