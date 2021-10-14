@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.htqueries;
 
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createColumnIdentifier;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFilter;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createTimeColumnGroupByFunction;
@@ -29,15 +30,12 @@ class ServicesQueries {
    */
   static QueryRequest buildQuery1() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier serviceId = createColumnIdentifier("SERVICE.id");
+    Expression serviceId = createColumnExpression("SERVICE.id").build();
     ColumnIdentifier serviceName = createColumnIdentifier("SERVICE.name", "SERVICE.name");
     Function serviceIdFunction =
-        Function.newBuilder()
-            .addArguments(Expression.newBuilder().setColumnIdentifier(serviceId).build())
-            .setFunctionName("COUNT")
-            .build();
+        Function.newBuilder().addArguments(serviceId).setFunctionName("COUNT").build();
 
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId).build());
+    builder.addSelection(serviceId);
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName).build());
     builder.addSelection(Expression.newBuilder().setFunction(serviceIdFunction));
 
@@ -59,7 +57,7 @@ class ServicesQueries {
             .addChildFilter(filter3)
             .build());
 
-    builder.addGroupBy(Expression.newBuilder().setColumnIdentifier(serviceId));
+    builder.addGroupBy(serviceId);
     builder.addGroupBy(Expression.newBuilder().setColumnIdentifier(serviceName));
     Function serviceDurationPercentileFunc =
         Function.newBuilder()
@@ -84,8 +82,8 @@ class ServicesQueries {
 
   static QueryRequest buildAvgRateQuery() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier serviceId = createColumnIdentifier("SERVICE.id");
-    ColumnIdentifier serviceDuration = createColumnIdentifier("SERVICE.duration");
+    Expression serviceId = createColumnExpression("SERVICE.id").build();
+    Expression serviceDuration = createColumnExpression("SERVICE.duration").build();
     ColumnIdentifier serviceName = createColumnIdentifier("SERVICE.name", "SERVICE.name");
     LiteralConstant oneSec =
         LiteralConstant.newBuilder()
@@ -94,17 +92,14 @@ class ServicesQueries {
 
     Function durationAvgRateFunction =
         Function.newBuilder()
-            .addArguments(Expression.newBuilder().setColumnIdentifier(serviceDuration).build())
+            .addArguments(serviceDuration)
             .addArguments(Expression.newBuilder().setLiteral(oneSec).build())
             .setFunctionName("AVG_RATE")
             .build();
     Function durationSumFunction =
-        Function.newBuilder()
-            .addArguments(Expression.newBuilder().setColumnIdentifier(serviceDuration).build())
-            .setFunctionName("SUM")
-            .build();
+        Function.newBuilder().addArguments(serviceDuration).setFunctionName("SUM").build();
 
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId).build());
+    builder.addSelection(serviceId);
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName).build());
     builder.addSelection(Expression.newBuilder().setFunction(durationAvgRateFunction));
     builder.addSelection(Expression.newBuilder().setFunction(durationSumFunction));
@@ -127,7 +122,7 @@ class ServicesQueries {
             .addChildFilter(filter3)
             .build());
 
-    builder.addGroupBy(Expression.newBuilder().setColumnIdentifier(serviceId));
+    builder.addGroupBy(serviceId);
     builder.addGroupBy(Expression.newBuilder().setColumnIdentifier(serviceName));
     Function serviceDurationPercentileFunc =
         Function.newBuilder()
@@ -152,8 +147,8 @@ class ServicesQueries {
 
   static QueryRequest buildAvgRateQueryWithTimeAggregation() {
     Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier serviceId = createColumnIdentifier("SERVICE.id");
-    ColumnIdentifier serviceNumCalls = createColumnIdentifier("SERVICE.numCalls");
+    Expression serviceId = createColumnExpression("SERVICE.id").build();
+    Expression serviceNumCalls = createColumnExpression("SERVICE.numCalls").build();
     LiteralConstant oneSec =
         LiteralConstant.newBuilder()
             .setValue(Value.newBuilder().setString("PT1S").setValueType(ValueType.STRING).build())
@@ -161,17 +156,14 @@ class ServicesQueries {
 
     Function durationAvgRateFunction =
         Function.newBuilder()
-            .addArguments(Expression.newBuilder().setColumnIdentifier(serviceNumCalls).build())
+            .addArguments(serviceNumCalls)
             .addArguments(Expression.newBuilder().setLiteral(oneSec).build())
             .setFunctionName("AVG_RATE")
             .build();
     Function durationSumFunction =
-        Function.newBuilder()
-            .addArguments(Expression.newBuilder().setColumnIdentifier(serviceNumCalls).build())
-            .setFunctionName("SUM")
-            .build();
+        Function.newBuilder().addArguments(serviceNumCalls).setFunctionName("SUM").build();
 
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId).build());
+    builder.addSelection(serviceId);
     builder.addSelection(Expression.newBuilder().setFunction(durationAvgRateFunction));
     builder.addSelection(Expression.newBuilder().setFunction(durationSumFunction));
 
@@ -197,7 +189,7 @@ class ServicesQueries {
         Expression.newBuilder()
             .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
             .build());
-    builder.addGroupBy(Expression.newBuilder().setColumnIdentifier(serviceId));
+    builder.addGroupBy(serviceId);
     builder.setLimit(10000);
 
     return builder.build();

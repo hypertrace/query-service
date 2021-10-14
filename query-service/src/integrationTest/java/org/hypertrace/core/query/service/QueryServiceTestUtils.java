@@ -61,6 +61,11 @@ public class QueryServiceTestUtils {
     return ColumnIdentifier.newBuilder().setColumnName(columnName).build();
   }
 
+  public static Expression.Builder createColumnExpression(String columnName) {
+    return Expression.newBuilder()
+        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
+  }
+
   public static ColumnIdentifier createColumnIdentifier(String columnName, String alias) {
     return ColumnIdentifier.newBuilder().setColumnName(columnName).setAlias(alias).build();
   }

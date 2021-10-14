@@ -141,7 +141,7 @@ public class ExecutionContextTest {
 
   @Test
   public void testReferencedColumns() {
-    long endTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(48));
+    long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(24));
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(
         Expression.newBuilder()
@@ -159,11 +159,12 @@ public class ExecutionContextTest {
             .setRhs(expression)
             .setOperator(Operator.EQ);
     Filter startTimeFilter =
+        createTimeFilter("Trace.start_time_millis", Operator.GT, startTimeInMillis);
+    Filter endTimeFilter =
         createTimeFilter(
-            "Trace.start_time_millis",
-            Operator.GT,
-            endTimeInMillis - Duration.ofHours(24).toMillis());
-    Filter endTimeFilter = createTimeFilter("Trace.end_time_millis", Operator.LT, endTimeInMillis);
+            "Trace.end_time_millis",
+            Operator.LT,
+            startTimeInMillis + Duration.ofHours(24).toMillis());
 
     Filter andFilter =
         Filter.newBuilder()
@@ -380,15 +381,16 @@ public class ExecutionContextTest {
   }
 
   private static QueryRequest getQueryRequestWithTimeFilter(Duration timeRange) {
-    long endTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
+    long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(
         Expression.newBuilder()
             .setFunction(createTimeColumnGroupByFunction("SERVICE.startTime", "15:SECONDS"))
             .build());
-    Filter startTimeFilter =
-        createTimeFilter("SERVICE.startTime", Operator.GE, endTimeInMillis - timeRange.toMillis());
-    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, endTimeInMillis);
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, startTimeInMillis);
+    Filter endTimeFilter =
+        createTimeFilter(
+            "SERVICE.startTime", Operator.LT, startTimeInMillis + timeRange.toMillis());
     Filter idFilter =
         createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
     builder.setFilter(

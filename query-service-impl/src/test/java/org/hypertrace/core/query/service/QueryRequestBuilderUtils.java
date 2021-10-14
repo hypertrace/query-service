@@ -181,8 +181,7 @@ public class QueryRequestBuilderUtils {
         .setExpression(createColumnExpression(columnName));
   }
 
-  public static Function.Builder createTimeColumnGroupByFunction(
-      String timeColumn, String periodSecs) {
+  public static Function.Builder createTimeColumnGroupByFunction(String timeColumn, String period) {
     return Function.newBuilder()
         .setFunctionName("dateTimeConvert")
         .addArguments(createColumnExpression(timeColumn))
@@ -199,7 +198,6 @@ public class QueryRequestBuilderUtils {
         .addArguments(
             Expression.newBuilder()
                 .setLiteral(
-                    LiteralConstant.newBuilder()
-                        .setValue(Value.newBuilder().setString(periodSecs))));
+                    LiteralConstant.newBuilder().setValue(Value.newBuilder().setString(period))));
   }
 }
