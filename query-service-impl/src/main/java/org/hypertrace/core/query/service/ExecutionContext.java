@@ -1,5 +1,7 @@
 package org.hypertrace.core.query.service;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -36,7 +38,8 @@ public class ExecutionContext {
   private ResultSetMetadata resultSetMetadata;
   // default value null
   private String timeFilterColumn = null;
-  private Optional<Duration> timeRangeDuration;
+  private Supplier<Optional<Duration>> timeRangeDurationSupplier;
+
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
   // There should be a one-to-one mapping between this and the columnMetadataSet in
@@ -54,6 +57,9 @@ public class ExecutionContext {
     this.allSelections = new LinkedHashSet<>();
     this.timeSeriesPeriod = calculateTimeSeriesPeriod(request);
     this.queryRequestFilter = request.getFilter();
+    timeRangeDurationSupplier =
+        Suppliers.memoize(
+            () -> findTimeRangeDuration(this.queryRequestFilter, this.timeFilterColumn));
     analyze(request);
   }
 
@@ -265,10 +271,6 @@ public class ExecutionContext {
   }
 
   public Optional<Duration> getTimeRangeDuration() {
-    if (this.timeRangeDuration == null) {
-      this.timeRangeDuration =
-          findTimeRangeDuration(this.queryRequestFilter, this.timeFilterColumn);
-    }
-    return this.timeRangeDuration;
+    return timeRangeDurationSupplier.get();
   }
 }

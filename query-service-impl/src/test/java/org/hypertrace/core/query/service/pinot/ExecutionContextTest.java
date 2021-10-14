@@ -380,7 +380,7 @@ public class ExecutionContextTest {
     assertEquals(Optional.of(Duration.ofMinutes(60)), context.getTimeRangeDuration());
   }
 
-  private static QueryRequest getQueryRequestWithTimeFilter(Duration timeRange) {
+  private static QueryRequest getQueryRequestWithTimeFilter(Duration timeRangeDuration) {
     long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(1));
     Builder builder = QueryRequest.newBuilder();
     builder.addGroupBy(
@@ -390,7 +390,7 @@ public class ExecutionContextTest {
     Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, startTimeInMillis);
     Filter endTimeFilter =
         createTimeFilter(
-            "SERVICE.startTime", Operator.LT, startTimeInMillis + timeRange.toMillis());
+            "SERVICE.startTime", Operator.LT, startTimeInMillis + timeRangeDuration.toMillis());
     Filter idFilter =
         createFilter("SERVICE.id", Operator.NEQ, createStringLiteralValueExpression(""));
     builder.setFilter(
