@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -33,6 +34,9 @@ import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class PinotBasedRequestHandlerTest {
   // Test subject
@@ -1374,6 +1378,30 @@ public class PinotBasedRequestHandlerTest {
 
       verifyResponseRows(handler.handleRequest(request, context), resultTable);
     }
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideHandlerValue")
+  public void testGetTimeFilterColumn(int index, String expectedValue) {
+    // Mocks
+    PinotClientFactory pinotClientFactoryMock = mock(PinotClientFactory.class);
+    ResultSetTypePredicateProvider resultSetTypePredicateProviderMock =
+        mock(ResultSetTypePredicateProvider.class);
+
+    Config handlerConfig = serviceConfig.getConfigList("queryRequestHandlersConfig").get(index);
+    PinotBasedRequestHandler pinotBasedRequestHandler =
+        new PinotBasedRequestHandler(
+            handlerConfig.getString("name"),
+            handlerConfig.getConfig("requestHandlerInfo"),
+            resultSetTypePredicateProviderMock,
+            pinotClientFactoryMock);
+
+    Assertions.assertEquals(expectedValue, pinotBasedRequestHandler.getTimeFilterColumn().get());
+  }
+
+  private static Stream<Arguments> provideHandlerValue() {
+    // test with more configs later
+    return Stream.of(Arguments.arguments(0, "Trace.start_time_millis"));
   }
 
   private ResultSet mockResultSet(

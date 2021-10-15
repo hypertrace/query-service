@@ -10,6 +10,8 @@ import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
+import org.hypertrace.core.query.service.api.QueryRequest;
+import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
@@ -136,8 +138,7 @@ public class QueryRequestBuilderUtils {
 
     LiteralConstant.Builder constant =
         LiteralConstant.newBuilder()
-            .setValue(
-                Value.newBuilder().setValueType(ValueType.STRING).setString(String.valueOf(value)));
+            .setValue(Value.newBuilder().setValueType(ValueType.LONG).setLong(value));
     Expression.Builder rhs = Expression.newBuilder().setLiteral(constant);
     return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
   }
@@ -180,5 +181,36 @@ public class QueryRequestBuilderUtils {
     return OrderByExpression.newBuilder()
         .setOrder(order)
         .setExpression(createColumnExpression(columnName));
+  }
+
+  public static Expression createTimeColumnGroupByExpression(String timeColumn, String period) {
+    return Expression.newBuilder()
+        .setFunction(
+            Function.newBuilder()
+                .setFunctionName("dateTimeConvert")
+                .addArguments(createColumnExpression(timeColumn))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
+                .addArguments(
+                    Expression.newBuilder()
+                        .setLiteral(
+                            LiteralConstant.newBuilder()
+                                .setValue(Value.newBuilder().setString(period)))))
+        .build();
+  }
+
+  public static QueryRequest getQueryRequestWithFilter(Filter filter) {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
+    builder.setFilter(filter);
+    return builder.build();
   }
 }

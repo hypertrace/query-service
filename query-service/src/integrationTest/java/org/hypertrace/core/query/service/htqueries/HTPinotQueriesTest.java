@@ -304,6 +304,15 @@ public class HTPinotQueriesTest {
         .forEach(edge -> edge.setEndTimeMillis(edge.getEndTimeMillis() + delta));
   }
 
+  private static void validateRows(List<Row> rows, double divisor) {
+    rows.forEach(
+        row -> {
+          double val1 = Double.parseDouble(row.getColumn(2).getString());
+          double val2 = Double.parseDouble(row.getColumn(3).getString()) / divisor;
+          assertTrue(Math.abs(val1 - val2) < Math.pow(10, -3));
+        });
+  }
+
   @Test
   public void testServicesQueries() {
     LOG.info("Services queries");
@@ -316,6 +325,33 @@ public class HTPinotQueriesTest {
         new ArrayList<>(Arrays.asList("frontend", "driver", "route", "customer"));
     rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
     assertTrue(serviceNames.isEmpty());
+  }
+
+  @Test
+  public void testServicesQueriesForAvgRate() {
+    LOG.info("Services queries for AVG_RATE");
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(ServicesQueries.buildAvgRateQuery(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(4, rows.size());
+    List<String> serviceNames =
+        new ArrayList<>(Arrays.asList("frontend", "driver", "route", "customer"));
+    rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
+    assertTrue(serviceNames.isEmpty());
+    validateRows(rows, 3600);
+  }
+
+  @Test
+  public void testServicesQueriesForAvgRateWithTimeAggregation() {
+    LOG.info("Services queries for AVG_RATE with time aggregation");
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(
+            ServicesQueries.buildAvgRateQueryWithTimeAggregation(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(4, rows.size());
+    validateRows(rows, 15);
   }
 
   @Test

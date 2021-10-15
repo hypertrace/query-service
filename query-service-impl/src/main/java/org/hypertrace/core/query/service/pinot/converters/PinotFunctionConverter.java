@@ -1,11 +1,16 @@
 package org.hypertrace.core.query.service.pinot.converters;
 
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG_RATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_PERCENTILE;
 
+import java.time.Duration;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -16,6 +21,9 @@ public class PinotFunctionConverter {
   /**
    * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster and
    * reasonably accurate, hence use that as the default.
+   *
+   * <p>AVG_RATE not supported directly in Pinot. So AVG_RATE is computed by summing over all values
+   * and then dividing by a constant.
    */
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
 
@@ -34,7 +42,9 @@ public class PinotFunctionConverter {
   }
 
   public String convert(
-      Function function, java.util.function.Function<Expression, String> argumentConverter) {
+      ExecutionContext executionContext,
+      Function function,
+      java.util.function.Function<Expression, String> argumentConverter) {
     switch (function.getFunctionName().toUpperCase()) {
       case QUERY_FUNCTION_COUNT:
         return this.convertCount();
@@ -42,11 +52,14 @@ public class PinotFunctionConverter {
         return this.functionToString(this.toPinotPercentile(function), argumentConverter);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
+      case QUERY_FUNCTION_AVG_RATE:
+        return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
       default:
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
         // that logic
         if (this.isHardcodedPercentile(function)) {
-          return this.convert(this.normalizeHardcodedPercentile(function), argumentConverter);
+          return this.convert(
+              executionContext, this.normalizeHardcodedPercentile(function), argumentConverter);
         }
         return this.functionToString(function, argumentConverter);
     }
@@ -60,6 +73,27 @@ public class PinotFunctionConverter {
             .collect(Collectors.joining(","));
 
     return function.getFunctionName() + "(" + argumentString + ")";
+  }
+
+  private String functionToStringForAvgRate(
+      Function function,
+      java.util.function.Function<Expression, String> argumentConverter,
+      ExecutionContext executionContext) {
+
+    String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
+    String rateIntervalInIso =
+        function.getArgumentsList().get(1).getLiteral().getValue().getString();
+    long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
+    long aggregateIntervalInSeconds =
+        (executionContext
+                .getTimeSeriesPeriod()
+                .or(executionContext::getTimeRangeDuration)
+                .orElseThrow())
+            .getSeconds();
+
+    return String.format(
+        "SUM(DIV(%s, %s))",
+        columnName, (double) aggregateIntervalInSeconds / rateIntervalInSeconds);
   }
 
   private String convertCount() {
@@ -136,6 +170,17 @@ public class PinotFunctionConverter {
         return Optional.of(Math.toIntExact(value.getLong()));
       default:
         return Optional.empty();
+    }
+  }
+
+  private static long isoDurationToSeconds(String duration) {
+    try {
+      Duration d = java.time.Duration.parse(duration);
+      return d.get(ChronoUnit.SECONDS);
+    } catch (DateTimeParseException ex) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unsupported string format for duration: %s, expects iso string format", duration));
     }
   }
 }

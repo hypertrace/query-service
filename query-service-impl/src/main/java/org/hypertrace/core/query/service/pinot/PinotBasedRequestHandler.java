@@ -109,6 +109,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return name;
   }
 
+  @Override
+  public Optional<String> getTimeFilterColumn() {
+    return this.startTimeAttributeName;
+  }
+
   private void processConfig(Config config) {
 
     if (!config.hasPath(TENANT_COLUMN_NAME_CONFIG_KEY)) {

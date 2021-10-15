@@ -1,17 +1,26 @@
 package org.hypertrace.core.query.service;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetMetadata;
@@ -23,10 +32,10 @@ import org.hypertrace.core.query.service.api.ValueType;
  */
 public class ExecutionContext {
 
-  private final String tenantId;
   private Set<String> referencedColumns;
-  private final LinkedHashSet<String> selectedColumns;
   private ResultSetMetadata resultSetMetadata;
+  private String timeFilterColumn = null;
+
   // Contains all selections to be made in the DB: selections on group by, single columns and
   // aggregations in that order.
   // There should be a one-to-one mapping between this and the columnMetadataSet in
@@ -34,13 +43,42 @@ public class ExecutionContext {
   // The difference between this and selectedColumns above is that this is a set of Expressions
   // while the selectedColumns
   // is a set of column names.
+  private final String tenantId;
+  private final LinkedHashSet<String> selectedColumns;
   private final LinkedHashSet<Expression> allSelections;
+  private final Optional<Duration> timeSeriesPeriod;
+  private final Filter queryRequestFilter;
+  private final Supplier<Optional<Duration>> timeRangeDurationSupplier;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
+    this.timeSeriesPeriod = calculateTimeSeriesPeriod(request);
+    this.queryRequestFilter = request.getFilter();
+    timeRangeDurationSupplier =
+        Suppliers.memoize(
+            () -> findTimeRangeDuration(this.queryRequestFilter, this.timeFilterColumn));
     analyze(request);
+  }
+
+  private Optional<Duration> calculateTimeSeriesPeriod(QueryRequest request) {
+    if (request.getGroupByCount() > 0) {
+      for (Expression expression : request.getGroupByList()) {
+        if (isDateTimeFunction(expression)) {
+          String timeSeriesPeriod =
+              expression
+                  .getFunction()
+                  .getArgumentsList()
+                  .get(3)
+                  .getLiteral()
+                  .getValue()
+                  .getString();
+          return Optional.of(parseDuration(timeSeriesPeriod));
+        }
+      }
+    }
+    return Optional.empty();
   }
 
   private void analyze(QueryRequest request) {
@@ -154,6 +192,63 @@ public class ExecutionContext {
     }
   }
 
+  private Optional<Duration> findTimeRangeDuration(Filter filter, String timeFilterColumn) {
+
+    // time filter will always be present with AND operator
+    if (filter.getOperator() != Operator.AND) {
+      return Optional.empty();
+    }
+
+    Optional<Long> timeRangeStart =
+        filter.getChildFilterList().stream()
+            .filter(
+                childFilter ->
+                    this.isMatchingFilter(
+                        childFilter, timeFilterColumn, List.of(Operator.GE, Operator.GT)))
+            .map(matchingFilter -> matchingFilter.getRhs().getLiteral().getValue().getLong())
+            .findFirst();
+
+    Optional<Long> timeRangeEnd =
+        filter.getChildFilterList().stream()
+            .filter(
+                childFilter ->
+                    this.isMatchingFilter(
+                        childFilter, timeFilterColumn, List.of(Operator.LT, Operator.LE)))
+            .map(matchingFilter -> matchingFilter.getRhs().getLiteral().getValue().getLong())
+            .findFirst();
+
+    if (timeRangeStart.isPresent() && timeRangeEnd.isPresent()) {
+      return Optional.of(Duration.ofMillis(timeRangeEnd.get() - timeRangeStart.get()));
+    }
+
+    return filter.getChildFilterList().stream()
+        .map(childFilter -> this.findTimeRangeDuration(childFilter, timeFilterColumn))
+        .flatMap(Optional::stream)
+        .findFirst();
+  }
+
+  private boolean isMatchingFilter(Filter filter, String column, Collection<Operator> operators) {
+    return column.equals(filter.getLhs().getColumnIdentifier().getColumnName())
+        && (operators.stream()
+            .anyMatch(operator -> Objects.equals(operator, filter.getOperator())));
+  }
+
+  private Duration parseDuration(String timeSeriesPeriod) {
+    String[] splitPeriodString = timeSeriesPeriod.split(":");
+    long amount = Long.parseLong(splitPeriodString[0]);
+    ChronoUnit unit = TimeUnit.valueOf(splitPeriodString[1]).toChronoUnit();
+    return Duration.of(amount, unit);
+  }
+
+  private boolean isDateTimeFunction(Expression expression) {
+    return expression.getValueCase() == ValueCase.FUNCTION
+        && expression.getFunction().getFunctionName().equals("dateTimeConvert");
+  }
+
+  public void setTimeFilterColumn(String timeFilterColumn) {
+    this.timeFilterColumn = timeFilterColumn;
+  }
+
   public String getTenantId() {
     return this.tenantId;
   }
@@ -172,5 +267,13 @@ public class ExecutionContext {
 
   public LinkedHashSet<Expression> getAllSelections() {
     return this.allSelections;
+  }
+
+  public Optional<Duration> getTimeSeriesPeriod() {
+    return this.timeSeriesPeriod;
+  }
+
+  public Optional<Duration> getTimeRangeDuration() {
+    return timeRangeDurationSupplier.get();
   }
 }

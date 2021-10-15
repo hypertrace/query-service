@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.pinot.converters;
 
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG_RATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_DISTINCTCOUNT;
@@ -11,16 +12,21 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createIntLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.Builder;
 import org.hypertrace.core.query.service.api.Function;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -30,6 +36,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PinotFunctionConverterTest {
 
   @Mock java.util.function.Function<Expression, String> mockArgumentConverter;
+  @Mock ExecutionContext mockingExecutionContext;
 
   @Test
   void convertsCountStar() {
@@ -37,13 +44,16 @@ class PinotFunctionConverterTest {
     Function countFunction = buildFunction(QUERY_FUNCTION_COUNT, createColumnExpression("foo"));
 
     assertEquals(
-        expected, new PinotFunctionConverter().convert(countFunction, this.mockArgumentConverter));
+        expected,
+        new PinotFunctionConverter()
+            .convert(mockingExecutionContext, countFunction, this.mockArgumentConverter));
 
     // Should not be case sensitive
     Function lowerCaseCountFunction = buildFunction("count", createColumnExpression("foo"));
     assertEquals(
         expected,
-        new PinotFunctionConverter().convert(lowerCaseCountFunction, this.mockArgumentConverter));
+        new PinotFunctionConverter()
+            .convert(mockingExecutionContext, lowerCaseCountFunction, this.mockArgumentConverter));
   }
 
   @Test
@@ -59,7 +69,8 @@ class PinotFunctionConverterTest {
 
     assertEquals(
         expected,
-        new PinotFunctionConverter().convert(intPercentileFunction, this.mockArgumentConverter));
+        new PinotFunctionConverter()
+            .convert(mockingExecutionContext, intPercentileFunction, this.mockArgumentConverter));
 
     // Should not be case sensitive
     Function lowerCasePercentileFunction =
@@ -67,7 +78,8 @@ class PinotFunctionConverterTest {
     assertEquals(
         expected,
         new PinotFunctionConverter()
-            .convert(lowerCasePercentileFunction, this.mockArgumentConverter));
+            .convert(
+                mockingExecutionContext, lowerCasePercentileFunction, this.mockArgumentConverter));
 
     // Should work with longs
     Function longPercentileFunction =
@@ -76,7 +88,8 @@ class PinotFunctionConverterTest {
             .build();
     assertEquals(
         expected,
-        new PinotFunctionConverter().convert(longPercentileFunction, this.mockArgumentConverter));
+        new PinotFunctionConverter()
+            .convert(mockingExecutionContext, longPercentileFunction, this.mockArgumentConverter));
   }
 
   @Test
@@ -92,7 +105,7 @@ class PinotFunctionConverterTest {
     assertEquals(
         expected,
         new PinotFunctionConverter("CUSTOMPERCENTILE")
-            .convert(percentileFunction, this.mockArgumentConverter));
+            .convert(mockingExecutionContext, percentileFunction, this.mockArgumentConverter));
   }
 
   @Test
@@ -104,7 +117,10 @@ class PinotFunctionConverterTest {
         UnsupportedOperationException.class,
         () ->
             new PinotFunctionConverter()
-                .convert(percentileFunctionWithoutValue, this.mockArgumentConverter));
+                .convert(
+                    mockingExecutionContext,
+                    percentileFunctionWithoutValue,
+                    this.mockArgumentConverter));
   }
 
   @Test
@@ -115,7 +131,8 @@ class PinotFunctionConverterTest {
 
     assertEquals(
         expected,
-        new PinotFunctionConverter().convert(percentileFunction, this.mockArgumentConverter));
+        new PinotFunctionConverter()
+            .convert(mockingExecutionContext, percentileFunction, this.mockArgumentConverter));
   }
 
   @Test
@@ -126,27 +143,32 @@ class PinotFunctionConverterTest {
     assertEquals(
         "SUM(foo)",
         converter.convert(
+            mockingExecutionContext,
             buildFunction(QUERY_FUNCTION_SUM, createColumnExpression("foo")),
             this.mockArgumentConverter));
 
     assertEquals(
         "AVG(foo)",
         converter.convert(
+            mockingExecutionContext,
             buildFunction(QUERY_FUNCTION_AVG, createColumnExpression("foo")),
             this.mockArgumentConverter));
     assertEquals(
         "DISTINCTCOUNT(foo)",
         converter.convert(
+            mockingExecutionContext,
             buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, createColumnExpression("foo")),
             this.mockArgumentConverter));
     assertEquals(
         "MAX(foo)",
         converter.convert(
+            mockingExecutionContext,
             buildFunction(QUERY_FUNCTION_MAX, createColumnExpression("foo")),
             this.mockArgumentConverter));
     assertEquals(
         "MIN(foo)",
         converter.convert(
+            mockingExecutionContext,
             buildFunction(QUERY_FUNCTION_MIN, createColumnExpression("foo")),
             this.mockArgumentConverter));
   }
@@ -158,6 +180,7 @@ class PinotFunctionConverterTest {
         "UNKNOWN(foo)",
         new PinotFunctionConverter()
             .convert(
+                mockingExecutionContext,
                 buildFunction("UNKNOWN", createColumnExpression("foo")),
                 this.mockArgumentConverter));
   }
@@ -173,8 +196,57 @@ class PinotFunctionConverterTest {
         "CONCATSKIPNULL(foo,bar)",
         new PinotFunctionConverter()
             .convert(
+                mockingExecutionContext,
                 buildFunction(QUERY_FUNCTION_CONCAT, column1.toBuilder(), column2.toBuilder()),
                 this.mockArgumentConverter));
+  }
+
+  @Test
+  void convertAvgRateFunction() {
+    Expression column1 = createColumnExpression("foo").build();
+    Expression column2 = createStringLiteralValueExpression("PT5S");
+
+    when(this.mockArgumentConverter.apply(column1)).thenReturn("foo");
+    when(this.mockingExecutionContext.getTimeSeriesPeriod())
+        .thenReturn(Optional.of(Duration.ofSeconds(10)));
+
+    assertEquals(
+        "SUM(DIV(foo, 2.0))",
+        new PinotFunctionConverter()
+            .convert(
+                mockingExecutionContext,
+                buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                this.mockArgumentConverter));
+
+    when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
+    when(this.mockingExecutionContext.getTimeRangeDuration())
+        .thenReturn(Optional.of(Duration.ofSeconds(20)));
+
+    assertEquals(
+        "SUM(DIV(foo, 4.0))",
+        new PinotFunctionConverter()
+            .convert(
+                mockingExecutionContext,
+                buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                this.mockArgumentConverter));
+  }
+
+  @Test
+  void testIllegalDurationFormat() {
+    Expression column1 = createColumnExpression("foo").build();
+    Expression column2 = createStringLiteralValueExpression("2S");
+
+    when(this.mockArgumentConverter.apply(column1)).thenReturn("foo");
+
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new PinotFunctionConverter()
+                .convert(
+                    mockingExecutionContext,
+                    buildFunction(
+                        QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                    this.mockArgumentConverter));
   }
 
   private Function buildFunction(String name, Builder... arguments) {
