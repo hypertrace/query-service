@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service.pinot.converters;
 
-import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG_RATE;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVGRATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_PERCENTILE;
@@ -22,7 +22,7 @@ public class PinotFunctionConverter {
    * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster and
    * reasonably accurate, hence use that as the default.
    *
-   * <p>AVG_RATE not supported directly in Pinot. So AVG_RATE is computed by summing over all values
+   * <p>AVGRATE not supported directly in Pinot. So AVG_RATE is computed by summing over all values
    * and then dividing by a constant.
    */
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
@@ -52,7 +52,7 @@ public class PinotFunctionConverter {
         return this.functionToString(this.toPinotPercentile(function), argumentConverter);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
-      case QUERY_FUNCTION_AVG_RATE:
+      case QUERY_FUNCTION_AVGRATE:
         return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
       default:
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts

@@ -1,7 +1,7 @@
 package org.hypertrace.core.query.service.pinot.converters;
 
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG;
-import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG_RATE;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVGRATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_DISTINCTCOUNT;
@@ -215,7 +215,7 @@ class PinotFunctionConverterTest {
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
-                buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                buildFunction(QUERY_FUNCTION_AVGRATE, column1.toBuilder(), column2.toBuilder()),
                 this.mockArgumentConverter));
 
     when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
@@ -227,7 +227,7 @@ class PinotFunctionConverterTest {
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
-                buildFunction(QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                buildFunction(QUERY_FUNCTION_AVGRATE, column1.toBuilder(), column2.toBuilder()),
                 this.mockArgumentConverter));
   }
 
@@ -244,8 +244,7 @@ class PinotFunctionConverterTest {
             new PinotFunctionConverter()
                 .convert(
                     mockingExecutionContext,
-                    buildFunction(
-                        QUERY_FUNCTION_AVG_RATE, column1.toBuilder(), column2.toBuilder()),
+                    buildFunction(QUERY_FUNCTION_AVGRATE, column1.toBuilder(), column2.toBuilder()),
                     this.mockArgumentConverter));
   }
 

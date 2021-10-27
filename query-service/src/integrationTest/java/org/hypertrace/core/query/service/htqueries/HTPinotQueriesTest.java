@@ -329,7 +329,7 @@ public class HTPinotQueriesTest {
 
   @Test
   public void testServicesQueriesForAvgRate() {
-    LOG.info("Services queries for AVG_RATE");
+    LOG.info("Services queries for AVGRATE");
     Iterator<ResultSetChunk> itr =
         queryServiceClient.executeQuery(ServicesQueries.buildAvgRateQuery(), TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
@@ -344,7 +344,7 @@ public class HTPinotQueriesTest {
 
   @Test
   public void testServicesQueriesForAvgRateWithTimeAggregation() {
-    LOG.info("Services queries for AVG_RATE with time aggregation");
+    LOG.info("Services queries for AVGRATE with time aggregation");
     Iterator<ResultSetChunk> itr =
         queryServiceClient.executeQuery(
             ServicesQueries.buildAvgRateQueryWithTimeAggregation(), TENANT_ID_MAP, 10000);
