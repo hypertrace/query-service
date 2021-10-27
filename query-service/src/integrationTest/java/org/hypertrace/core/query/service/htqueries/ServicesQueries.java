@@ -79,7 +79,7 @@ class ServicesQueries {
     Expression durationSumFunction = createFunctionExpression("SUM", serviceDuration);
     Expression durationAvgRateFunction =
         createFunctionExpression(
-            "AVG_RATE", serviceDuration, createStringLiteralValueExpression("PT1S"));
+            "AVGRATE", serviceDuration, createStringLiteralValueExpression("PT1S"));
 
     builder.addSelection(durationAvgRateFunction);
     builder.addSelection(durationSumFunction);
@@ -123,7 +123,7 @@ class ServicesQueries {
     Expression serviceNumCalls = createColumnExpression("SERVICE.numCalls");
     Expression durationAvgRateFunction =
         createFunctionExpression(
-            "AVG_RATE", serviceNumCalls, createStringLiteralValueExpression("PT1S"));
+            "AVGRATE", serviceNumCalls, createStringLiteralValueExpression("PT1S"));
     Expression durationSumFunction = createFunctionExpression("SUM", serviceNumCalls);
 
     builder.addSelection(durationAvgRateFunction);
