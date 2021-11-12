@@ -77,7 +77,7 @@ public class PinotMapConverterTest {
   @Test
   public void test_merge_largerKeysThanValues_shouldReturnBasedOnKeys() throws IOException {
     String newKey = "KEY3";
-    expectedMap.put(newKey, null);
+    expectedMap.put(newKey, "");
     validKeys.add(newKey);
     String largerKeysString = objectMapper.writeValueAsString(validKeys);
     String expectedMapString = objectMapper.writeValueAsString(expectedMap);
