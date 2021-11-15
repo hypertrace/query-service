@@ -37,6 +37,7 @@ import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -306,6 +307,24 @@ public class QueryRequestToPinotSQLConverterTest {
             + "' "
             + "and ( start_time_millis > '1570658506605' and end_time_millis < '1570744906673' )"
             + " group by service_name, span_name limit 20");
+  }
+
+  @Disabled
+  @Test
+  public void testQueryWithGroupByWithMapAttribute() {
+    QueryRequest orderByQueryRequest = buildGroupByMapAttributeQuery();
+    Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
+    builder.setLimit(10000);
+    assertPQLQuery(
+        builder.build(),
+        "select mapValue(tags__KEYS,'span.kind',tags__VALUES),  AVG(duration_millis) FROM spanEventView "
+            + " where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND start_time_millis >= 1636519514905 AND start_time_millis < 1636523114905 AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != ''"
+            + "group by mapValue(tags__KEYS,'span.kind',tags__VALUES)");
   }
 
   @Test
@@ -1094,6 +1113,42 @@ public class QueryRequestToPinotSQLConverterTest {
         Expression.newBuilder()
             .setColumnIdentifier(
                 ColumnIdentifier.newBuilder().setColumnName("Span.displaySpanName").build()));
+    return builder.build();
+  }
+
+  private QueryRequest buildGroupByMapAttributeQuery() {
+    Builder builder = QueryRequest.newBuilder();
+
+    Filter startTimeFilter = createTimeFilter("EVENT.startTime", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("EVENT.startTime", Operator.LT, 1570744906673L);
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .build();
+    builder.setFilter(andFilter);
+
+    Function.Builder avg =
+        Function.newBuilder()
+            .setFunctionName("AVG")
+            .addArguments(
+                Expression.newBuilder()
+                    .setColumnIdentifier(
+                        ColumnIdentifier.newBuilder().setColumnName("EVENT.duration")));
+    builder.addSelection(Expression.newBuilder().setFunction(avg.build()));
+
+    Expression mapAttributeSelection =
+        Expression.newBuilder()
+            .setObjectIdentifier(
+                ObjectIdentifier.newBuilder()
+                    .setColumnName("EVENT.spanTags")
+                    .setPathExpression("span.kind")
+                    .setAlias("EVENT.spanTags.span.kind"))
+            .build();
+    builder.addSelection(mapAttributeSelection);
+
+    builder.addGroupBy(mapAttributeSelection);
     return builder.build();
   }
 
