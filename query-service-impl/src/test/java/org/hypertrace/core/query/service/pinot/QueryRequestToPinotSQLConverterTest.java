@@ -24,6 +24,7 @@ import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
+import org.hypertrace.core.query.service.api.ObjectIdentifier;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
@@ -552,6 +553,37 @@ public class QueryRequestToPinotSQLConverterTest {
         Filter.newBuilder()
             .setOperator(Operator.CONTAINS_KEYVALUE)
             .setLhs(Expression.newBuilder().setColumnIdentifier(spanTag).build())
+            .setRhs(Expression.newBuilder().setLiteral(tag).build())
+            .build();
+
+    builder.setFilter(likeFilter);
+    assertPQLQuery(
+        builder.build(),
+        "SELECT tags__keys, tags__values FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'");
+  }
+
+  @Test
+  public void testQueryWithContainsKeyValueOperatorForObjectIdentifier() {
+    Builder builder = QueryRequest.newBuilder();
+    ObjectIdentifier spanTag =
+        ObjectIdentifier.newBuilder().setColumnName("Span.tags").setPathExpression("FLAGS").build();
+    builder.addSelection(Expression.newBuilder().setObjectIdentifier(spanTag).build());
+
+    LiteralConstant tag =
+        LiteralConstant.newBuilder()
+            .setValue(Value.newBuilder().setValueType(ValueType.STRING).setString("0").build())
+            .build();
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEYVALUE)
+            .setLhs(Expression.newBuilder().setObjectIdentifier(spanTag).build())
             .setRhs(Expression.newBuilder().setLiteral(tag).build())
             .build();
 

@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.pinot;
 
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.OBJECTIDENTIFIER;
 
 import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
@@ -154,14 +155,27 @@ class QueryRequestToPinotSQLConverter {
           break;
         case CONTAINS_KEY:
           LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs());
-          builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
+          builder.append(convertExpressionToMapKeyColumn(getLogicalColumnName(filter.getLhs())));
           builder.append(" = ");
           builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
           break;
         case CONTAINS_KEYVALUE:
           kvp = convertExpressionToMapLiterals(filter.getRhs());
-          String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
-          String valCol = convertExpressionToMapValueColumn(filter.getLhs());
+          String logicalColumnName = getLogicalColumnName(filter.getLhs());
+          if (filter.getLhs().getValueCase() == OBJECTIDENTIFIER) {
+            String pathExpression = filter.getLhs().getObjectIdentifier().getPathExpression();
+            kvp[0] =
+                LiteralConstant.newBuilder()
+                    .setValue(Value.newBuilder().setString(pathExpression).build())
+                    .build();
+          } else if (filter.getLhs().getValueCase() != COLUMNIDENTIFIER) {
+            throw new IllegalArgumentException(
+                "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
+          }
+
+          String keyCol = convertExpressionToMapKeyColumn(logicalColumnName);
+          String valCol = convertExpressionToMapValueColumn(logicalColumnName);
+
           builder.append(keyCol);
           builder.append(" = ");
           builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
@@ -267,6 +281,11 @@ class QueryRequestToPinotSQLConverter {
         // this takes care of the Map Type where it's split into 2 columns
         List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
         return joiner.join(columnNames);
+      case OBJECTIDENTIFIER:
+        logicalColumnName = expression.getObjectIdentifier().getColumnName();
+        // this takes care of the Map Type where it's split into 2 columns
+        columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
+        return joiner.join(columnNames);
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
@@ -284,25 +303,31 @@ class QueryRequestToPinotSQLConverter {
     return "";
   }
 
-  private String convertExpressionToMapKeyColumn(Expression expression) {
-    if (expression.getValueCase() == COLUMNIDENTIFIER) {
-      String logicalColumnName = expression.getColumnIdentifier().getColumnName();
-      String col = viewDefinition.getKeyColumnNameForMap(logicalColumnName);
-      if (col != null && col.length() > 0) {
-        return col;
-      }
+  private String getLogicalColumnName(Expression expression) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return expression.getColumnIdentifier().getColumnName();
+      case OBJECTIDENTIFIER:
+        return expression.getObjectIdentifier().getColumnName();
+      default:
+        throw new IllegalArgumentException(
+            "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
+    }
+  }
+
+  private String convertExpressionToMapKeyColumn(String logicalColumnName) {
+    String col = viewDefinition.getKeyColumnNameForMap(logicalColumnName);
+    if (col != null && col.length() > 0) {
+      return col;
     }
     throw new IllegalArgumentException(
         "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
   }
 
-  private String convertExpressionToMapValueColumn(Expression expression) {
-    if (expression.getValueCase() == COLUMNIDENTIFIER) {
-      String logicalColumnName = expression.getColumnIdentifier().getColumnName();
-      String col = viewDefinition.getValueColumnNameForMap(logicalColumnName);
-      if (col != null && col.length() > 0) {
-        return col;
-      }
+  private String convertExpressionToMapValueColumn(String logicalColumnName) {
+    String col = viewDefinition.getValueColumnNameForMap(logicalColumnName);
+    if (col != null && col.length() > 0) {
+      return col;
     }
     throw new IllegalArgumentException(
         "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
@@ -320,10 +345,17 @@ class QueryRequestToPinotSQLConverter {
                       Value.newBuilder().setString(value.getValue().getStringArray(i)).build())
                   .build();
         }
+      } else if (value.getValue().getValueType() == ValueType.STRING) {
+        literals[1] =
+            LiteralConstant.newBuilder()
+                .setValue(Value.newBuilder().setString(value.getValue().getString()).build())
+                .build();
       } else {
         throw new IllegalArgumentException(
             "operator CONTAINS_KEYVALUE supports "
                 + ValueType.STRING_ARRAY.name()
+                + " and "
+                + ValueType.STRING.name()
                 + " value type only");
       }
     }
