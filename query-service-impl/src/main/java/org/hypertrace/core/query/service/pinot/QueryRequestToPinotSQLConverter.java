@@ -277,14 +277,13 @@ class QueryRequestToPinotSQLConverter {
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
-        String logicalColumnName = expression.getColumnIdentifier().getColumnName();
         // this takes care of the Map Type where it's split into 2 columns
-        List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
+        List<String> columnNames =
+            viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case ATTRIBUTEEXPRESSION:
-        logicalColumnName = expression.getAttributeExpression().getAttributeId();
         // this takes care of the Map Type where it's split into 2 columns
-        columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
+        columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
@@ -337,6 +336,8 @@ class QueryRequestToPinotSQLConverter {
     LiteralConstant[] literals = new LiteralConstant[2];
     if (expression.getValueCase() == LITERAL) {
       LiteralConstant value = expression.getLiteral();
+
+      // backward compatibility
       if (value.getValue().getValueType() == ValueType.STRING_ARRAY) {
         for (int i = 0; i < 2 && i < value.getValue().getStringArrayCount(); i++) {
           literals[i] =
