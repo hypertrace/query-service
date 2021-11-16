@@ -37,7 +37,6 @@ import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -309,21 +308,18 @@ public class QueryRequestToPinotSQLConverterTest {
             + " group by service_name, span_name limit 20");
   }
 
-  @Disabled
   @Test
   public void testQueryWithGroupByWithMapAttribute() {
-    QueryRequest orderByQueryRequest = buildGroupByMapAttributeQuery();
-    Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
-    builder.setLimit(10000);
+    Builder builder = QueryRequest.newBuilder(buildGroupByMapAttributeQuery());
     assertPQLQuery(
         builder.build(),
-        "select mapValue(tags__KEYS,'span.kind',tags__VALUES),  AVG(duration_millis) FROM spanEventView "
+        "select tags__KEYS, tags__VALUES, AVG(duration_millis) FROM spanEventView"
             + " where "
             + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND start_time_millis >= 1636519514905 AND start_time_millis < 1636523114905 AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != ''"
+            + "AND ( start_time_millis > '1570658506605' AND start_time_millis < '1570744906673' ) AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' "
             + "group by mapValue(tags__KEYS,'span.kind',tags__VALUES)");
   }
 
@@ -1119,8 +1115,9 @@ public class QueryRequestToPinotSQLConverterTest {
   private QueryRequest buildGroupByMapAttributeQuery() {
     Builder builder = QueryRequest.newBuilder();
 
-    Filter startTimeFilter = createTimeFilter("EVENT.startTime", Operator.GT, 1570658506605L);
-    Filter endTimeFilter = createTimeFilter("EVENT.startTime", Operator.LT, 1570744906673L);
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.start_time_millis", Operator.LT, 1570744906673L);
     Filter andFilter =
         Filter.newBuilder()
             .setOperator(Operator.AND)
@@ -1135,16 +1132,16 @@ public class QueryRequestToPinotSQLConverterTest {
             .addArguments(
                 Expression.newBuilder()
                     .setColumnIdentifier(
-                        ColumnIdentifier.newBuilder().setColumnName("EVENT.duration")));
+                        ColumnIdentifier.newBuilder().setColumnName("Span.duration_millis")));
     builder.addSelection(Expression.newBuilder().setFunction(avg.build()));
 
     Expression mapAttributeSelection =
         Expression.newBuilder()
             .setObjectIdentifier(
                 ObjectIdentifier.newBuilder()
-                    .setColumnName("EVENT.spanTags")
+                    .setColumnName("Span.tags")
                     .setPathExpression("span.kind")
-                    .setAlias("EVENT.spanTags.span.kind"))
+                    .setAlias("Span.tags.span.kind"))
             .build();
     builder.addSelection(mapAttributeSelection);
 
