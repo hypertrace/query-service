@@ -313,13 +313,14 @@ public class QueryRequestToPinotSQLConverterTest {
     Builder builder = QueryRequest.newBuilder(buildGroupByMapAttributeQuery());
     assertPQLQuery(
         builder.build(),
-        "select tags__KEYS, tags__VALUES, AVG(duration_millis) FROM spanEventView"
+        "select mapValue(tags__KEYS,'span.kind',tags__VALUES), AVG(duration_millis) FROM spanEventView"
             + " where "
             + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( start_time_millis > '1570658506605' AND start_time_millis < '1570744906673' ) AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' "
+            + "AND ( start_time_millis > '1570658506605' AND start_time_millis < '1570744906673' ) "
+            + "AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' "
             + "group by mapValue(tags__KEYS,'span.kind',tags__VALUES)");
   }
 
