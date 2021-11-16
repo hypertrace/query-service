@@ -319,8 +319,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( start_time_millis > '1570658506605' AND start_time_millis < '1570744906673' ) "
-            + "AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' "
+            + "AND ( start_time_millis > '1570658506605' AND start_time_millis < '1570744906673' "
+            + "AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' ) "
             + "group by mapValue(tags__KEYS,'span.kind',tags__VALUES)");
   }
 
@@ -1119,11 +1119,37 @@ public class QueryRequestToPinotSQLConverterTest {
     Filter startTimeFilter =
         createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
     Filter endTimeFilter = createTimeFilter("Span.start_time_millis", Operator.LT, 1570744906673L);
+    Filter mapAttributeFilter =
+        Filter.newBuilder()
+            .setLhs(
+                Expression.newBuilder()
+                    .setObjectIdentifier(
+                        ObjectIdentifier.newBuilder()
+                            .setColumnName("Span.tags")
+                            .setPathExpression("span.kind")
+                            .setAlias("Span.tags.span.kind")
+                            .build())
+                    .build())
+            .setOperator(Operator.NEQ)
+            .setRhs(
+                Expression.newBuilder()
+                    .setLiteral(
+                        LiteralConstant.newBuilder()
+                            .setValue(
+                                Value.newBuilder()
+                                    .setValueType(ValueType.STRING)
+                                    .setString("")
+                                    .build())
+                            .build())
+                    .build())
+            .build();
+
     Filter andFilter =
         Filter.newBuilder()
             .setOperator(Operator.AND)
             .addChildFilter(startTimeFilter)
             .addChildFilter(endTimeFilter)
+            .addChildFilter(mapAttributeFilter)
             .build();
     builder.setFilter(andFilter);
 

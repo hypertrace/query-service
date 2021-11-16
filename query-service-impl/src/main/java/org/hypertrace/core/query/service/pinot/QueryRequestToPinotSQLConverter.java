@@ -65,7 +65,11 @@ class QueryRequestToPinotSQLConverter {
     // how it is created.
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
-      pqlBuilder.append(convertExpression2String(expr, paramsBuilder, executionContext));
+      if (request.getGroupByCount() > 0 && expr.getValueCase() == OBJECTIDENTIFIER) {
+        pqlBuilder.append(handleSelectionForGroupByForMapAttribute(expr));
+      } else {
+        pqlBuilder.append(convertExpression2String(expr, paramsBuilder, executionContext));
+      }
       delim = ", ";
     }
 
@@ -87,8 +91,12 @@ class QueryRequestToPinotSQLConverter {
       delim = "";
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
-        pqlBuilder.append(
-            convertExpression2String(groupByExpression, paramsBuilder, executionContext));
+        if (groupByExpression.getValueCase() == OBJECTIDENTIFIER) {
+          pqlBuilder.append(handleSelectionForGroupByForMapAttribute(groupByExpression));
+        } else {
+          pqlBuilder.append(
+              convertExpression2String(groupByExpression, paramsBuilder, executionContext));
+        }
         delim = ", ";
       }
     }
@@ -195,12 +203,16 @@ class QueryRequestToPinotSQLConverter {
           builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
           break;
         default:
-          rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          builder.append(
-              convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+          if (filter.getLhs().getValueCase() == OBJECTIDENTIFIER) {
+            builder.append(handleSelectionForGroupByForMapAttribute(filter.getLhs()));
+          } else {
+            builder.append(
+                convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+          }
           builder.append(" ");
           builder.append(operator);
           builder.append(" ");
+          rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
       }
     }
@@ -368,6 +380,25 @@ class QueryRequestToPinotSQLConverter {
     }
 
     return literals;
+  }
+
+  private String handleSelectionForGroupByForMapAttribute(Expression expression) {
+    StringBuilder builder = new StringBuilder();
+    String logicalColumnName = expression.getObjectIdentifier().getColumnName();
+    // this takes care of the Map Type where it's split into 2 columns
+    List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
+
+    builder.append(MAP_VALUE);
+    builder.append("(");
+    builder.append(columnNames.get(0));
+    builder.append(",");
+    builder.append("'");
+    builder.append(expression.getObjectIdentifier().getPathExpression());
+    builder.append("'");
+    builder.append(",");
+    builder.append(columnNames.get(1));
+    builder.append(")");
+    return builder.toString();
   }
 
   /** TODO:Handle all types */
