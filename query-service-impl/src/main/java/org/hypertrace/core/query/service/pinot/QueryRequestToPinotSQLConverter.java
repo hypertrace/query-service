@@ -1,8 +1,8 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTEEXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.OBJECTIDENTIFIER;
 
 import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
@@ -162,8 +162,8 @@ class QueryRequestToPinotSQLConverter {
         case CONTAINS_KEYVALUE:
           kvp = convertExpressionToMapLiterals(filter.getRhs());
           String logicalColumnName = getLogicalColumnName(filter.getLhs());
-          if (filter.getLhs().getValueCase() == OBJECTIDENTIFIER) {
-            String pathExpression = filter.getLhs().getObjectIdentifier().getPathExpression();
+          if (filter.getLhs().getValueCase() == ATTRIBUTEEXPRESSION) {
+            String pathExpression = filter.getLhs().getAttributeExpression().getSubpath();
             kvp[0] =
                 LiteralConstant.newBuilder()
                     .setValue(Value.newBuilder().setString(pathExpression).build())
@@ -281,8 +281,8 @@ class QueryRequestToPinotSQLConverter {
         // this takes care of the Map Type where it's split into 2 columns
         List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
         return joiner.join(columnNames);
-      case OBJECTIDENTIFIER:
-        logicalColumnName = expression.getObjectIdentifier().getColumnName();
+      case ATTRIBUTEEXPRESSION:
+        logicalColumnName = expression.getAttributeExpression().getAttributeId();
         // this takes care of the Map Type where it's split into 2 columns
         columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
         return joiner.join(columnNames);
@@ -307,8 +307,8 @@ class QueryRequestToPinotSQLConverter {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
         return expression.getColumnIdentifier().getColumnName();
-      case OBJECTIDENTIFIER:
-        return expression.getObjectIdentifier().getColumnName();
+      case ATTRIBUTEEXPRESSION:
+        return expression.getAttributeExpression().getAttributeId();
       default:
         throw new IllegalArgumentException(
             "operator CONTAINS_KEY/KEYVALUE supports multi value column only");

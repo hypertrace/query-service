@@ -19,12 +19,12 @@ import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
+import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
-import org.hypertrace.core.query.service.api.ObjectIdentifier;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
@@ -571,9 +571,9 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithContainsKeyValueOperatorForObjectIdentifier() {
     Builder builder = QueryRequest.newBuilder();
-    ObjectIdentifier spanTag =
-        ObjectIdentifier.newBuilder().setColumnName("Span.tags").setPathExpression("FLAGS").build();
-    builder.addSelection(Expression.newBuilder().setObjectIdentifier(spanTag).build());
+    AttributeExpression spanTag =
+        AttributeExpression.newBuilder().setAttributeId("Span.tags").setSubpath("FLAGS").build();
+    builder.addSelection(Expression.newBuilder().setAttributeExpression(spanTag).build());
 
     LiteralConstant tag =
         LiteralConstant.newBuilder()
@@ -583,7 +583,7 @@ public class QueryRequestToPinotSQLConverterTest {
     Filter likeFilter =
         Filter.newBuilder()
             .setOperator(Operator.CONTAINS_KEYVALUE)
-            .setLhs(Expression.newBuilder().setObjectIdentifier(spanTag).build())
+            .setLhs(Expression.newBuilder().setAttributeExpression(spanTag).build())
             .setRhs(Expression.newBuilder().setLiteral(tag).build())
             .build();
 
