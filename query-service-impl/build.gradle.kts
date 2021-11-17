@@ -10,6 +10,9 @@ tasks.test {
 
 dependencies {
   constraints {
+    implementation("com.google.code.gson:gson:2.8.9") {
+      because("https://snyk.io/vuln/SNYK-JAVA-COMGOOGLECODEGSON-1730327")
+    }
     implementation("com.fasterxml.jackson.core:jackson-databind:2.12.2") {
       because("Multiple vulnerabilities")
     }
