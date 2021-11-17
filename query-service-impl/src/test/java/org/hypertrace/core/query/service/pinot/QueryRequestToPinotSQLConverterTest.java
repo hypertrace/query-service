@@ -569,7 +569,7 @@ public class QueryRequestToPinotSQLConverterTest {
   }
 
   @Test
-  public void testQueryWithContainsKeyValueOperatorForObjectIdentifier() {
+  public void testQueryWithEQOperatorForObjectIdentifier() {
     Builder builder = QueryRequest.newBuilder();
     AttributeExpression spanTag =
         AttributeExpression.newBuilder().setAttributeId("Span.tags").setSubpath("FLAGS").build();
@@ -582,7 +582,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     Filter likeFilter =
         Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEYVALUE)
+            .setOperator(Operator.EQ)
             .setLhs(Expression.newBuilder().setAttributeExpression(spanTag).build())
             .setRhs(Expression.newBuilder().setLiteral(tag).build())
             .build();

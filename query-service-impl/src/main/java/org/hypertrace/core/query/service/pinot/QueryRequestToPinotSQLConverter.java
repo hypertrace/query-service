@@ -160,47 +160,31 @@ class QueryRequestToPinotSQLConverter {
           break;
         case CONTAINS_KEYVALUE:
           kvp = convertExpressionToMapLiterals(filter.getRhs());
-          String logicalColumnName = getLogicalColumnName(filter.getLhs());
+          String keyCol = convertStringToMapKeyColumn(getLogicalColumnName(filter.getLhs()));
+          String valCol = convertStringToMapValueColumn(getLogicalColumnName(filter.getLhs()));
+          builder.append(getStringForMapAttribute(kvp, keyCol, valCol, paramsBuilder));
+          break;
+        default:
           if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION) {
             String pathExpression = filter.getLhs().getAttributeExpression().getSubpath();
+            kvp = convertExpressionToMapLiterals(filter.getRhs());
             kvp[0] =
                 LiteralConstant.newBuilder()
                     .setValue(Value.newBuilder().setString(pathExpression).build())
                     .build();
-          } else if (filter.getLhs().getValueCase() != COLUMNIDENTIFIER) {
-            throw new IllegalArgumentException(
-                "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
+
+            keyCol = convertStringToMapKeyColumn(getLogicalColumnName(filter.getLhs()));
+            valCol = convertStringToMapValueColumn(getLogicalColumnName(filter.getLhs()));
+            builder.append(getStringForMapAttribute(kvp, keyCol, valCol, paramsBuilder));
+          } else {
+            rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+            builder.append(
+                convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+            builder.append(" ");
+            builder.append(operator);
+            builder.append(" ");
+            builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
           }
-
-          String keyCol = convertStringToMapKeyColumn(logicalColumnName);
-          String valCol = convertStringToMapValueColumn(logicalColumnName);
-
-          builder.append(keyCol);
-          builder.append(" = ");
-          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-          builder.append(" AND ");
-          builder.append(valCol);
-          builder.append(" = ");
-          builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-          builder.append(" AND ");
-          builder.append(MAP_VALUE);
-          builder.append("(");
-          builder.append(keyCol);
-          builder.append(",");
-          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-          builder.append(",");
-          builder.append(valCol);
-          builder.append(") = ");
-          builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-          break;
-        default:
-          rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          builder.append(
-              convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
-          builder.append(" ");
-          builder.append(operator);
-          builder.append(" ");
-          builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
       }
     }
     return builder.toString();
@@ -296,6 +280,29 @@ class QueryRequestToPinotSQLConverter {
     return "";
   }
 
+  private String getStringForMapAttribute(
+      LiteralConstant[] kvp, String keyCol, String valCol, Builder paramsBuilder) {
+    StringBuilder builder = new StringBuilder();
+    builder.append(keyCol);
+    builder.append(" = ");
+    builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+    builder.append(" AND ");
+    builder.append(valCol);
+    builder.append(" = ");
+    builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+    builder.append(" AND ");
+    builder.append(MAP_VALUE);
+    builder.append("(");
+    builder.append(keyCol);
+    builder.append(",");
+    builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+    builder.append(",");
+    builder.append(valCol);
+    builder.append(") = ");
+    builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+    return builder.toString();
+  }
+
   private String getLogicalColumnName(Expression expression) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
@@ -330,21 +337,19 @@ class QueryRequestToPinotSQLConverter {
     LiteralConstant[] literals = new LiteralConstant[2];
     if (expression.getValueCase() == LITERAL) {
       LiteralConstant value = expression.getLiteral();
+      String[] literalArguments = new String[2];
 
       // backward compatibility
       if (value.getValue().getValueType() == ValueType.STRING_ARRAY) {
-        for (int i = 0; i < 2 && i < value.getValue().getStringArrayCount(); i++) {
-          literals[i] =
-              LiteralConstant.newBuilder()
-                  .setValue(
-                      Value.newBuilder().setString(value.getValue().getStringArray(i)).build())
-                  .build();
+        literalArguments[0] = value.getValue().getStringArray(0);
+        if (value.getValue().getStringArrayCount() > 1) {
+          literalArguments[1] = value.getValue().getStringArray(1);
+        } else {
+          literalArguments[1] = "";
         }
       } else if (value.getValue().getValueType() == ValueType.STRING) {
-        literals[1] =
-            LiteralConstant.newBuilder()
-                .setValue(Value.newBuilder().setString(value.getValue().getString()).build())
-                .build();
+        literalArguments[0] = "";
+        literalArguments[1] = value.getValue().getString();
       } else {
         throw new IllegalArgumentException(
             "operator CONTAINS_KEYVALUE supports "
@@ -352,6 +357,13 @@ class QueryRequestToPinotSQLConverter {
                 + " and "
                 + ValueType.STRING.name()
                 + " value type only");
+      }
+
+      for (int i = 0; i < 2; i++) {
+        literals[i] =
+            LiteralConstant.newBuilder()
+                .setValue(Value.newBuilder().setString(literalArguments[i]).build())
+                .build();
       }
     }
 
