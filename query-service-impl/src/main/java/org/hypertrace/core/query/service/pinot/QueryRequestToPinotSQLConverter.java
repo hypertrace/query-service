@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTEEXPRESSION;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
@@ -8,7 +8,6 @@ import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map.Entry;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -162,7 +161,7 @@ class QueryRequestToPinotSQLConverter {
         case CONTAINS_KEYVALUE:
           kvp = convertExpressionToMapLiterals(filter.getRhs());
           String logicalColumnName = getLogicalColumnName(filter.getLhs());
-          if (filter.getLhs().getValueCase() == ATTRIBUTEEXPRESSION) {
+          if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION) {
             String pathExpression = filter.getLhs().getAttributeExpression().getSubpath();
             kvp[0] =
                 LiteralConstant.newBuilder()
@@ -277,11 +276,9 @@ class QueryRequestToPinotSQLConverter {
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
-      case ATTRIBUTEEXPRESSION:
+      case ATTRIBUTE_EXPRESSION:
         // this takes care of the Map Type where it's split into 2 columns
-        List<String> columnNames =
-            viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
-        return joiner.join(columnNames);
+        return joiner.join(viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression)));
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
@@ -303,7 +300,7 @@ class QueryRequestToPinotSQLConverter {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
         return expression.getColumnIdentifier().getColumnName();
-      case ATTRIBUTEEXPRESSION:
+      case ATTRIBUTE_EXPRESSION:
         return expression.getAttributeExpression().getAttributeId();
       default:
         throw new IllegalArgumentException(

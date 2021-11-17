@@ -14,7 +14,7 @@ message Expression {
     LiteralConstant literal = 2;
     Function function = 3;
     OrderByExpression orderBy = 4;
-    AttributeExpression attributeExpression = 5;
+    AttributeExpression attribute_expression = 5;
   }
 }
 message QueryRequest {
