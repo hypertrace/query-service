@@ -76,8 +76,8 @@ message ColumnIdentifier {
 
 message AttributeExpression {
   string attributeId = 1;
-  string subpath = 2;
-  string alias = 3;
+  optional string subpath = 2;
+  optional string alias = 3;
 }
 
 message OrderByExpression {

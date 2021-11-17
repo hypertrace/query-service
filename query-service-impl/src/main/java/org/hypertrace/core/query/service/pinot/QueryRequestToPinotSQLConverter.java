@@ -155,7 +155,7 @@ class QueryRequestToPinotSQLConverter {
           break;
         case CONTAINS_KEY:
           LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs());
-          builder.append(convertExpressionToMapKeyColumn(getLogicalColumnName(filter.getLhs())));
+          builder.append(convertStringToMapKeyColumn(getLogicalColumnName(filter.getLhs())));
           builder.append(" = ");
           builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
           break;
@@ -173,8 +173,8 @@ class QueryRequestToPinotSQLConverter {
                 "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
           }
 
-          String keyCol = convertExpressionToMapKeyColumn(logicalColumnName);
-          String valCol = convertExpressionToMapValueColumn(logicalColumnName);
+          String keyCol = convertStringToMapKeyColumn(logicalColumnName);
+          String valCol = convertStringToMapValueColumn(logicalColumnName);
 
           builder.append(keyCol);
           builder.append(" = ");
@@ -277,13 +277,10 @@ class QueryRequestToPinotSQLConverter {
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
+      case ATTRIBUTEEXPRESSION:
         // this takes care of the Map Type where it's split into 2 columns
         List<String> columnNames =
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
-        return joiner.join(columnNames);
-      case ATTRIBUTEEXPRESSION:
-        // this takes care of the Map Type where it's split into 2 columns
-        columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
@@ -314,7 +311,7 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
-  private String convertExpressionToMapKeyColumn(String logicalColumnName) {
+  private String convertStringToMapKeyColumn(String logicalColumnName) {
     String col = viewDefinition.getKeyColumnNameForMap(logicalColumnName);
     if (col != null && col.length() > 0) {
       return col;
@@ -323,7 +320,7 @@ class QueryRequestToPinotSQLConverter {
         "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
   }
 
-  private String convertExpressionToMapValueColumn(String logicalColumnName) {
+  private String convertStringToMapValueColumn(String logicalColumnName) {
     String col = viewDefinition.getValueColumnNameForMap(logicalColumnName);
     if (col != null && col.length() > 0) {
       return col;
