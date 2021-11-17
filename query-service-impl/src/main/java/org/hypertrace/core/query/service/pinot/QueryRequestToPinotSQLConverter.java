@@ -1,6 +1,5 @@
 package org.hypertrace.core.query.service.pinot;
 
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
@@ -8,6 +7,7 @@ import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map.Entry;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -154,37 +154,40 @@ class QueryRequestToPinotSQLConverter {
           break;
         case CONTAINS_KEY:
           LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs());
-          builder.append(convertStringToMapKeyColumn(getLogicalColumnName(filter.getLhs())));
+          builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
           builder.append(" = ");
           builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
           break;
         case CONTAINS_KEYVALUE:
           kvp = convertExpressionToMapLiterals(filter.getRhs());
-          String keyCol = convertStringToMapKeyColumn(getLogicalColumnName(filter.getLhs()));
-          String valCol = convertStringToMapValueColumn(getLogicalColumnName(filter.getLhs()));
-          builder.append(getStringForMapAttribute(kvp, keyCol, valCol, paramsBuilder));
+          String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
+          String valCol = convertExpressionToMapValueColumn(filter.getLhs());
+          builder.append(keyCol);
+          builder.append(" = ");
+          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+          builder.append(" AND ");
+          builder.append(valCol);
+          builder.append(" = ");
+          builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+          builder.append(" AND ");
+          builder.append(MAP_VALUE);
+          builder.append("(");
+          builder.append(keyCol);
+          builder.append(",");
+          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+          builder.append(",");
+          builder.append(valCol);
+          builder.append(") = ");
+          builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
           break;
         default:
-          if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION) {
-            String pathExpression = filter.getLhs().getAttributeExpression().getSubpath();
-            kvp = convertExpressionToMapLiterals(filter.getRhs());
-            kvp[0] =
-                LiteralConstant.newBuilder()
-                    .setValue(Value.newBuilder().setString(pathExpression).build())
-                    .build();
-
-            keyCol = convertStringToMapKeyColumn(getLogicalColumnName(filter.getLhs()));
-            valCol = convertStringToMapValueColumn(getLogicalColumnName(filter.getLhs()));
-            builder.append(getStringForMapAttribute(kvp, keyCol, valCol, paramsBuilder));
-          } else {
-            rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-            builder.append(
-                convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
-            builder.append(" ");
-            builder.append(operator);
-            builder.append(" ");
-            builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
-          }
+          rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+          builder.append(
+              convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+          builder.append(" ");
+          builder.append(operator);
+          builder.append(" ");
+          builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
       }
     }
     return builder.toString();
@@ -260,9 +263,10 @@ class QueryRequestToPinotSQLConverter {
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
-      case ATTRIBUTE_EXPRESSION:
+        String logicalColumnName = expression.getColumnIdentifier().getColumnName();
         // this takes care of the Map Type where it's split into 2 columns
-        return joiner.join(viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression)));
+        List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
+        return joiner.join(columnNames);
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
@@ -280,54 +284,25 @@ class QueryRequestToPinotSQLConverter {
     return "";
   }
 
-  private String getStringForMapAttribute(
-      LiteralConstant[] kvp, String keyCol, String valCol, Builder paramsBuilder) {
-    StringBuilder builder = new StringBuilder();
-    builder.append(keyCol);
-    builder.append(" = ");
-    builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-    builder.append(" AND ");
-    builder.append(valCol);
-    builder.append(" = ");
-    builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-    builder.append(" AND ");
-    builder.append(MAP_VALUE);
-    builder.append("(");
-    builder.append(keyCol);
-    builder.append(",");
-    builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-    builder.append(",");
-    builder.append(valCol);
-    builder.append(") = ");
-    builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-    return builder.toString();
-  }
-
-  private String getLogicalColumnName(Expression expression) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        return expression.getColumnIdentifier().getColumnName();
-      case ATTRIBUTE_EXPRESSION:
-        return expression.getAttributeExpression().getAttributeId();
-      default:
-        throw new IllegalArgumentException(
-            "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
-    }
-  }
-
-  private String convertStringToMapKeyColumn(String logicalColumnName) {
-    String col = viewDefinition.getKeyColumnNameForMap(logicalColumnName);
-    if (col != null && col.length() > 0) {
-      return col;
+  private String convertExpressionToMapKeyColumn(Expression expression) {
+    if (expression.getValueCase() == COLUMNIDENTIFIER) {
+      String logicalColumnName = expression.getColumnIdentifier().getColumnName();
+      String col = viewDefinition.getKeyColumnNameForMap(logicalColumnName);
+      if (col != null && col.length() > 0) {
+        return col;
+      }
     }
     throw new IllegalArgumentException(
         "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
   }
 
-  private String convertStringToMapValueColumn(String logicalColumnName) {
-    String col = viewDefinition.getValueColumnNameForMap(logicalColumnName);
-    if (col != null && col.length() > 0) {
-      return col;
+  private String convertExpressionToMapValueColumn(Expression expression) {
+    if (expression.getValueCase() == COLUMNIDENTIFIER) {
+      String logicalColumnName = expression.getColumnIdentifier().getColumnName();
+      String col = viewDefinition.getValueColumnNameForMap(logicalColumnName);
+      if (col != null && col.length() > 0) {
+        return col;
+      }
     }
     throw new IllegalArgumentException(
         "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
@@ -337,33 +312,19 @@ class QueryRequestToPinotSQLConverter {
     LiteralConstant[] literals = new LiteralConstant[2];
     if (expression.getValueCase() == LITERAL) {
       LiteralConstant value = expression.getLiteral();
-      String[] literalArguments = new String[2];
-
-      // backward compatibility
       if (value.getValue().getValueType() == ValueType.STRING_ARRAY) {
-        literalArguments[0] = value.getValue().getStringArray(0);
-        if (value.getValue().getStringArrayCount() > 1) {
-          literalArguments[1] = value.getValue().getStringArray(1);
-        } else {
-          literalArguments[1] = "";
+        for (int i = 0; i < 2 && i < value.getValue().getStringArrayCount(); i++) {
+          literals[i] =
+              LiteralConstant.newBuilder()
+                  .setValue(
+                      Value.newBuilder().setString(value.getValue().getStringArray(i)).build())
+                  .build();
         }
-      } else if (value.getValue().getValueType() == ValueType.STRING) {
-        literalArguments[0] = "";
-        literalArguments[1] = value.getValue().getString();
       } else {
         throw new IllegalArgumentException(
             "operator CONTAINS_KEYVALUE supports "
                 + ValueType.STRING_ARRAY.name()
-                + " and "
-                + ValueType.STRING.name()
                 + " value type only");
-      }
-
-      for (int i = 0; i < 2; i++) {
-        literals[i] =
-            LiteralConstant.newBuilder()
-                .setValue(Value.newBuilder().setString(literalArguments[i]).build())
-                .build();
       }
     }
 
