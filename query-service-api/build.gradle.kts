@@ -70,6 +70,11 @@ dependencies {
   api("io.grpc:grpc-stub:1.36.1")
   api("javax.annotation:javax.annotation-api:1.3.2")
 
+  constraints {
+    implementation("com.google.code.gson:gson:2.8.9") {
+      because("https://snyk.io/vuln/SNYK-JAVA-COMGOOGLECODEGSON-1730327")
+    }
+  }
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
   testImplementation("com.google.protobuf:protobuf-java-util:3.15.6")
 }

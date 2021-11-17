@@ -15,6 +15,11 @@ dependencies {
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("com.typesafe:config:1.4.1")
 
+  constraints {
+    implementation("com.google.code.gson:gson:2.8.9") {
+      because("https://snyk.io/vuln/SNYK-JAVA-COMGOOGLECODEGSON-1730327")
+    }
+  }
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.14.1")
   runtimeOnly("io.grpc:grpc-netty:1.36.1")
   constraints {
