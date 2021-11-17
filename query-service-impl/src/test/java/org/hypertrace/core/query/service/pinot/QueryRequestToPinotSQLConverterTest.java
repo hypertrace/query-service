@@ -19,7 +19,6 @@ import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
-import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -553,37 +552,6 @@ public class QueryRequestToPinotSQLConverterTest {
         Filter.newBuilder()
             .setOperator(Operator.CONTAINS_KEYVALUE)
             .setLhs(Expression.newBuilder().setColumnIdentifier(spanTag).build())
-            .setRhs(Expression.newBuilder().setLiteral(tag).build())
-            .build();
-
-    builder.setFilter(likeFilter);
-    assertPQLQuery(
-        builder.build(),
-        "SELECT tags__keys, tags__values FROM SpanEventView "
-            + "WHERE "
-            + viewDefinition.getTenantIdColumn()
-            + " = '"
-            + TENANT_ID
-            + "' "
-            + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'");
-  }
-
-  @Test
-  public void testQueryWithContainsKeyValueOperatorForObjectIdentifier() {
-    Builder builder = QueryRequest.newBuilder();
-    AttributeExpression spanTag =
-        AttributeExpression.newBuilder().setAttributeId("Span.tags").setSubpath("FLAGS").build();
-    builder.addSelection(Expression.newBuilder().setAttributeExpression(spanTag).build());
-
-    LiteralConstant tag =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.STRING).setString("0").build())
-            .build();
-
-    Filter likeFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEYVALUE)
-            .setLhs(Expression.newBuilder().setAttributeExpression(spanTag).build())
             .setRhs(Expression.newBuilder().setLiteral(tag).build())
             .build();
 
