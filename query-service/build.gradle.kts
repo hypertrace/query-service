@@ -10,18 +10,13 @@ plugins {
 
 dependencies {
   implementation(project(":query-service-impl"))
-  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.4.0")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.6.2")
   implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.28")
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("com.typesafe:config:1.4.1")
 
-  constraints {
-    implementation("com.google.code.gson:gson:2.8.9") {
-      because("https://snyk.io/vuln/SNYK-JAVA-COMGOOGLECODEGSON-1730327")
-    }
-  }
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.14.1")
-  runtimeOnly("io.grpc:grpc-netty:1.36.1")
+  runtimeOnly("io.grpc:grpc-netty:1.42.0")
   constraints {
     runtimeOnly("io.netty:netty-codec-http2:4.1.68.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1089809")
