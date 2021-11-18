@@ -569,7 +569,7 @@ public class QueryRequestToPinotSQLConverterTest {
   }
 
   @Test
-  public void testQueryWithEQOperatorForObjectIdentifier() {
+  public void testQueryWithEQOperatorForAttributeExpression() {
     Builder builder = QueryRequest.newBuilder();
     AttributeExpression spanTag =
         AttributeExpression.newBuilder().setAttributeId("Span.tags").setSubpath("FLAGS").build();
