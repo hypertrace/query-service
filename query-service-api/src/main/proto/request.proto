@@ -14,7 +14,7 @@ message Expression {
     LiteralConstant literal = 2;
     Function function = 3;
     OrderByExpression orderBy = 4;
-    ObjectIdentifier objectIdentifier = 5;
+    AttributeExpression attribute_expression = 5;
   }
 }
 message QueryRequest {
@@ -74,10 +74,10 @@ message ColumnIdentifier {
   string alias = 2;
 }
 
-message ObjectIdentifier {
-  string columnName = 1;
-  string path_expression = 2;
-  string alias = 3;
+message AttributeExpression {
+  string attributeId = 1;
+  optional string subpath = 2;
+  optional string alias = 3;
 }
 
 message OrderByExpression {
