@@ -1,8 +1,8 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.OBJECTIDENTIFIER;
 
 import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
@@ -65,7 +65,7 @@ class QueryRequestToPinotSQLConverter {
     // how it is created.
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
-      if (request.getGroupByCount() > 0 && expr.getValueCase() == OBJECTIDENTIFIER) {
+      if (request.getGroupByCount() > 0 && expr.getValueCase() == ATTRIBUTE_EXPRESSION) {
         pqlBuilder.append(handleSelectionForGroupByForMapAttribute(expr));
       } else {
         pqlBuilder.append(convertExpression2String(expr, paramsBuilder, executionContext));
@@ -91,7 +91,7 @@ class QueryRequestToPinotSQLConverter {
       delim = "";
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
-        if (groupByExpression.getValueCase() == OBJECTIDENTIFIER) {
+        if (groupByExpression.getValueCase() == ATTRIBUTE_EXPRESSION) {
           pqlBuilder.append(handleSelectionForGroupByForMapAttribute(groupByExpression));
         } else {
           pqlBuilder.append(
@@ -170,8 +170,8 @@ class QueryRequestToPinotSQLConverter {
         case CONTAINS_KEYVALUE:
           kvp = convertExpressionToMapLiterals(filter.getRhs());
           String logicalColumnName = getLogicalColumnName(filter.getLhs());
-          if (filter.getLhs().getValueCase() == OBJECTIDENTIFIER) {
-            String pathExpression = filter.getLhs().getObjectIdentifier().getPathExpression();
+          if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION) {
+            String pathExpression = filter.getLhs().getAttributeExpression().getSubpath();
             kvp[0] =
                 LiteralConstant.newBuilder()
                     .setValue(Value.newBuilder().setString(pathExpression).build())
@@ -203,7 +203,7 @@ class QueryRequestToPinotSQLConverter {
           builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
           break;
         default:
-          if (filter.getLhs().getValueCase() == OBJECTIDENTIFIER) {
+          if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION) {
             builder.append(handleSelectionForGroupByForMapAttribute(filter.getLhs()));
           } else {
             builder.append(
@@ -293,8 +293,8 @@ class QueryRequestToPinotSQLConverter {
         // this takes care of the Map Type where it's split into 2 columns
         List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
         return joiner.join(columnNames);
-      case OBJECTIDENTIFIER:
-        logicalColumnName = expression.getObjectIdentifier().getColumnName();
+      case ATTRIBUTE_EXPRESSION:
+        logicalColumnName = expression.getAttributeExpression().getAttributeId();
         // this takes care of the Map Type where it's split into 2 columns
         columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
         return joiner.join(columnNames);
@@ -319,8 +319,8 @@ class QueryRequestToPinotSQLConverter {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
         return expression.getColumnIdentifier().getColumnName();
-      case OBJECTIDENTIFIER:
-        return expression.getObjectIdentifier().getColumnName();
+      case ATTRIBUTE_EXPRESSION:
+        return expression.getAttributeExpression().getAttributeId();
       default:
         throw new IllegalArgumentException(
             "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
@@ -384,7 +384,7 @@ class QueryRequestToPinotSQLConverter {
 
   private String handleSelectionForGroupByForMapAttribute(Expression expression) {
     StringBuilder builder = new StringBuilder();
-    String logicalColumnName = expression.getObjectIdentifier().getColumnName();
+    String logicalColumnName = expression.getAttributeExpression().getAttributeId();
     // this takes care of the Map Type where it's split into 2 columns
     List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
 
@@ -393,7 +393,7 @@ class QueryRequestToPinotSQLConverter {
     builder.append(columnNames.get(0));
     builder.append(",");
     builder.append("'");
-    builder.append(expression.getObjectIdentifier().getPathExpression());
+    builder.append(expression.getAttributeExpression().getSubpath());
     builder.append("'");
     builder.append(",");
     builder.append(columnNames.get(1));
