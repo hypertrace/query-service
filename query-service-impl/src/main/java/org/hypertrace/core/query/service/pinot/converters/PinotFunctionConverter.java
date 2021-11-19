@@ -28,6 +28,7 @@ public class PinotFunctionConverter {
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
 
   private static final String PINOT_CONCAT_FUNCTION = "CONCATSKIPNULL";
+  private static final String DEFAULT_AVG_RATE_SIZE = "PT1S";
 
   private final String percentileAggFunction;
 
@@ -80,8 +81,11 @@ public class PinotFunctionConverter {
       java.util.function.Function<Expression, String> argumentConverter,
       ExecutionContext executionContext) {
 
-    String columnName = argumentConverter.apply(getColumnNameForAvgRate(function).get());
-    String rateIntervalInIso = getRateIntervalForAvgRate(function);
+    String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
+    String rateIntervalInIso =
+        function.getArgumentsList().size() == 2
+            ? function.getArgumentsList().get(1).getLiteral().getValue().getString()
+            : DEFAULT_AVG_RATE_SIZE;
     long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
     long aggregateIntervalInSeconds =
         (executionContext
@@ -93,18 +97,6 @@ public class PinotFunctionConverter {
     return String.format(
         "SUM(DIV(%s, %s))",
         columnName, (double) aggregateIntervalInSeconds / rateIntervalInSeconds);
-  }
-
-  private Optional<Expression> getColumnNameForAvgRate(Function function) {
-    return function.getArgumentsList().stream().filter(e -> e.hasColumnIdentifier()).findFirst();
-  }
-
-  private String getRateIntervalForAvgRate(Function function) {
-    return function.getArgumentsList().stream()
-        .filter(e -> e.hasLiteral())
-        .map(e -> e.getLiteral().getValue().getString())
-        .findFirst()
-        .orElse("PT1S");
   }
 
   private String convertCount() {
