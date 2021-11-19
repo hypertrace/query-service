@@ -80,9 +80,8 @@ public class PinotFunctionConverter {
       java.util.function.Function<Expression, String> argumentConverter,
       ExecutionContext executionContext) {
 
-    String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
-    String rateIntervalInIso =
-        function.getArgumentsList().get(1).getLiteral().getValue().getString();
+    String columnName = argumentConverter.apply(getColumnNameForAvgRate(function).get());
+    String rateIntervalInIso = getAvgRateLiteral(function);
     long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
     long aggregateIntervalInSeconds =
         (executionContext
@@ -94,6 +93,18 @@ public class PinotFunctionConverter {
     return String.format(
         "SUM(DIV(%s, %s))",
         columnName, (double) aggregateIntervalInSeconds / rateIntervalInSeconds);
+  }
+
+  private Optional<Expression> getColumnNameForAvgRate(Function function) {
+    return function.getArgumentsList().stream().filter(e -> e.hasColumnIdentifier()).findFirst();
+  }
+
+  private String getAvgRateLiteral(Function function) {
+    return function.getArgumentsList().stream()
+        .filter(e -> e.hasLiteral())
+        .map(e -> e.getLiteral().getValue().getString())
+        .findFirst()
+        .orElse("PT1S");
   }
 
   private String convertCount() {
