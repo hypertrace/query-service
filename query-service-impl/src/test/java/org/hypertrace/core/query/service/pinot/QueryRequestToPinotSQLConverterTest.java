@@ -8,12 +8,16 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createS
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Optional;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -35,7 +39,6 @@ import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -52,6 +55,8 @@ public class QueryRequestToPinotSQLConverterTest {
   private static ViewDefinition viewDefinition;
   private static ViewDefinition serviceViewDefinition;
   private Connection connection;
+
+  ExecutionContext mockingExecutionContext = mock(ExecutionContext.class);
 
   @BeforeAll
   public static void setUp() {
@@ -80,7 +85,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   @BeforeEach
   public void setup() {
-    connection = Mockito.mock(Connection.class);
+    connection = mock(Connection.class);
     Mockito.when(connection.prepareStatement(any(Request.class))).thenCallRealMethod();
   }
 
@@ -957,17 +962,19 @@ public class QueryRequestToPinotSQLConverterTest {
         viewDefinition);
   }
 
-  @Disabled
   @Test
   public void testQueryWithAverageRateInOrderBy() {
     assertPQLQuery(
         buildAvgRateQueryForOrderBy(),
-        "Select span_id, start_time_millis, end_time_millis FROM SpanEventView WHERE "
+        "select service_id, service_name, count(*) FROM RawServiceView WHERE "
             + serviceViewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "order by start_time_millis desc , end_time_millis limit 100",
+            + "and ( start_time_millis >= '1637297304041' and start_time_millis < '1637300904041' and service_id != 'null' ) "
+            + "group by service_id, service_name "
+            + "order by sum(div(error_count, 20.0)) "
+            + "limit 10000",
         serviceViewDefinition);
   }
 
@@ -1237,13 +1244,17 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private void assertPQLQuery(
       QueryRequest queryRequest, String expectedQuery, ViewDefinition viewDefinition) {
+
+    when(mockingExecutionContext.getTenantId()).thenReturn("__default");
+    when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
+    when(this.mockingExecutionContext.getTimeRangeDuration())
+        .thenReturn(Optional.of(Duration.ofSeconds(20)));
+
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
     Entry<String, Params> statementToParam =
         converter.toSQL(
-            new ExecutionContext("__default", queryRequest),
-            queryRequest,
-            createSelectionsFromQueryRequest(queryRequest));
+            mockingExecutionContext, queryRequest, createSelectionsFromQueryRequest(queryRequest));
     PinotClient pinotClient = new PinotClient(connection);
     pinotClient.executeQuery(statementToParam.getKey(), statementToParam.getValue());
     ArgumentCaptor<Request> statementCaptor = ArgumentCaptor.forClass(Request.class);
