@@ -964,6 +964,9 @@ public class QueryRequestToPinotSQLConverterTest {
 
   @Test
   public void testQueryWithAverageRateInOrderBy() {
+    when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
+    when(this.mockingExecutionContext.getTimeRangeDuration())
+        .thenReturn(Optional.of(Duration.ofSeconds(20)));
     assertPQLQuery(
         buildAvgRateQueryForOrderBy(),
         "select service_id, service_name, count(*) FROM RawServiceView WHERE "
@@ -1244,12 +1247,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private void assertPQLQuery(
       QueryRequest queryRequest, String expectedQuery, ViewDefinition viewDefinition) {
-
     when(mockingExecutionContext.getTenantId()).thenReturn("__default");
-    when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
-    when(this.mockingExecutionContext.getTimeRangeDuration())
-        .thenReturn(Optional.of(Duration.ofSeconds(20)));
-
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
     Entry<String, Params> statementToParam =
