@@ -77,7 +77,7 @@ public class PinotMapConverter {
         map.put(keys.get(idx), values.get(idx));
       } else {
         // to handle unbalanced size
-        map.put(keys.get(idx), null);
+        map.put(keys.get(idx), "");
       }
     }
 
