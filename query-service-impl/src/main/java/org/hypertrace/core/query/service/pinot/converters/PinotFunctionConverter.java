@@ -81,7 +81,7 @@ public class PinotFunctionConverter {
       ExecutionContext executionContext) {
 
     String columnName = argumentConverter.apply(getColumnNameForAvgRate(function).get());
-    String rateIntervalInIso = getAvgRateLiteral(function);
+    String rateIntervalInIso = getRateIntervalForAvgRate(function);
     long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
     long aggregateIntervalInSeconds =
         (executionContext
@@ -99,7 +99,7 @@ public class PinotFunctionConverter {
     return function.getArgumentsList().stream().filter(e -> e.hasColumnIdentifier()).findFirst();
   }
 
-  private String getAvgRateLiteral(Function function) {
+  private String getRateIntervalForAvgRate(Function function) {
     return function.getArgumentsList().stream()
         .filter(e -> e.hasLiteral())
         .map(e -> e.getLiteral().getValue().getString())
