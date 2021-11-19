@@ -46,7 +46,8 @@ public class QueryRequestToPinotSQLConverterTest {
   private static final String TENANT_COLUMN_NAME = "tenant_id";
 
   private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "request_handler.conf";
-  private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE = "service_request_handler.conf";
+  private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
+      "service_request_handler.conf";
 
   private static ViewDefinition viewDefinition;
   private static ViewDefinition serviceViewDefinition;
@@ -71,8 +72,9 @@ public class QueryRequestToPinotSQLConverterTest {
         ViewDefinition.parse(
             fileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
 
-    serviceViewDefinition = ViewDefinition.parse(
-        serviceFileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
+    serviceViewDefinition =
+        ViewDefinition.parse(
+            serviceFileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
   }
 
   @BeforeEach
