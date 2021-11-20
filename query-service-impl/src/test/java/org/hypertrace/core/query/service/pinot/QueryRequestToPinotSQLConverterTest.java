@@ -51,14 +51,18 @@ public class QueryRequestToPinotSQLConverterTest {
   private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
       "service_request_handler.conf";
 
+  private ExecutionContext mockingExecutionContext;
   private Connection connection;
-
-  ExecutionContext mockingExecutionContext = mock(ExecutionContext.class);
 
   @BeforeEach
   public void setup() {
     connection = mock(Connection.class);
     Mockito.when(connection.prepareStatement(any(Request.class))).thenCallRealMethod();
+    mockingExecutionContext = mock(ExecutionContext.class);
+    when(mockingExecutionContext.getTenantId()).thenReturn("__default");
+    when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
+    when(this.mockingExecutionContext.getTimeRangeDuration())
+        .thenReturn(Optional.of(Duration.ofSeconds(20)));
   }
 
   @Test
@@ -979,9 +983,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   @Test
   public void testQueryWithAverageRateInOrderBy() {
-    when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
-    when(this.mockingExecutionContext.getTimeRangeDuration())
-        .thenReturn(Optional.of(Duration.ofSeconds(20)));
+
     ViewDefinition viewDefinition = getServiceViewDefinition();
 
     assertPQLQuery(
@@ -1264,7 +1266,6 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private void assertPQLQuery(
       QueryRequest queryRequest, String expectedQuery, ViewDefinition viewDefinition) {
-    when(mockingExecutionContext.getTenantId()).thenReturn("__default");
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
     Entry<String, Params> statementToParam =
