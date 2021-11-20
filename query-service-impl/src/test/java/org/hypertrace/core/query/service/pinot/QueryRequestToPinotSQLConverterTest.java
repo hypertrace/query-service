@@ -37,7 +37,6 @@ import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -52,36 +51,9 @@ public class QueryRequestToPinotSQLConverterTest {
   private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
       "service_request_handler.conf";
 
-  private static ViewDefinition viewDefinition;
-  private static ViewDefinition serviceViewDefinition;
   private Connection connection;
 
   ExecutionContext mockingExecutionContext = mock(ExecutionContext.class);
-
-  @BeforeAll
-  public static void setUp() {
-    Config fileConfig =
-        ConfigFactory.parseURL(
-            requireNonNull(
-                QueryRequestToPinotSQLConverterTest.class
-                    .getClassLoader()
-                    .getResource(TEST_REQUEST_HANDLER_CONFIG_FILE)));
-
-    viewDefinition =
-        ViewDefinition.parse(
-            fileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
-
-    Config serviceFileConfig =
-        ConfigFactory.parseURL(
-            requireNonNull(
-                QueryRequestToPinotSQLConverterTest.class
-                    .getClassLoader()
-                    .getResource(TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE)));
-
-    serviceViewDefinition =
-        ViewDefinition.parse(
-            serviceFileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
-  }
 
   @BeforeEach
   public void setup() {
@@ -114,6 +86,8 @@ public class QueryRequestToPinotSQLConverterTest {
             .build();
     builder.setFilter(andFilter);
 
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         builder.build(),
         "select span_id, tags__keys, tags__values, request_headers__keys, request_headers__values "
@@ -132,6 +106,7 @@ public class QueryRequestToPinotSQLConverterTest {
     Builder builder = QueryRequest.newBuilder();
     ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         builder.build(),
         "Select span_id FROM SpanEventView "
@@ -147,6 +122,7 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testQuerySingleDistinctSelection() {
     Builder builder = QueryRequest.newBuilder();
     builder.setDistinctSelections(true).addSelection(createColumnExpression("Span.id"));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         builder.build(),
         "Select distinct span_id FROM SpanEventView "
@@ -166,6 +142,7 @@ public class QueryRequestToPinotSQLConverterTest {
         .addSelection(createColumnExpression("Span.id"))
         .addSelection(createColumnExpression("Span.displaySpanName"))
         .addSelection(createColumnExpression("Span.serviceName"));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         builder.build(),
         "Select distinct span_id, span_name, service_name FROM SpanEventView "
@@ -182,6 +159,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
             createStringFilter("Span.displaySpanName", Operator.EQ, "GET /login"));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         queryRequest,
         "Select span_id FROM SpanEventView "
@@ -200,6 +178,7 @@ public class QueryRequestToPinotSQLConverterTest {
         buildSimpleQueryWithFilter(
             createStringFilter(
                 "Span.displaySpanName", Operator.EQ, "GET /login' OR tenant_id = 'tenant2"));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -216,6 +195,7 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testQueryWithBooleanFilter() {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createBooleanFilter("Span.is_entry", Operator.EQ, true));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -233,6 +213,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
             createDoubleFilter("Span.metrics.duration_millis", Operator.EQ, 1.2));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -250,6 +231,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
             createFloatFilter("Span.metrics.duration_millis", Operator.EQ, 1.2f));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -266,6 +248,7 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testQueryWithIntFilter() {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createIntFilter("Span.metrics.duration_millis", Operator.EQ, 1));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -282,6 +265,7 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testQueryWithTimestampFilter() {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createTimestampFilter("Span.is_entry", Operator.EQ, 123456));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -296,6 +280,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   @Test
   public void testQueryWithOrderBy() {
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         buildOrderByQuery(),
         "Select span_id, start_time_millis, end_time_millis FROM SpanEventView WHERE "
@@ -312,6 +297,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest orderByQueryRequest = buildOrderByQuery();
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
     builder.setOffset(1000);
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         builder.build(),
         "Select span_id, start_time_millis, end_time_millis FROM SpanEventView WHERE "
@@ -328,6 +314,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest orderByQueryRequest = buildMultipleGroupByMultipleAggQuery();
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
     builder.setLimit(20);
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         builder.build(),
         "select service_name, span_name, count(*), avg(duration_millis) from SpanEventView"
@@ -346,6 +333,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest orderByQueryRequest = buildMultipleGroupByMultipleAggAndOrderByQuery();
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
     builder.setLimit(20);
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         builder.build(),
         "select service_name, span_name, count(*), avg(duration_millis) from SpanEventView"
@@ -376,6 +364,8 @@ public class QueryRequestToPinotSQLConverterTest {
                     .build())
             .setLimit(15)
             .build();
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -413,6 +403,8 @@ public class QueryRequestToPinotSQLConverterTest {
                     SortOrder.ASC))
             .setLimit(15)
             .build();
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -454,6 +446,8 @@ public class QueryRequestToPinotSQLConverterTest {
 
     builder.setFilter(filter);
 
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         builder.build(),
         "SELECT span_id FROM SpanEventView "
@@ -493,8 +487,10 @@ public class QueryRequestToPinotSQLConverterTest {
             .setLhs(Expression.newBuilder().setColumnIdentifier(spanId).build())
             .setRhs(Expression.newBuilder().setLiteral(spanIds).build())
             .build();
-
     builder.setFilter(filter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         builder.build(),
         "SELECT span_name FROM SpanEventView WHERE "
@@ -523,8 +519,10 @@ public class QueryRequestToPinotSQLConverterTest {
                             .setValue(Value.newBuilder().setString("042e5523ff6b2506").build()))
                     .build())
             .build();
-
     builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         builder.build(),
         "SELECT span_id FROM SpanEventView "
@@ -559,8 +557,10 @@ public class QueryRequestToPinotSQLConverterTest {
             .setLhs(Expression.newBuilder().setColumnIdentifier(spanTag).build())
             .setRhs(Expression.newBuilder().setLiteral(tag).build())
             .build();
-
     builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         builder.build(),
         "SELECT tags__keys, tags__values FROM SpanEventView "
@@ -595,8 +595,10 @@ public class QueryRequestToPinotSQLConverterTest {
             .setLhs(Expression.newBuilder().setColumnIdentifier(spanTag).build())
             .setRhs(Expression.newBuilder().setLiteral(tag).build())
             .build();
-
     builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         builder.build(),
         "SELECT tags__keys, tags__values FROM SpanEventView "
@@ -629,6 +631,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setLimit(5);
 
     QueryRequest request = builder.build();
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         request,
@@ -688,6 +691,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setLimit(5);
 
     QueryRequest request = builder.build();
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         request,
@@ -721,6 +725,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setLimit(5);
 
     QueryRequest request = builder.build();
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         request,
@@ -754,6 +759,8 @@ public class QueryRequestToPinotSQLConverterTest {
             .setRhs(
                 Expression.newBuilder().setLiteral(LiteralConstant.newBuilder().setValue(value))));
 
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         builder.build(),
         "SELECT duration_millis FROM SpanEventView "
@@ -784,6 +791,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setLimit(5);
 
     QueryRequest request = builder.build();
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         request,
@@ -828,6 +836,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setLimit(5);
 
     QueryRequest request = builder.build();
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         request,
@@ -864,8 +873,10 @@ public class QueryRequestToPinotSQLConverterTest {
                                     .build()))
                     .build())
             .build();
-
     builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         builder.build(),
         "SELECT span_id FROM SpanEventView "
@@ -907,6 +918,8 @@ public class QueryRequestToPinotSQLConverterTest {
                     .build())
             .setLimit(15)
             .build();
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
         queryRequest,
@@ -950,6 +963,8 @@ public class QueryRequestToPinotSQLConverterTest {
             .setLimit(15)
             .build();
 
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+
     assertPQLQuery(
         queryRequest,
         "select conditional('true',span_id,'null'), conditional('true',duration_millis,0)"
@@ -967,10 +982,12 @@ public class QueryRequestToPinotSQLConverterTest {
     when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
     when(this.mockingExecutionContext.getTimeRangeDuration())
         .thenReturn(Optional.of(Duration.ofSeconds(20)));
+    ViewDefinition viewDefinition = getServiceViewDefinition();
+
     assertPQLQuery(
         buildAvgRateQueryForOrderBy(),
         "select service_id, service_name, count(*) FROM RawServiceView WHERE "
-            + serviceViewDefinition.getTenantIdColumn()
+            + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
@@ -978,7 +995,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + "group by service_id, service_name "
             + "order by sum(div(error_count, 20.0)) "
             + "limit 10000",
-        serviceViewDefinition);
+        viewDefinition);
   }
 
   private Filter createTimeFilter(String columnName, Operator op, long value) {
@@ -1265,8 +1282,10 @@ public class QueryRequestToPinotSQLConverterTest {
       QueryRequest queryRequest,
       Class<? extends Throwable> exceptionClass,
       String expectedMessage) {
+
     QueryRequestToPinotSQLConverter converter =
-        new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
+        new QueryRequestToPinotSQLConverter(
+            getDefaultViewDefinition(), new PinotFunctionConverter());
 
     Throwable exception =
         Assertions.assertThrows(
@@ -1292,5 +1311,29 @@ public class QueryRequestToPinotSQLConverterTest {
     selections.addAll(queryRequest.getAggregationList());
 
     return selections;
+  }
+
+  private ViewDefinition getDefaultViewDefinition() {
+    Config fileConfig =
+        ConfigFactory.parseURL(
+            requireNonNull(
+                QueryRequestToPinotSQLConverterTest.class
+                    .getClassLoader()
+                    .getResource(TEST_REQUEST_HANDLER_CONFIG_FILE)));
+
+    return ViewDefinition.parse(
+        fileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
+  }
+
+  private ViewDefinition getServiceViewDefinition() {
+    Config serviceFileConfig =
+        ConfigFactory.parseURL(
+            requireNonNull(
+                QueryRequestToPinotSQLConverterTest.class
+                    .getClassLoader()
+                    .getResource(TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE)));
+
+    return ViewDefinition.parse(
+        serviceFileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
   }
 }
