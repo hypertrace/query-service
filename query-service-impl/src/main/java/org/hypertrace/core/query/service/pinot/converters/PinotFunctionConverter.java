@@ -28,6 +28,7 @@ public class PinotFunctionConverter {
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
 
   private static final String PINOT_CONCAT_FUNCTION = "CONCATSKIPNULL";
+  private static final String DEFAULT_AVG_RATE_SIZE = "PT1S";
 
   private final String percentileAggFunction;
 
@@ -82,7 +83,9 @@ public class PinotFunctionConverter {
 
     String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
     String rateIntervalInIso =
-        function.getArgumentsList().get(1).getLiteral().getValue().getString();
+        function.getArgumentsList().size() == 2
+            ? function.getArgumentsList().get(1).getLiteral().getValue().getString()
+            : DEFAULT_AVG_RATE_SIZE;
     long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
     long aggregateIntervalInSeconds =
         (executionContext

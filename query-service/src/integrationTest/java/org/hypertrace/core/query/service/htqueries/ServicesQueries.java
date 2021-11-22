@@ -115,6 +115,46 @@ class ServicesQueries {
     return builder.build();
   }
 
+  static QueryRequest buildAvgRateQueryForOrderBy() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Expression countFunction = createFunctionExpression("COUNT", serviceId);
+    builder.addSelection(countFunction);
+
+    Filter startTimeFilter =
+        createFilter(
+            "SERVICE.startTime",
+            Operator.GE,
+            ValueType.LONG,
+            System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+    Filter endTimeFilter =
+        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, System.currentTimeMillis());
+    Filter nullCheckFilter = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .addChildFilter(nullCheckFilter)
+            .build();
+    builder.setFilter(andFilter);
+
+    builder.addGroupBy(serviceId);
+    builder.addGroupBy(serviceName);
+
+    Expression serviceErrorCount = createColumnExpression("SERVICE.errorCount");
+    Expression avgrateFunction = createFunctionExpression("AVGRATE", serviceErrorCount);
+    builder.addOrderBy(createOrderByExpression(avgrateFunction, SortOrder.ASC));
+    builder.setLimit(10000);
+    return builder.build();
+  }
+
   static QueryRequest buildAvgRateQueryWithTimeAggregation() {
     Builder builder = QueryRequest.newBuilder();
     Expression serviceId = createColumnExpression("SERVICE.id");

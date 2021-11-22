@@ -343,6 +343,21 @@ public class HTPinotQueriesTest {
   }
 
   @Test
+  public void testServicesQueriesWithAvgRateinOrderBy() {
+    LOG.info("Services queries for AVGRATE in Order By");
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(
+            ServicesQueries.buildAvgRateQueryForOrderBy(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(4, rows.size());
+    List<String> serviceNames =
+        new ArrayList<>(Arrays.asList("frontend", "driver", "route", "customer"));
+    rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
+    assertTrue(serviceNames.isEmpty());
+  }
+
+  @Test
   public void testServicesQueriesForAvgRateWithTimeAggregation() {
     LOG.info("Services queries for AVGRATE with time aggregation");
     Iterator<ResultSetChunk> itr =
