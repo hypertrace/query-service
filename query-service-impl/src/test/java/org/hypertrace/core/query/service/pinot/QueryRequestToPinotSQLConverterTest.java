@@ -9,15 +9,12 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumbe
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Optional;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -51,18 +48,12 @@ public class QueryRequestToPinotSQLConverterTest {
   private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
       "service_request_handler.conf";
 
-  private ExecutionContext mockingExecutionContext;
   private Connection connection;
 
   @BeforeEach
   public void setup() {
     connection = mock(Connection.class);
     Mockito.when(connection.prepareStatement(any(Request.class))).thenCallRealMethod();
-    mockingExecutionContext = mock(ExecutionContext.class);
-    when(mockingExecutionContext.getTenantId()).thenReturn("__default");
-    when(this.mockingExecutionContext.getTimeSeriesPeriod()).thenReturn(Optional.empty());
-    when(this.mockingExecutionContext.getTimeRangeDuration())
-        .thenReturn(Optional.of(Duration.ofSeconds(20)));
   }
 
   @Test
@@ -993,9 +984,9 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "and ( start_time_millis >= '1637297304041' and start_time_millis < '1637300904041' and service_id != 'null' ) "
+            + "and ( start_time_millis >= 1637297304041 and start_time_millis < 1637300904041 and service_id != 'null' ) "
             + "group by service_id, service_name "
-            + "order by sum(div(error_count, 20.0)) "
+            + "order by sum(div(error_count, 3600.0)) "
             + "limit 10000",
         viewDefinition);
   }
@@ -1008,6 +999,19 @@ public class QueryRequestToPinotSQLConverterTest {
     LiteralConstant constant =
         LiteralConstant.newBuilder()
             .setValue(Value.newBuilder().setString(String.valueOf(value)).build())
+            .build();
+    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
+    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
+  }
+
+  private Filter createLongTimeFilter(String columnName, Operator op, long value) {
+    ColumnIdentifier startTimeColumn =
+        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
+    Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
+
+    LiteralConstant constant =
+        LiteralConstant.newBuilder()
+            .setValue(Value.newBuilder().setValueType(ValueType.LONG).setLong(value).build())
             .build();
     Expression rhs = Expression.newBuilder().setLiteral(constant).build();
     return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
@@ -1125,8 +1129,8 @@ public class QueryRequestToPinotSQLConverterTest {
             .addArguments(Expression.newBuilder().setColumnIdentifier(serviceErrorCount).build());
 
     Filter nullCheckFilter = createNullStringFilter("SERVICE.id", Operator.NEQ);
-    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, 1637297304041L);
-    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 1637300904041L);
+    Filter startTimeFilter = createLongTimeFilter("SERVICE.startTime", Operator.GE, 1637297304041L);
+    Filter endTimeFilter = createLongTimeFilter("SERVICE.startTime", Operator.LT, 1637300904041L);
     Filter andFilter =
         Filter.newBuilder()
             .setOperator(Operator.AND)
@@ -1268,9 +1272,11 @@ public class QueryRequestToPinotSQLConverterTest {
       QueryRequest queryRequest, String expectedQuery, ViewDefinition viewDefinition) {
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
+    ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
+    executionContext.setTimeFilterColumn("SERVICE.startTime");
     Entry<String, Params> statementToParam =
         converter.toSQL(
-            mockingExecutionContext, queryRequest, createSelectionsFromQueryRequest(queryRequest));
+            executionContext, queryRequest, createSelectionsFromQueryRequest(queryRequest));
     PinotClient pinotClient = new PinotClient(connection);
     pinotClient.executeQuery(statementToParam.getKey(), statementToParam.getValue());
     ArgumentCaptor<Request> statementCaptor = ArgumentCaptor.forClass(Request.class);
