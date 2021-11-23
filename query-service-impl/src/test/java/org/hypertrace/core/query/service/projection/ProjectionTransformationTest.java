@@ -11,6 +11,7 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_HASH;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_STRINGEQUALS;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
@@ -37,7 +38,6 @@ import org.hypertrace.core.attribute.service.v1.LiteralValue;
 import org.hypertrace.core.attribute.service.v1.Projection;
 import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
-import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.QueryTransformation.QueryTransformationContext;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
@@ -120,7 +120,7 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                QueryRequestBuilderUtils.createAliasedFunctionExpression(
+                createAliasedFunctionExpression(
                     QUERY_FUNCTION_CONCAT,
                     PROJECTED_ATTRIBUTE_ID,
                     createFunctionExpression(
@@ -168,7 +168,7 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                QueryRequestBuilderUtils.createAliasedFunctionExpression(
+                createAliasedFunctionExpression(
                     QUERY_FUNCTION_CONDITIONAL,
                     PROJECTED_ATTRIBUTE_ID,
                     createFunctionExpression(
@@ -194,7 +194,7 @@ class ProjectionTransformationTest {
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addAggregation(
-                QueryRequestBuilderUtils.createAliasedFunctionExpression(
+                createAliasedFunctionExpression(
                     QUERY_FUNCTION_AVG,
                     "myAlias",
                     createColumnExpression(PROJECTED_ATTRIBUTE_ID).build()))
@@ -202,7 +202,7 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addAggregation(
-                QueryRequestBuilderUtils.createAliasedFunctionExpression(
+                createAliasedFunctionExpression(
                     QUERY_FUNCTION_AVG,
                     "myAlias",
                     createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)))
@@ -450,7 +450,7 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                QueryRequestBuilderUtils.createAliasedFunctionExpression(
+                createAliasedFunctionExpression(
                     QUERY_FUNCTION_CONDITIONAL,
                     PROJECTED_ATTRIBUTE_ID,
                     createStringLiteralValueExpression("true"),
