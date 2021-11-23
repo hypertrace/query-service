@@ -1,10 +1,16 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static java.util.Objects.requireNonNull;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnValueFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimestampFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,7 +25,6 @@ import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
-import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -92,7 +97,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "and ( start_time_millis > '1557780911508' and end_time_millis < '1557780938419' )",
+            + "and ( start_time_millis > 1557780911508 and end_time_millis < 1557780938419 )",
         viewDefinition);
   }
 
@@ -152,8 +157,7 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithStringFilter() {
     QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(
-            createStringFilter("Span.displaySpanName", Operator.EQ, "GET /login"));
+        buildSimpleQueryWithFilter(createEqualsFilter("Span.displaySpanName", "GET /login"));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     assertPQLQuery(
         queryRequest,
@@ -171,8 +175,7 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testSQLiWithStringValueFilter() {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
-            createStringFilter(
-                "Span.displaySpanName", Operator.EQ, "GET /login' OR tenant_id = 'tenant2"));
+            createEqualsFilter("Span.displaySpanName", "GET /login' OR tenant_id = 'tenant2"));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
@@ -189,7 +192,7 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithBooleanFilter() {
     QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(createBooleanFilter("Span.is_entry", Operator.EQ, true));
+        buildSimpleQueryWithFilter(createEqualsFilter("Span.is_entry", true));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
@@ -206,8 +209,7 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithDoubleFilter() {
     QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(
-            createDoubleFilter("Span.metrics.duration_millis", Operator.EQ, 1.2));
+        buildSimpleQueryWithFilter(createEqualsFilter("Span.metrics.duration_millis", 1.2));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
@@ -224,8 +226,7 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithFloatFilter() {
     QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(
-            createFloatFilter("Span.metrics.duration_millis", Operator.EQ, 1.2f));
+        buildSimpleQueryWithFilter(createEqualsFilter("Span.metrics.duration_millis", 1.2f));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
@@ -242,7 +243,7 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithIntFilter() {
     QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(createIntFilter("Span.metrics.duration_millis", Operator.EQ, 1));
+        buildSimpleQueryWithFilter(createEqualsFilter("Span.metrics.duration_millis", 1));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
 
     assertPQLQuery(
@@ -318,7 +319,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "and ( start_time_millis > '1570658506605' and end_time_millis < '1570744906673' )"
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " group by service_name, span_name limit 20",
         viewDefinition);
   }
@@ -337,7 +338,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "and ( start_time_millis > '1570658506605' and end_time_millis < '1570744906673' )"
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " group by service_name, span_name order by service_name, avg(duration_millis) desc , count(*) desc  limit 20",
         viewDefinition);
   }
@@ -350,7 +351,8 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         QueryRequest.newBuilder()
             .addAggregation(
-                createFunctionExpression("DISTINCTCOUNT", "Span.id", "distinctcount_span_id"))
+                createAliasedFunctionExpression(
+                    "DISTINCTCOUNT", "Span.id", "distinctcount_span_id"))
             .setFilter(
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
@@ -370,7 +372,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "and ( start_time_millis > '1570658506605' and end_time_millis < '1570744906673' )"
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " limit 15",
         viewDefinition);
   }
@@ -385,7 +387,8 @@ public class QueryRequestToPinotSQLConverterTest {
             .addSelection(createColumnExpression("Span.id"))
             .addGroupBy(createColumnExpression("Span.id"))
             .addAggregation(
-                createFunctionExpression("DISTINCTCOUNT", "Span.id", "distinctcount_span_id"))
+                createAliasedFunctionExpression(
+                    "DISTINCTCOUNT", "Span.id", "distinctcount_span_id"))
             .setFilter(
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
@@ -394,7 +397,8 @@ public class QueryRequestToPinotSQLConverterTest {
                     .build())
             .addOrderBy(
                 createOrderByExpression(
-                    createFunctionExpression("DISTINCTCOUNT", "Span.id", "distinctcount_span_id"),
+                    createAliasedFunctionExpression(
+                        "DISTINCTCOUNT", "Span.id", "distinctcount_span_id"),
                     SortOrder.ASC))
             .setLimit(15)
             .build();
@@ -409,7 +413,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "and ( start_time_millis > '1570658506605' and end_time_millis < '1570744906673' )"
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " group by span_id order by distinctcount(span_id) limit 15",
         viewDefinition);
   }
@@ -616,8 +620,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     // create NEQ filter
     Filter parentIdFilter =
-        QueryRequestBuilderUtils.createColumnValueFilter(
-                "Span.attributes.parent_span_id", Operator.EQ, "042e5523ff6b2506")
+        createColumnValueFilter("Span.attributes.parent_span_id", Operator.EQ, "042e5523ff6b2506")
             .build();
 
     Filter andFilter =
@@ -650,8 +653,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     // create NEQ filter
     Filter parentIdFilter =
-        QueryRequestBuilderUtils.createColumnValueFilter(
-                "Span.attributes.parent_span_id", Operator.EQ, "042e5523ff6b250L")
+        createColumnValueFilter("Span.attributes.parent_span_id", Operator.EQ, "042e5523ff6b250L")
             .build();
 
     Filter andFilter =
@@ -676,9 +678,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     // create NEQ filter
     Filter parentIdFilter =
-        QueryRequestBuilderUtils.createColumnValueFilter(
-                "Span.attributes.parent_span_id", Operator.NEQ, "null")
-            .build();
+        createColumnValueFilter("Span.attributes.parent_span_id", Operator.NEQ, "null").build();
 
     Filter andFilter =
         Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
@@ -710,9 +710,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     // create NEQ filter
     Filter parentIdFilter =
-        QueryRequestBuilderUtils.createColumnValueFilter(
-                "Span.attributes.parent_span_id", Operator.NEQ, "''")
-            .build();
+        createColumnValueFilter("Span.attributes.parent_span_id", Operator.NEQ, "''").build();
 
     Filter andFilter =
         Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
@@ -777,8 +775,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter =
-        QueryRequestBuilderUtils.createColumnValueFilter("Span.id", Operator.NEQ, "null").build();
+    Filter parentIdFilter = createColumnValueFilter("Span.id", Operator.NEQ, "null").build();
 
     Filter andFilter =
         Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
@@ -924,7 +921,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "and ( start_time_millis > '1570658506605' and end_time_millis < '1570744906673' )"
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " limit 15",
         viewDefinition);
   }
@@ -991,122 +988,11 @@ public class QueryRequestToPinotSQLConverterTest {
         viewDefinition);
   }
 
-  private Filter createTimeFilter(String columnName, Operator op, long value) {
-    ColumnIdentifier startTimeColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setString(String.valueOf(value)).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  private Filter createLongTimeFilter(String columnName, Operator op, long value) {
-    ColumnIdentifier startTimeColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.LONG).setLong(value).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  private Filter createStringFilter(String columnName, Operator op, String value) {
-    ColumnIdentifier booleanColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(booleanColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.STRING).setString(value).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  private Filter createBooleanFilter(String columnName, Operator op, boolean value) {
-    ColumnIdentifier booleanColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(booleanColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.BOOL).setBoolean(value).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  private Filter createTimestampFilter(String columnName, Operator op, long value) {
-    ColumnIdentifier booleanColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(booleanColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(
-                Value.newBuilder().setValueType(ValueType.TIMESTAMP).setTimestamp(value).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  private Filter createDoubleFilter(String columnName, Operator op, double value) {
-    ColumnIdentifier booleanColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(booleanColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.DOUBLE).setDouble(value).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  private Filter createFloatFilter(String columnName, Operator op, float value) {
-    ColumnIdentifier booleanColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(booleanColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.FLOAT).setFloat(value).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  private Filter createIntFilter(String columnName, Operator op, int value) {
-    ColumnIdentifier booleanColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(booleanColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.INT).setInt(value).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  private Filter createNullStringFilter(String columnName, Operator op) {
-    ColumnIdentifier booleanColumn =
-        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(booleanColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.NULL_STRING).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
+  private QueryRequest buildSimpleQueryWithFilter(Filter filter) {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.id").build());
+    builder.setFilter(filter);
+    return builder.build();
   }
 
   private QueryRequest buildAvgRateQueryForOrderBy() {
@@ -1129,8 +1015,8 @@ public class QueryRequestToPinotSQLConverterTest {
             .addArguments(Expression.newBuilder().setColumnIdentifier(serviceErrorCount).build());
 
     Filter nullCheckFilter = createNullStringFilter("SERVICE.id", Operator.NEQ);
-    Filter startTimeFilter = createLongTimeFilter("SERVICE.startTime", Operator.GE, 1637297304041L);
-    Filter endTimeFilter = createLongTimeFilter("SERVICE.startTime", Operator.LT, 1637300904041L);
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, 1637297304041L);
+    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 1637300904041L);
     Filter andFilter =
         Filter.newBuilder()
             .setOperator(Operator.AND)
@@ -1180,7 +1066,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private QueryRequest buildMultipleGroupByMultipleAggQuery() {
     Builder builder = QueryRequest.newBuilder();
-    builder.addAggregation(QueryRequestBuilderUtils.createCountByColumnSelection("Span.id"));
+    builder.addAggregation(createCountByColumnSelection("Span.id"));
     Function.Builder avg =
         Function.newBuilder()
             .setFunctionName("AVG")
@@ -1215,7 +1101,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
   private QueryRequest buildMultipleGroupByMultipleAggAndOrderByQuery() {
     Builder builder = QueryRequest.newBuilder();
-    builder.addAggregation(QueryRequestBuilderUtils.createCountByColumnSelection("Span.id"));
+    builder.addAggregation(createCountByColumnSelection("Span.id"));
     Function.Builder avg =
         Function.newBuilder()
             .setFunctionName("AVG")
@@ -1250,21 +1136,11 @@ public class QueryRequestToPinotSQLConverterTest {
         createOrderByExpression(createColumnExpression("Span.serviceName"), SortOrder.ASC));
     builder.addOrderBy(
         createOrderByExpression(
-            createFunctionExpression("AVG", "Span.duration_millis", "avg_duration_millis"),
+            createAliasedFunctionExpression("AVG", "Span.duration_millis", "avg_duration_millis"),
             SortOrder.DESC));
     builder.addOrderBy(
         createOrderByExpression(
-            createFunctionExpression("COUNT", "Span.id", "count_span_id"), SortOrder.DESC));
-    return builder.build();
-  }
-
-  private QueryRequest buildSimpleQueryWithFilter(Filter filter) {
-    Builder builder = QueryRequest.newBuilder();
-    ColumnIdentifier columnName = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(columnName).build());
-
-    builder.setFilter(filter);
-
+            createAliasedFunctionExpression("COUNT", "Span.id", "count_span_id"), SortOrder.DESC));
     return builder.build();
   }
 

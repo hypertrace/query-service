@@ -37,6 +37,7 @@ import org.hypertrace.core.attribute.service.v1.LiteralValue;
 import org.hypertrace.core.attribute.service.v1.Projection;
 import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
+import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.QueryTransformation.QueryTransformationContext;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
@@ -119,7 +120,7 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                createFunctionExpression(
+                QueryRequestBuilderUtils.createAliasedFunctionExpression(
                     QUERY_FUNCTION_CONCAT,
                     PROJECTED_ATTRIBUTE_ID,
                     createFunctionExpression(
@@ -167,7 +168,7 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                createFunctionExpression(
+                QueryRequestBuilderUtils.createAliasedFunctionExpression(
                     QUERY_FUNCTION_CONDITIONAL,
                     PROJECTED_ATTRIBUTE_ID,
                     createFunctionExpression(
@@ -193,7 +194,7 @@ class ProjectionTransformationTest {
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addAggregation(
-                createFunctionExpression(
+                QueryRequestBuilderUtils.createAliasedFunctionExpression(
                     QUERY_FUNCTION_AVG,
                     "myAlias",
                     createColumnExpression(PROJECTED_ATTRIBUTE_ID).build()))
@@ -201,7 +202,7 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addAggregation(
-                createFunctionExpression(
+                QueryRequestBuilderUtils.createAliasedFunctionExpression(
                     QUERY_FUNCTION_AVG,
                     "myAlias",
                     createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)))
@@ -221,7 +222,9 @@ class ProjectionTransformationTest {
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
-            .addOrderBy(createOrderByExpression(PROJECTED_ATTRIBUTE_ID, SortOrder.DESC))
+            .addOrderBy(
+                createOrderByExpression(
+                    createColumnExpression(PROJECTED_ATTRIBUTE_ID), SortOrder.DESC))
             .build();
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
@@ -347,12 +350,14 @@ class ProjectionTransformationTest {
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addOrderBy(createOrderByExpression("slow", SortOrder.ASC))
-            .addOrderBy(createOrderByExpression(PROJECTED_ATTRIBUTE_ID, SortOrder.DESC))
+            .addOrderBy(createOrderByExpression(createColumnExpression("slow"), SortOrder.ASC))
+            .addOrderBy(
+                createOrderByExpression(
+                    createColumnExpression(PROJECTED_ATTRIBUTE_ID), SortOrder.DESC))
             .build();
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
-            .addOrderBy(createOrderByExpression("slow", SortOrder.ASC))
+            .addOrderBy(createOrderByExpression(createColumnExpression("slow"), SortOrder.ASC))
             .addOrderBy(
                 createOrderByExpression(
                     createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)
@@ -445,7 +450,7 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                createFunctionExpression(
+                QueryRequestBuilderUtils.createAliasedFunctionExpression(
                     QUERY_FUNCTION_CONDITIONAL,
                     PROJECTED_ATTRIBUTE_ID,
                     createStringLiteralValueExpression("true"),
