@@ -19,12 +19,15 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createT
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimestampFilter;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Optional;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -54,9 +57,11 @@ public class QueryRequestToPinotSQLConverterTest {
       "service_request_handler.conf";
 
   private Connection connection;
+  private ExecutionContext executionContext;
 
   @BeforeEach
   public void setup() {
+    executionContext = mock(ExecutionContext.class);
     connection = mock(Connection.class);
     Mockito.when(connection.prepareStatement(any(Request.class))).thenCallRealMethod();
   }
@@ -81,6 +86,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(andFilter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
@@ -92,7 +98,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1557780911508 and end_time_millis < 1557780938419 )",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -100,6 +107,8 @@ public class QueryRequestToPinotSQLConverterTest {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
     assertPQLQuery(
         builder.build(),
         "Select span_id FROM SpanEventView "
@@ -108,7 +117,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "'",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -116,6 +126,8 @@ public class QueryRequestToPinotSQLConverterTest {
     Builder builder = QueryRequest.newBuilder();
     builder.setDistinctSelections(true).addSelection(createColumnExpression("Span.id"));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
     assertPQLQuery(
         builder.build(),
         "Select distinct span_id FROM SpanEventView "
@@ -124,7 +136,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "'",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -136,6 +149,8 @@ public class QueryRequestToPinotSQLConverterTest {
         .addSelection(createColumnExpression("Span.displaySpanName"))
         .addSelection(createColumnExpression("Span.serviceName"));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
     assertPQLQuery(
         builder.build(),
         "Select distinct span_id, span_name, service_name FROM SpanEventView "
@@ -144,7 +159,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "'",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -152,6 +168,8 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createEqualsFilter("Span.displaySpanName", "GET /login"));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
     assertPQLQuery(
         queryRequest,
         "Select span_id FROM SpanEventView "
@@ -161,7 +179,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND span_name = 'GET /login'",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -170,6 +189,7 @@ public class QueryRequestToPinotSQLConverterTest {
         buildSimpleQueryWithFilter(
             createEqualsFilter("Span.displaySpanName", "GET /login' OR tenant_id = 'tenant2"));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -179,7 +199,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND span_name = 'GET /login'' OR tenant_id = ''tenant2'",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -187,6 +208,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createEqualsFilter("Span.is_entry", true));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -196,7 +218,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND is_entry = 'true'",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -204,6 +227,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createEqualsFilter("Span.metrics.duration_millis", 1.2));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -213,7 +237,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND duration_millis = 1.2",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -221,6 +246,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createEqualsFilter("Span.metrics.duration_millis", 1.2f));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -230,7 +256,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND duration_millis = 1.2",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -238,6 +265,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createEqualsFilter("Span.metrics.duration_millis", 1));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -247,7 +275,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND duration_millis = 1",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -255,6 +284,7 @@ public class QueryRequestToPinotSQLConverterTest {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createTimestampFilter("Span.is_entry", Operator.EQ, 123456));
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -264,12 +294,15 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND is_entry = 123456",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
   public void testQueryWithOrderBy() {
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
     assertPQLQuery(
         buildOrderByQuery(),
         "Select span_id, start_time_millis, end_time_millis FROM SpanEventView WHERE "
@@ -278,7 +311,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "order by start_time_millis desc , end_time_millis limit 100",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -287,6 +321,8 @@ public class QueryRequestToPinotSQLConverterTest {
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
     builder.setOffset(1000);
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
     assertPQLQuery(
         builder.build(),
         "Select span_id, start_time_millis, end_time_millis FROM SpanEventView WHERE "
@@ -295,7 +331,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "order by start_time_millis desc , end_time_millis limit 1000, 100",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -304,6 +341,8 @@ public class QueryRequestToPinotSQLConverterTest {
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
     builder.setLimit(20);
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
     assertPQLQuery(
         builder.build(),
         "select service_name, span_name, count(*), avg(duration_millis) from SpanEventView"
@@ -314,7 +353,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " group by service_name, span_name limit 20",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -323,6 +363,8 @@ public class QueryRequestToPinotSQLConverterTest {
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
     builder.setLimit(20);
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
     assertPQLQuery(
         builder.build(),
         "select service_name, span_name, count(*), avg(duration_millis) from SpanEventView"
@@ -333,7 +375,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " group by service_name, span_name order by service_name, avg(duration_millis) desc , count(*) desc  limit 20",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -356,6 +399,7 @@ public class QueryRequestToPinotSQLConverterTest {
             .build();
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -367,7 +411,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " limit 15",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -397,6 +442,7 @@ public class QueryRequestToPinotSQLConverterTest {
             .build();
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -408,7 +454,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " group by span_id order by distinctcount(span_id) limit 15",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -422,6 +469,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(filter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
@@ -436,7 +484,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + "', '"
             + spanId2
             + "')",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -450,6 +499,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(filter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
@@ -459,7 +509,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND span_name IN ('1'') OR tenant_id = ''tenant2'' and span_name IN (''1')",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -477,6 +528,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(likeFilter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
@@ -487,7 +539,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND REGEXP_LIKE(span_id,'042e5523ff6b2506')",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -502,6 +555,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(likeFilter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
@@ -512,7 +566,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND tags__keys = 'flags'",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -531,6 +586,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(likeFilter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
@@ -541,7 +597,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -558,6 +615,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     QueryRequest request = builder.build();
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         request,
@@ -568,7 +626,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND ( parent_span_id = '042e5523ff6b2506' ) limit 5",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -603,6 +662,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     QueryRequest request = builder.build();
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         request,
@@ -613,7 +673,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND ( parent_span_id != '' ) limit 5",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -629,6 +690,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     QueryRequest request = builder.build();
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         request,
@@ -639,7 +701,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND ( parent_span_id != '' ) limit 5",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -651,6 +714,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(createInFilter("Span.id", List.of("042e5523ff6b2506")));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
@@ -661,7 +725,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND span_id IN ('042e5523ff6b2506')",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -677,6 +742,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     QueryRequest request = builder.build();
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         request,
@@ -687,7 +753,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND ( span_id != '' ) limit 5",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -707,6 +774,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     QueryRequest request = builder.build();
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         request,
@@ -717,7 +785,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND duration_millis >= 1000 limit 5",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -735,6 +804,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.setFilter(likeFilter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
@@ -745,7 +815,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND REGEXP_LIKE(duration_millis,5000)",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -771,6 +842,7 @@ public class QueryRequestToPinotSQLConverterTest {
             .build();
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -782,7 +854,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " limit 15",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
@@ -815,6 +888,7 @@ public class QueryRequestToPinotSQLConverterTest {
             .build();
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
 
     assertPQLQuery(
         queryRequest,
@@ -825,12 +899,16 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' limit 15",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   @Test
   public void testQueryWithAverageRateInOrderBy() {
     ViewDefinition viewDefinition = getServiceViewDefinition();
+    defaultMockingForExecutionContext();
+    when(executionContext.getTimeRangeDuration()).thenReturn(Optional.of(Duration.ofMinutes(60)));
+
     assertPQLQuery(
         buildAvgRateQueryForOrderBy(),
         "select service_id, service_name, count(*) FROM RawServiceView WHERE "
@@ -842,7 +920,8 @@ public class QueryRequestToPinotSQLConverterTest {
             + "group by service_id, service_name "
             + "order by sum(div(error_count, 3600.0)) "
             + "limit 10000",
-        viewDefinition);
+        viewDefinition,
+        executionContext);
   }
 
   private QueryRequest buildSimpleQueryWithFilter(Filter filter) {
@@ -962,11 +1041,12 @@ public class QueryRequestToPinotSQLConverterTest {
   }
 
   private void assertPQLQuery(
-      QueryRequest queryRequest, String expectedQuery, ViewDefinition viewDefinition) {
+      QueryRequest queryRequest,
+      String expectedQuery,
+      ViewDefinition viewDefinition,
+      ExecutionContext executionContext) {
     QueryRequestToPinotSQLConverter converter =
         new QueryRequestToPinotSQLConverter(viewDefinition, new PinotFunctionConverter());
-    ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
-    executionContext.setTimeFilterColumn("SERVICE.startTime");
     Entry<String, Params> statementToParam =
         converter.toSQL(
             executionContext, queryRequest, createSelectionsFromQueryRequest(queryRequest));
@@ -1035,5 +1115,9 @@ public class QueryRequestToPinotSQLConverterTest {
 
     return ViewDefinition.parse(
         serviceFileConfig.getConfig("requestHandlerInfo.viewDefinition"), TENANT_COLUMN_NAME);
+  }
+
+  private void defaultMockingForExecutionContext() {
+    when(executionContext.getTenantId()).thenReturn("__default");
   }
 }
