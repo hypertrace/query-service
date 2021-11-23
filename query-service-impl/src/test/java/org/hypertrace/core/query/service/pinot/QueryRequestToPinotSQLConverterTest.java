@@ -3,16 +3,16 @@ package org.hypertrace.core.query.service.pinot;
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnValueFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotEqualsFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullNumberLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimestampFilter;
-import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
-import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 
@@ -618,10 +618,9 @@ public class QueryRequestToPinotSQLConverterTest {
     ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
-    // create NEQ filter
+    // create EQ filter
     Filter parentIdFilter =
-        createColumnValueFilter("Span.attributes.parent_span_id", Operator.EQ, "042e5523ff6b2506")
-            .build();
+        createEqualsFilter("Span.attributes.parent_span_id", "042e5523ff6b2506");
 
     Filter andFilter =
         Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
@@ -651,10 +650,9 @@ public class QueryRequestToPinotSQLConverterTest {
     ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("Span.id").build();
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
-    // create NEQ filter
+    // create EQ filter
     Filter parentIdFilter =
-        createColumnValueFilter("Span.attributes.parent_span_id", Operator.EQ, "042e5523ff6b250L")
-            .build();
+        createEqualsFilter("Span.attributes.parent_span_id", "042e5523ff6b250L");
 
     Filter andFilter =
         Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
@@ -677,8 +675,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter =
-        createColumnValueFilter("Span.attributes.parent_span_id", Operator.NEQ, "null").build();
+    Filter parentIdFilter = createNotEqualsFilter("Span.attributes.parent_span_id", "null");
 
     Filter andFilter =
         Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
@@ -709,8 +706,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter =
-        createColumnValueFilter("Span.attributes.parent_span_id", Operator.NEQ, "''").build();
+    Filter parentIdFilter = createNotEqualsFilter("Span.attributes.parent_span_id", "''");
 
     Filter andFilter =
         Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
@@ -775,7 +771,7 @@ public class QueryRequestToPinotSQLConverterTest {
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId).build());
 
     // create NEQ filter
-    Filter parentIdFilter = createColumnValueFilter("Span.id", Operator.NEQ, "null").build();
+    Filter parentIdFilter = createNotEqualsFilter("Span.id", "null");
 
     Filter andFilter =
         Filter.newBuilder().setOperator(Operator.AND).addChildFilter(parentIdFilter).build();
@@ -935,7 +931,7 @@ public class QueryRequestToPinotSQLConverterTest {
                     .setFunctionName(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL)
                     .addArguments(createStringLiteralValueExpression("true"))
                     .addArguments(createColumnExpression("Span.id"))
-                    .addArguments(createNullStringLiteralExpression()))
+                    .addArguments(createNullStringLiteralValueExpression()))
             .build();
 
     Expression conditionalNumber =
@@ -945,7 +941,7 @@ public class QueryRequestToPinotSQLConverterTest {
                     .setFunctionName(QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL)
                     .addArguments(createStringLiteralValueExpression("true"))
                     .addArguments(createColumnExpression("Span.metrics.duration_millis"))
-                    .addArguments(createNullNumberLiteralExpression()))
+                    .addArguments(createNullNumberLiteralValueExpression()))
             .build();
 
     QueryRequest queryRequest =

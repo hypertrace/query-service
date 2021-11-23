@@ -2,7 +2,6 @@ package org.hypertrace.core.query.service;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -27,6 +26,19 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
+  public static Expression createCountByColumnSelection(String columnNames) {
+    return createFunctionExpression("Count", createColumnExpression(columnNames).build());
+  }
+
+  public static Expression createTimeColumnGroupByExpression(String timeColumn, String period) {
+    return createFunctionExpression(
+        "dateTimeConvert",
+        createColumnExpression(timeColumn).build(),
+        createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+        createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+        createStringLiteralValueExpression(period));
+  }
+
   public static Expression createFunctionExpression(
       String functionName, Expression... expressions) {
     return Expression.newBuilder()
@@ -44,10 +56,7 @@ public class QueryRequestBuilderUtils {
             Function.newBuilder()
                 .setAlias(alias)
                 .setFunctionName(functionName)
-                .addArguments(
-                    Expression.newBuilder()
-                        .setColumnIdentifier(
-                            ColumnIdentifier.newBuilder().setColumnName(columnNameArg))));
+                .addArguments(createColumnExpression(columnNameArg)));
   }
 
   public static Expression createAliasedFunctionExpression(
@@ -61,13 +70,16 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
-  public static OrderByExpression.Builder createOrderByExpression(
-      Expression.Builder expression, SortOrder sortOrder) {
-    return OrderByExpression.newBuilder().setExpression(expression).setOrder(sortOrder);
+  public static Filter.Builder createCompositeFilter(Operator operator, Filter... childFilters) {
+    return Filter.newBuilder().setOperator(operator).addAllChildFilter(Arrays.asList(childFilters));
   }
 
   public static Filter createInFilter(String column, List<String> values) {
     return createFilter(column, Operator.IN, createStringArrayLiteralValueExpression(values));
+  }
+
+  public static Filter createNotEqualsFilter(String column, String value) {
+    return createFilter(column, Operator.NEQ, createStringLiteralValueExpression(value));
   }
 
   public static Filter createEqualsFilter(String column, String value) {
@@ -100,6 +112,10 @@ public class QueryRequestBuilderUtils {
 
   public static Filter createTimestampFilter(String columnName, Operator op, long value) {
     return createFilter(columnName, op, createTimestampLiteralValueExpression(value));
+  }
+
+  public static Filter createTimeFilter(String columnName, Operator op, long value) {
+    return createFilter(columnName, op, createLongLiteralValueExpression(value));
   }
 
   public static Filter createFilter(String column, Operator operator, Expression expression) {
@@ -190,71 +206,16 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
-  public static Filter createTimeFilter(String columnName, Operator op, long value) {
-    ColumnIdentifier.Builder timeColumn = ColumnIdentifier.newBuilder().setColumnName(columnName);
-    Expression.Builder lhs = Expression.newBuilder().setColumnIdentifier(timeColumn);
-
-    LiteralConstant.Builder constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.LONG).setLong(value));
-    Expression.Builder rhs = Expression.newBuilder().setLiteral(constant);
-    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
-  }
-
-  /** Given a column name, creates and returns an expression to select count(columnName). */
-  public static Expression.Builder createCountByColumnSelection(String... columnNames) {
-    Function.Builder count =
-        Function.newBuilder()
-            .setFunctionName("Count")
-            .addAllArguments(
-                Arrays.stream(columnNames)
-                    .map(
-                        columnName ->
-                            Expression.newBuilder()
-                                .setColumnIdentifier(
-                                    ColumnIdentifier.newBuilder().setColumnName(columnName))
-                                .build())
-                    .collect(Collectors.toList()));
-    return Expression.newBuilder().setFunction(count);
-  }
-
-  public static Filter.Builder createColumnValueFilter(
-      String columnName, Operator operator, String value) {
-    ColumnIdentifier.Builder column = ColumnIdentifier.newBuilder().setColumnName(columnName);
-    Expression.Builder lhs = Expression.newBuilder().setColumnIdentifier(column);
-
-    LiteralConstant.Builder constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setValueType(ValueType.STRING).setString(value));
-    Expression.Builder rhs = Expression.newBuilder().setLiteral(constant);
-    return Filter.newBuilder().setLhs(lhs).setOperator(operator).setRhs(rhs);
-  }
-
-  public static Filter.Builder createCompositeFilter(Operator operator, Filter... childFilters) {
-    return Filter.newBuilder().setOperator(operator).addAllChildFilter(Arrays.asList(childFilters));
-  }
-
-  public static Expression createTimeColumnGroupByExpression(String timeColumn, String period) {
+  public static Expression createNullNumberLiteralValueExpression() {
     return Expression.newBuilder()
-        .setFunction(
-            Function.newBuilder()
-                .setFunctionName("dateTimeConvert")
-                .addArguments(createColumnExpression(timeColumn))
-                .addArguments(
-                    Expression.newBuilder()
-                        .setLiteral(
-                            LiteralConstant.newBuilder()
-                                .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-                .addArguments(
-                    Expression.newBuilder()
-                        .setLiteral(
-                            LiteralConstant.newBuilder()
-                                .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))))
-                .addArguments(
-                    Expression.newBuilder()
-                        .setLiteral(
-                            LiteralConstant.newBuilder()
-                                .setValue(Value.newBuilder().setString(period)))))
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(Value.newBuilder().setValueType(ValueType.NULL_NUMBER)))
         .build();
+  }
+
+  public static OrderByExpression.Builder createOrderByExpression(
+      Expression.Builder expression, SortOrder sortOrder) {
+    return OrderByExpression.newBuilder().setExpression(expression).setOrder(sortOrder);
   }
 }
