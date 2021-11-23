@@ -1133,7 +1133,7 @@ public class PinotBasedRequestHandlerTest {
             .addSelection(QueryRequestBuilderUtils.createColumnExpression("col1"))
             .addSelection(QueryRequestBuilderUtils.createColumnExpression("col2"))
             .addAggregation(
-                QueryRequestBuilderUtils.createFunctionExpression(
+                QueryRequestBuilderUtils.createAliasedFunctionExpression(
                     "AVG", "duration", "avg_duration"))
             .build();
     Assertions.assertThrows(
@@ -1152,7 +1152,7 @@ public class PinotBasedRequestHandlerTest {
             .addSelection(QueryRequestBuilderUtils.createColumnExpression("col2"))
             .addGroupBy(QueryRequestBuilderUtils.createColumnExpression("col3"))
             .addAggregation(
-                QueryRequestBuilderUtils.createFunctionExpression(
+                QueryRequestBuilderUtils.createAliasedFunctionExpression(
                     "AVG", "duration", "avg_duration"))
             .build();
     Assertions.assertThrows(

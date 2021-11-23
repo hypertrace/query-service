@@ -4,7 +4,6 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createF
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.getQueryRequestWithFilter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -434,5 +433,12 @@ public class ExecutionContextTest {
     return Stream.of(
         Arguments.arguments(getQueryRequestWithFilter(filter1)),
         Arguments.arguments(getQueryRequestWithFilter(filter2)));
+  }
+
+  private static QueryRequest getQueryRequestWithFilter(Filter filter) {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
+    builder.setFilter(filter);
+    return builder.build();
   }
 }
