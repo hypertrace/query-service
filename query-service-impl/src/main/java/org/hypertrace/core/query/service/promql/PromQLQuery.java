@@ -1,7 +1,10 @@
 package org.hypertrace.core.query.service.promql;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class PromQLQuery {
-  private String query;
+  private List<String> query;
   private long evalTimeMs;
   private boolean isInstantRequest;
   private long startTimeMs;
@@ -18,21 +21,24 @@ public class PromQLQuery {
   }
 
   public static class Builder {
-    private String query;
+    private List<String> query;
     private long evalTimeMs;
     private boolean isInstantRequest;
     private long startTimeMs;
     private long endTimeMs;
     private long stepMs;
 
-    private Builder () {}
+    private Builder() {}
 
     public static Builder newBuilder() {
       return new Builder();
     }
 
-    public Builder setQuery(String query) {
-      this.query = query;
+    public Builder addQuery(String query) {
+      if (this.query == null) {
+        this.query = new ArrayList<>();
+      }
+      this.query.add(query);
       return this;
     }
 
@@ -49,7 +55,6 @@ public class PromQLQuery {
     public Builder setStartTimeMs(long startTimeMs) {
       this.startTimeMs = startTimeMs;
       return this;
-
     }
 
     public Builder setEndTimeMs(long endTimeMs) {
@@ -67,7 +72,7 @@ public class PromQLQuery {
     }
   }
 
-  public String getQuery() {
+  public List<String> getQuery() {
     return query;
   }
 
