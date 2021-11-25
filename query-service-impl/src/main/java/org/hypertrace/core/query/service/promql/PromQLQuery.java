@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PromQLQuery {
-  private List<String> query;
+  private List<String> queries;
   private long evalTimeMs;
   private boolean isInstantRequest;
   private long startTimeMs;
@@ -12,7 +12,7 @@ public class PromQLQuery {
   private long stepMs;
 
   private PromQLQuery(Builder builder) {
-    this.query = builder.query;
+    this.queries = builder.queries;
     this.evalTimeMs = builder.evalTimeMs;
     this.isInstantRequest = builder.isInstantRequest;
     this.startTimeMs = builder.startTimeMs;
@@ -21,7 +21,7 @@ public class PromQLQuery {
   }
 
   public static class Builder {
-    private List<String> query;
+    private List<String> queries;
     private long evalTimeMs;
     private boolean isInstantRequest;
     private long startTimeMs;
@@ -35,10 +35,10 @@ public class PromQLQuery {
     }
 
     public Builder addQuery(String query) {
-      if (this.query == null) {
-        this.query = new ArrayList<>();
+      if (this.queries == null) {
+        this.queries = new ArrayList<>();
       }
-      this.query.add(query);
+      this.queries.add(query);
       return this;
     }
 
@@ -72,8 +72,8 @@ public class PromQLQuery {
     }
   }
 
-  public List<String> getQuery() {
-    return query;
+  public List<String> getQueries() {
+    return queries;
   }
 
   public long getEvalTimeMs() {

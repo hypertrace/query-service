@@ -13,6 +13,6 @@ public class PromQLRestClientTest {
             .setEvalTimeMs(1637756020000L)
             .setInstantRequest(true)
             .build();
-    Assertions.assertEquals("num_calls{tenantId=\"tenant1\"}", promQLQuery.getQuery().get(0));
+    Assertions.assertEquals("num_calls{tenantId=\"tenant1\"}", promQLQuery.getQueries().get(0));
   }
 }

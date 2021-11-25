@@ -23,7 +23,7 @@ public class PromQLRestClient {
 
   public void executeInstantQuery(PromQLQuery query) throws IOException {
     HttpUrl.Builder urlBuilder = HttpUrl.parse(endPoint + INSTANT_QUERY).newBuilder();
-    urlBuilder.addQueryParameter("query", query.getQuery().get(0));
+    urlBuilder.addQueryParameter("query", query.getQueries().get(0));
     urlBuilder.addQueryParameter("time", String.valueOf(query.getEvalTimeMs()));
 
     String url = urlBuilder.build().toString();
@@ -38,7 +38,7 @@ public class PromQLRestClient {
 
   public void executeRangeQuery(PromQLQuery query) throws IOException {
     HttpUrl.Builder urlBuilder = HttpUrl.parse(endPoint + INSTANT_QUERY).newBuilder();
-    urlBuilder.addQueryParameter("query", query.getQuery().get(0));
+    urlBuilder.addQueryParameter("query", query.getQueries().get(0));
     urlBuilder.addQueryParameter("start", String.valueOf(query.getStartTimeMs()));
     urlBuilder.addQueryParameter("end", String.valueOf(query.getEndTimeMs()));
     urlBuilder.addQueryParameter("step", String.valueOf(query.getStepMs()));
