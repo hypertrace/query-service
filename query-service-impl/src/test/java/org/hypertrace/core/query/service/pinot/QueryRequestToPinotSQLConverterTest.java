@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.pinot;
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
@@ -43,6 +44,7 @@ import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -920,6 +922,37 @@ public class QueryRequestToPinotSQLConverterTest {
             + "group by service_id, service_name "
             + "order by sum(div(error_count, 3600.0)) "
             + "limit 10000",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Disabled
+  @Test
+  public void testQueryWithEQOperatorForAttributeExpression() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanTag = createComplexAttributeExpression("Span.tags", "FLAGS").build();
+    builder.addSelection(spanTag);
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.EQ)
+            .setLhs(spanTag)
+            .setRhs(createStringLiteralValueExpression("0"))
+            .build();
+    builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getServiceViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT tags__keys, tags__values FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'",
         viewDefinition,
         executionContext);
   }

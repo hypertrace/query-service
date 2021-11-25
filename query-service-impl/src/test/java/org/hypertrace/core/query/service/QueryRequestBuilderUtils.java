@@ -25,6 +25,13 @@ public class QueryRequestBuilderUtils {
         .setAttributeExpression(AttributeExpression.newBuilder().setAttributeId(columnName));
   }
 
+  public static Expression.Builder createComplexAttributeExpression(
+      String attributeId, String subPath) {
+    return Expression.newBuilder()
+        .setAttributeExpression(
+            AttributeExpression.newBuilder().setAttributeId(attributeId).setSubpath(subPath));
+  }
+
   public static Expression createAliasedColumnExpression(String columnName, String alias) {
     return Expression.newBuilder()
         .setColumnIdentifier(
