@@ -2,11 +2,13 @@ package org.hypertrace.core.query.service.pinot;
 
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpressionWithSimpleAttribute;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelectionWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilterWithSimpleAttribute;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -30,6 +32,7 @@ import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -261,6 +264,95 @@ public class MigrationTest {
             + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'",
         viewDefinition,
         executionContext);
+  }
+
+  @Disabled
+  @Test
+  public void testQueryWithEQOperatorForAttributeExpression() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanTag = createComplexAttributeExpression("Span.tags", "FLAGS").build();
+    builder.addSelection(spanTag);
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.EQ)
+            .setLhs(spanTag)
+            .setRhs(createStringLiteralValueExpression("0"))
+            .build();
+    builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT tags__keys, tags__values FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Disabled
+  @Test
+  public void testQueryWithGroupByWithMapAttribute() {
+    Builder builder = QueryRequest.newBuilder(buildGroupByMapAttributeQuery());
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+    assertPQLQuery(
+        builder.build(),
+        "select mapValue(tags__KEYS,'span.kind',tags__VALUES), AVG(duration_millis) FROM spanEventView"
+            + " where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( start_time_millis > '1570658506605' AND start_time_millis < '1570744906673' "
+            + "AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' ) "
+            + "group by mapValue(tags__KEYS,'span.kind',tags__VALUES)",
+        viewDefinition,
+        executionContext);
+  }
+
+  private QueryRequest buildGroupByMapAttributeQuery() {
+    Builder builder = QueryRequest.newBuilder();
+
+    Filter startTimeFilter =
+        createTimeFilterWithSimpleAttribute("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter =
+        createTimeFilterWithSimpleAttribute("Span.start_time_millis", Operator.LT, 1570744906673L);
+    Filter mapAttributeFilter =
+        Filter.newBuilder()
+            .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
+            .setOperator(Operator.NEQ)
+            .setRhs(createStringLiteralValueExpression(""))
+            .build();
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .addChildFilter(mapAttributeFilter)
+            .build();
+    builder.setFilter(andFilter);
+
+    Expression avg =
+        createAliasedFunctionExpressionWithSimpleAttribute(
+                "AVG", "Span.duration_millis", "avg_duration")
+            .build();
+    builder.addSelection(avg);
+
+    Expression mapAttributeSelection =
+        createComplexAttributeExpression("Span.tags", "span.kind").build();
+    builder.addSelection(mapAttributeSelection);
+
+    builder.addGroupBy(mapAttributeSelection);
+    return builder.build();
   }
 
   private QueryRequest buildOrderByQuery() {
