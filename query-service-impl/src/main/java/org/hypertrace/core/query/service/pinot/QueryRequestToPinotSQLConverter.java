@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
@@ -201,11 +202,13 @@ class QueryRequestToPinotSQLConverter {
    * @return newly created literal {@link Expression} of rhs if converted else the same one.
    */
   private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
-    if (!(lhs.getValueCase().equals(COLUMNIDENTIFIER) && rhs.getValueCase().equals(LITERAL))) {
+    if (!((lhs.getValueCase().equals(COLUMNIDENTIFIER)
+            || (lhs.getValueCase().equals(ATTRIBUTE_EXPRESSION) && !isComplexAttribute(lhs)))
+        && rhs.getValueCase().equals(LITERAL))) {
       return rhs;
     }
 
-    String lhsColumnName = lhs.getColumnIdentifier().getColumnName();
+    String lhsColumnName = getLogicalColumnName(lhs);
     try {
       Value value =
           DestinationColumnValueConverter.INSTANCE.convert(
@@ -263,10 +266,18 @@ class QueryRequestToPinotSQLConverter {
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
-        String logicalColumnName = expression.getColumnIdentifier().getColumnName();
         // this takes care of the Map Type where it's split into 2 columns
-        List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
+        List<String> columnNames =
+            viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
+      case ATTRIBUTE_EXPRESSION:
+        if (isComplexAttribute(expression)) {
+          /** TODO:Handle complex attribute */
+        } else {
+          // this takes care of the Map Type where it's split into 2 columns
+          columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
+          return joiner.join(columnNames);
+        }
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
@@ -285,9 +296,9 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
-    if (expression.getValueCase() == COLUMNIDENTIFIER) {
-      String logicalColumnName = expression.getColumnIdentifier().getColumnName();
-      String col = viewDefinition.getKeyColumnNameForMap(logicalColumnName);
+    if ((expression.getValueCase() == COLUMNIDENTIFIER)
+        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression))) {
+      String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
       }
@@ -297,15 +308,31 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapValueColumn(Expression expression) {
-    if (expression.getValueCase() == COLUMNIDENTIFIER) {
-      String logicalColumnName = expression.getColumnIdentifier().getColumnName();
-      String col = viewDefinition.getValueColumnNameForMap(logicalColumnName);
+    if ((expression.getValueCase() == COLUMNIDENTIFIER)
+        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression))) {
+      String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
       }
     }
     throw new IllegalArgumentException(
         "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
+  }
+
+  private String getLogicalColumnName(Expression expression) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return expression.getColumnIdentifier().getColumnName();
+      case ATTRIBUTE_EXPRESSION:
+        return expression.getAttributeExpression().getAttributeId();
+      default:
+        throw new IllegalArgumentException(
+            "Supports "
+                + ATTRIBUTE_EXPRESSION
+                + " and "
+                + COLUMNIDENTIFIER
+                + " expression type only");
+    }
   }
 
   private LiteralConstant[] convertExpressionToMapLiterals(Expression expression) {
@@ -336,6 +363,11 @@ class QueryRequestToPinotSQLConverter {
     }
 
     return literals;
+  }
+
+  private boolean isComplexAttribute(Expression expression) {
+    return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
+        && expression.getAttributeExpression().hasSubpath();
   }
 
   /** TODO:Handle all types */
