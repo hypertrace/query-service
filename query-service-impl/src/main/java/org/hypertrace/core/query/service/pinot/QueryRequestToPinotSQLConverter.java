@@ -269,14 +269,18 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
-  private String handleFilterForComplexAttribute(Filter filter, Builder paramsBuilder) {
-    String pathExpression = filter.getLhs().getAttributeExpression().getSubpath();
-    LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs());
+  private LiteralConstant[] getKeyValuePairForComplexAttribute(Expression lhs, Expression rhs) {
+    String pathExpression = lhs.getAttributeExpression().getSubpath();
+    LiteralConstant[] kvp = convertExpressionToMapLiterals(rhs);
     kvp[0] =
         LiteralConstant.newBuilder()
             .setValue(Value.newBuilder().setString(pathExpression).build())
             .build();
+    return kvp;
+  }
 
+  private String handleFilterForComplexAttribute(Filter filter, Builder paramsBuilder) {
+    LiteralConstant[] kvp = getKeyValuePairForComplexAttribute(filter.getLhs(), filter.getRhs());
     String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
     String valCol = convertExpressionToMapValueColumn(filter.getLhs());
 
@@ -311,6 +315,13 @@ class QueryRequestToPinotSQLConverter {
     return builder.toString();
   }
 
+  private String addSelectionForComplexAttribute(Expression expression) {
+    // this takes care of the Map Type where it's split into 2 columns
+    List<String> columnNames =
+        viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
+    return joiner.join(columnNames);
+  }
+
   private String convertExpression2String(
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
@@ -321,10 +332,7 @@ class QueryRequestToPinotSQLConverter {
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
         if (isComplexAttribute(expression)) {
-          // under review/test
-          // this takes care of the Map Type where it's split into 2 columns
-          columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
-          return joiner.join(columnNames);
+          return addSelectionForComplexAttribute(expression);
         } else {
           // this takes care of the Map Type where it's split into 2 columns
           columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
