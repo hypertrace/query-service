@@ -283,7 +283,9 @@ class QueryRequestToPinotSQLConverter {
     builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
     builder.append(" AND ");
     builder.append(valCol);
-    builder.append(" = ");
+    builder.append(" ");
+    builder.append(convertOperator2String(filter.getOperator()));
+    builder.append(" ");
     builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
     builder.append(" AND ");
     builder.append(MAP_VALUE);
@@ -293,7 +295,10 @@ class QueryRequestToPinotSQLConverter {
     builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
     builder.append(",");
     builder.append(valCol);
-    builder.append(") = ");
+    builder.append(")");
+    builder.append(" ");
+    builder.append(convertOperator2String(filter.getOperator()));
+    builder.append(" ");
     builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
     return builder.toString();
   }

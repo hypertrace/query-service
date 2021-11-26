@@ -267,7 +267,7 @@ public class MigrationTest {
   }
 
   @Test
-  public void testQueryWithEQOperatorForAttributeExpression() {
+  public void testQueryWithEQFilterForAttributeExpression() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanTag = createComplexAttributeExpression("Span.tags", "FLAGS").build();
     builder.addSelection(spanTag);
@@ -292,6 +292,36 @@ public class MigrationTest {
             + TENANT_ID
             + "' "
             + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithGTFilterForAttributeExpression() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
+    builder.addSelection(spanKind);
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.GT)
+            .setLhs(spanKind)
+            .setRhs(createStringLiteralValueExpression("client"))
+            .build();
+    builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT tags__keys, tags__values FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags__keys = 'span.kind' and tags__values > 'client' and mapvalue(tags__keys,'span.kind',tags__values) > 'client'",
         viewDefinition,
         executionContext);
   }
