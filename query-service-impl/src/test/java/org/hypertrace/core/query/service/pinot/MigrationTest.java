@@ -266,7 +266,6 @@ public class MigrationTest {
         executionContext);
   }
 
-  @Disabled
   @Test
   public void testQueryWithEQOperatorForAttributeExpression() {
     Builder builder = QueryRequest.newBuilder();
