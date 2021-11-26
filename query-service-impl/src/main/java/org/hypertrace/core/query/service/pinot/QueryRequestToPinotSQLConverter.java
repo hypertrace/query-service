@@ -336,7 +336,8 @@ class QueryRequestToPinotSQLConverter {
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
     if ((expression.getValueCase() == COLUMNIDENTIFIER)
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression)) || (isComplexAttribute(expression))) {
+        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression))
+        || (isComplexAttribute(expression))) {
       String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -348,7 +349,8 @@ class QueryRequestToPinotSQLConverter {
 
   private String convertExpressionToMapValueColumn(Expression expression) {
     if ((expression.getValueCase() == COLUMNIDENTIFIER)
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression)) || isComplexAttribute(expression)) {
+        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression))
+        || isComplexAttribute(expression)) {
       String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -378,18 +380,15 @@ class QueryRequestToPinotSQLConverter {
     LiteralConstant[] literals = new LiteralConstant[2];
     if (expression.getValueCase() == LITERAL) {
       LiteralConstant value = expression.getLiteral();
-      String[] literalArguments = new String[2];
+      String[] literalArguments = new String[] {"", ""};
 
       // backward compatibility
       if (value.getValue().getValueType() == ValueType.STRING_ARRAY) {
         literalArguments[0] = value.getValue().getStringArray(0);
         if (value.getValue().getStringArrayCount() > 1) {
           literalArguments[1] = value.getValue().getStringArray(1);
-        } else {
-          literalArguments[1] = "";
         }
       } else if (value.getValue().getValueType() == ValueType.STRING) {
-        literalArguments[0] = "";
         literalArguments[1] = value.getValue().getString();
       } else {
         throw new IllegalArgumentException(
