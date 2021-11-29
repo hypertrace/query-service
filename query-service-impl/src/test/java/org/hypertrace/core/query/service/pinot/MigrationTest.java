@@ -41,11 +41,7 @@ public class MigrationTest {
 
   private static final String TENANT_ID = "__default";
   private static final String TENANT_COLUMN_NAME = "tenant_id";
-
   private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "request_handler.conf";
-  private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
-      "service_request_handler.conf";
-
   private Connection connection;
   private ExecutionContext executionContext;
 
@@ -273,13 +269,13 @@ public class MigrationTest {
     Expression spanTag = createComplexAttributeExpression("Span.tags", "FLAGS").build();
     builder.addSelection(spanTag);
 
-    Filter likeFilter =
+    Filter equalFilter =
         Filter.newBuilder()
             .setOperator(Operator.EQ)
             .setLhs(spanTag)
             .setRhs(createStringLiteralValueExpression("0"))
             .build();
-    builder.setFilter(likeFilter);
+    builder.setFilter(equalFilter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
@@ -304,13 +300,13 @@ public class MigrationTest {
     Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
     builder.addSelection(spanKind);
 
-    Filter likeFilter =
+    Filter greaterThanFilter =
         Filter.newBuilder()
             .setOperator(Operator.GT)
             .setLhs(spanKind)
             .setRhs(createStringLiteralValueExpression("client"))
             .build();
-    builder.setFilter(likeFilter);
+    builder.setFilter(greaterThanFilter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
@@ -334,13 +330,13 @@ public class MigrationTest {
     Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
     builder.addSelection(spanKind);
 
-    Filter likeFilter =
+    Filter greaterThanOrEqualToFilter =
         Filter.newBuilder()
             .setOperator(Operator.GE)
             .setLhs(spanKind)
             .setRhs(createStringLiteralValueExpression("client"))
             .build();
-    builder.setFilter(likeFilter);
+    builder.setFilter(greaterThanOrEqualToFilter);
     builder.addOrderBy(createOrderByExpression(spanKind.toBuilder(), SortOrder.DESC));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
