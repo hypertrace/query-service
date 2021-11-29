@@ -32,7 +32,6 @@ import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -262,7 +261,6 @@ public class MigrationTest {
         executionContext);
   }
 
-  @Disabled
   @Test
   public void testQueryWithEQFilterForMapAttribute() {
     Builder builder = QueryRequest.newBuilder();
@@ -293,7 +291,6 @@ public class MigrationTest {
         executionContext);
   }
 
-  @Disabled
   @Test
   public void testQueryWithGTFilterForMapAttribute() {
     Builder builder = QueryRequest.newBuilder();
@@ -344,7 +341,7 @@ public class MigrationTest {
 
     assertPQLQuery(
         builder.build(),
-        "select mapValue(tags__KEYS,'span.kind',tags__VALUES) FROM spanEventView "
+        "select tags__KEYS, tags__VALUES FROM spanEventView "
             + "WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"

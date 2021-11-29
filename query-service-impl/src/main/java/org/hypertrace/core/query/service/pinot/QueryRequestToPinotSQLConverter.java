@@ -354,8 +354,8 @@ class QueryRequestToPinotSQLConverter {
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
         if (isComplexAttribute(expression)) {
-          //          return addSelectionForComplexAttribute(expression);
-          return addSelectionForComplexAttribute2(expression, paramsBuilder);
+          return addSelectionForComplexAttribute(expression);
+          //          return addSelectionForComplexAttribute2(expression, paramsBuilder);
         } else {
           // this takes care of the Map Type where it's split into 2 columns
           columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
