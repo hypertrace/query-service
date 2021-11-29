@@ -266,6 +266,7 @@ public class MigrationTest {
         executionContext);
   }
 
+  @Disabled
   @Test
   public void testQueryWithEQFilterForAttributeExpression() {
     Builder builder = QueryRequest.newBuilder();
@@ -296,6 +297,7 @@ public class MigrationTest {
         executionContext);
   }
 
+  @Disabled
   @Test
   public void testQueryWithGTFilterForAttributeExpression() {
     Builder builder = QueryRequest.newBuilder();
@@ -326,7 +328,39 @@ public class MigrationTest {
         executionContext);
   }
 
-  @Disabled
+  @Test
+  public void testQueryWithOrderByWithMapAttribute() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
+    builder.addSelection(spanKind);
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.GE)
+            .setLhs(spanKind)
+            .setRhs(createStringLiteralValueExpression("client"))
+            .build();
+    builder.setFilter(likeFilter);
+    builder.addOrderBy(createOrderByExpression(spanKind.toBuilder(), SortOrder.DESC));
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "select mapValue(tags__KEYS,'span.kind',tags__VALUES) FROM spanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags__keys = 'span.kind' and tags__values >= 'client' and mapvalue(tags__keys,'span.kind',tags__values) >= 'client' "
+            + "order by mapvalue(tags__KEYS,'span.kind',tags__VALUES) "
+            + "DESC ",
+        viewDefinition,
+        executionContext);
+  }
+
   @Test
   public void testQueryWithGroupByWithMapAttribute() {
     Builder builder = QueryRequest.newBuilder(buildGroupByMapAttributeQuery());
@@ -340,7 +374,8 @@ public class MigrationTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( start_time_millis > '1570658506605' AND start_time_millis < '1570744906673' "
+            + "AND ( start_time_millis > 1570658506605 AND start_time_millis < 1570744906673 "
+            + "AND tags__keys = 'span.kind' and tags__values != '' "
             + "AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' ) "
             + "group by mapValue(tags__KEYS,'span.kind',tags__VALUES)",
         viewDefinition,

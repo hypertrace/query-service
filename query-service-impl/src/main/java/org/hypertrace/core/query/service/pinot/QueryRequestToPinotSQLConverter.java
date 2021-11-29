@@ -322,6 +322,28 @@ class QueryRequestToPinotSQLConverter {
     return joiner.join(columnNames);
   }
 
+  private String addSelectionForComplexAttribute2(Expression expression, Builder paramsBuilder) {
+    String keyCol = convertExpressionToMapKeyColumn(expression);
+    String valCol = convertExpressionToMapValueColumn(expression);
+    String pathExpression = expression.getAttributeExpression().getSubpath();
+
+    StringBuilder builder = new StringBuilder();
+    builder.append(MAP_VALUE);
+    builder.append("(");
+    builder.append(keyCol);
+    builder.append(",");
+    builder.append(
+        convertLiteralToString(
+            LiteralConstant.newBuilder()
+                .setValue(Value.newBuilder().setString(pathExpression).build())
+                .build(),
+            paramsBuilder));
+    builder.append(",");
+    builder.append(valCol);
+    builder.append(")");
+    return builder.toString();
+  }
+
   private String convertExpression2String(
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
@@ -332,7 +354,8 @@ class QueryRequestToPinotSQLConverter {
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
         if (isComplexAttribute(expression)) {
-          return addSelectionForComplexAttribute(expression);
+          //          return addSelectionForComplexAttribute(expression);
+          return addSelectionForComplexAttribute2(expression, paramsBuilder);
         } else {
           // this takes care of the Map Type where it's split into 2 columns
           columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
