@@ -68,7 +68,10 @@ class QueryRequestToPinotSQLConverter {
     // how it is created.
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
-      pqlBuilder.append(convertExpression2String(expr, paramsBuilder, executionContext));
+      pqlBuilder.append(
+          isGroupingSelectionForMapAttribute(expr, request.getGroupByList())
+              ? convertExpression2StringForMapAttribute(expr, paramsBuilder, executionContext)
+              : convertExpression2String(expr, paramsBuilder, executionContext));
       delim = ", ";
     }
 
@@ -91,7 +94,8 @@ class QueryRequestToPinotSQLConverter {
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
         pqlBuilder.append(
-            convertExpression2String(groupByExpression, paramsBuilder, executionContext));
+            convertExpression2StringForMapAttribute(
+                groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
     }
@@ -101,7 +105,7 @@ class QueryRequestToPinotSQLConverter {
       for (OrderByExpression orderByExpression : request.getOrderByList()) {
         pqlBuilder.append(delim);
         String orderBy =
-            convertExpression2String(
+            convertExpression2StringForMapAttribute(
                 orderByExpression.getExpression(), paramsBuilder, executionContext);
         pqlBuilder.append(orderBy);
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
@@ -315,52 +319,59 @@ class QueryRequestToPinotSQLConverter {
     return builder.toString();
   }
 
-  private String addSelectionForComplexAttribute(Expression expression) {
-    // this takes care of the Map Type where it's split into 2 columns
-    List<String> columnNames =
-        viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
-    return joiner.join(columnNames);
+  private boolean isGroupingSelectionForMapAttribute(
+      Expression expression, List<Expression> groupByList) {
+    if (expression.getValueCase() == ATTRIBUTE_EXPRESSION && isComplexAttribute(expression)) {
+      String attributeId = expression.getAttributeExpression().getAttributeId();
+      String subPath = expression.getAttributeExpression().getSubpath();
+      for (Expression groupByExpression : groupByList) {
+        if (groupByExpression.getValueCase() == ATTRIBUTE_EXPRESSION
+            && isComplexAttribute(groupByExpression)
+            && groupByExpression.getAttributeExpression().getSubpath().equals(subPath)
+            && groupByExpression.getAttributeExpression().getAttributeId().equals(attributeId)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
-  private String addSelectionForComplexAttribute2(Expression expression, Builder paramsBuilder) {
-    String keyCol = convertExpressionToMapKeyColumn(expression);
-    String valCol = convertExpressionToMapValueColumn(expression);
-    String pathExpression = expression.getAttributeExpression().getSubpath();
+  private String convertExpression2StringForMapAttribute(
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
+    if (expression.getValueCase() == ATTRIBUTE_EXPRESSION && isComplexAttribute(expression)) {
+      String keyCol = convertExpressionToMapKeyColumn(expression);
+      String valCol = convertExpressionToMapValueColumn(expression);
+      String pathExpression = expression.getAttributeExpression().getSubpath();
 
-    StringBuilder builder = new StringBuilder();
-    builder.append(MAP_VALUE);
-    builder.append("(");
-    builder.append(keyCol);
-    builder.append(",");
-    builder.append(
-        convertLiteralToString(
-            LiteralConstant.newBuilder()
-                .setValue(Value.newBuilder().setString(pathExpression).build())
-                .build(),
-            paramsBuilder));
-    builder.append(",");
-    builder.append(valCol);
-    builder.append(")");
-    return builder.toString();
+      StringBuilder builder = new StringBuilder();
+      builder.append(MAP_VALUE);
+      builder.append("(");
+      builder.append(keyCol);
+      builder.append(",");
+      builder.append(
+          convertLiteralToString(
+              LiteralConstant.newBuilder()
+                  .setValue(Value.newBuilder().setString(pathExpression).build())
+                  .build(),
+              paramsBuilder));
+      builder.append(",");
+      builder.append(valCol);
+      builder.append(")");
+      return builder.toString();
+    } else {
+      return convertExpression2String(expression, paramsBuilder, executionContext);
+    }
   }
 
   private String convertExpression2String(
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
+      case ATTRIBUTE_EXPRESSION:
         // this takes care of the Map Type where it's split into 2 columns
         List<String> columnNames =
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
-      case ATTRIBUTE_EXPRESSION:
-        if (isComplexAttribute(expression)) {
-          return addSelectionForComplexAttribute(expression);
-          //          return addSelectionForComplexAttribute2(expression, paramsBuilder);
-        } else {
-          // this takes care of the Map Type where it's split into 2 columns
-          columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
-          return joiner.join(columnNames);
-        }
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
