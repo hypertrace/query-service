@@ -189,7 +189,7 @@ class QueryRequestToPinotSQLConverter {
           builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
           break;
         default:
-          if (isComplexAttribute(filter.getLhs())) {
+          if (isMapAttribute(filter.getLhs())) {
             builder.append(handleFilterForComplexAttribute(filter, paramsBuilder));
           } else {
             rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
@@ -214,7 +214,7 @@ class QueryRequestToPinotSQLConverter {
    */
   private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
     if (!((lhs.getValueCase().equals(COLUMNIDENTIFIER)
-            || (lhs.getValueCase().equals(ATTRIBUTE_EXPRESSION) && !isComplexAttribute(lhs)))
+            || (lhs.getValueCase().equals(ATTRIBUTE_EXPRESSION) && !isMapAttribute(lhs)))
         && rhs.getValueCase().equals(LITERAL))) {
       return rhs;
     }
@@ -273,7 +273,7 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
-  private LiteralConstant[] getKeyValuePairForComplexAttribute(Expression lhs, Expression rhs) {
+  private LiteralConstant[] getKeyValuePairForMapAttribute(Expression lhs, Expression rhs) {
     String pathExpression = lhs.getAttributeExpression().getSubpath();
     LiteralConstant[] kvp = convertExpressionToMapLiterals(rhs);
     kvp[0] =
@@ -284,7 +284,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String handleFilterForComplexAttribute(Filter filter, Builder paramsBuilder) {
-    LiteralConstant[] kvp = getKeyValuePairForComplexAttribute(filter.getLhs(), filter.getRhs());
+    LiteralConstant[] kvp = getKeyValuePairForMapAttribute(filter.getLhs(), filter.getRhs());
     String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
     String valCol = convertExpressionToMapValueColumn(filter.getLhs());
 
@@ -321,12 +321,12 @@ class QueryRequestToPinotSQLConverter {
 
   private boolean isGroupingSelectionForMapAttribute(
       Expression expression, List<Expression> groupByList) {
-    if (expression.getValueCase() == ATTRIBUTE_EXPRESSION && isComplexAttribute(expression)) {
+    if (expression.getValueCase() == ATTRIBUTE_EXPRESSION && isMapAttribute(expression)) {
       String attributeId = expression.getAttributeExpression().getAttributeId();
       String subPath = expression.getAttributeExpression().getSubpath();
       for (Expression groupByExpression : groupByList) {
         if (groupByExpression.getValueCase() == ATTRIBUTE_EXPRESSION
-            && isComplexAttribute(groupByExpression)
+            && isMapAttribute(groupByExpression)
             && groupByExpression.getAttributeExpression().getSubpath().equals(subPath)
             && groupByExpression.getAttributeExpression().getAttributeId().equals(attributeId)) {
           return true;
@@ -338,7 +338,7 @@ class QueryRequestToPinotSQLConverter {
 
   private String convertExpression2StringForMapAttribute(
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
-    if (expression.getValueCase() == ATTRIBUTE_EXPRESSION && isComplexAttribute(expression)) {
+    if (expression.getValueCase() == ATTRIBUTE_EXPRESSION && isMapAttribute(expression)) {
       String keyCol = convertExpressionToMapKeyColumn(expression);
       String valCol = convertExpressionToMapValueColumn(expression);
       String pathExpression = expression.getAttributeExpression().getSubpath();
@@ -391,8 +391,8 @@ class QueryRequestToPinotSQLConverter {
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
     if ((expression.getValueCase() == COLUMNIDENTIFIER)
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression))
-        || (isComplexAttribute(expression))) {
+        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isMapAttribute(expression))
+        || (isMapAttribute(expression))) {
       String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -404,8 +404,8 @@ class QueryRequestToPinotSQLConverter {
 
   private String convertExpressionToMapValueColumn(Expression expression) {
     if ((expression.getValueCase() == COLUMNIDENTIFIER)
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression))
-        || isComplexAttribute(expression)) {
+        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isMapAttribute(expression))
+        || isMapAttribute(expression)) {
       String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -472,7 +472,7 @@ class QueryRequestToPinotSQLConverter {
     return literals;
   }
 
-  private boolean isComplexAttribute(Expression expression) {
+  private boolean isMapAttribute(Expression expression) {
     return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
         && expression.getAttributeExpression().hasSubpath();
   }
