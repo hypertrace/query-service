@@ -264,7 +264,7 @@ public class MigrationTest {
 
   @Disabled
   @Test
-  public void testQueryWithEQFilterForAttributeExpression() {
+  public void testQueryWithEQFilterForMapAttribute() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanTag = createComplexAttributeExpression("Span.tags", "FLAGS").build();
     builder.addSelection(spanTag);
@@ -295,7 +295,7 @@ public class MigrationTest {
 
   @Disabled
   @Test
-  public void testQueryWithGTFilterForAttributeExpression() {
+  public void testQueryWithGTFilterForMapAttribute() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
     builder.addSelection(spanKind);
@@ -385,7 +385,7 @@ public class MigrationTest {
         createTimeFilterWithSimpleAttribute("Span.start_time_millis", Operator.GT, 1570658506605L);
     Filter endTimeFilter =
         createTimeFilterWithSimpleAttribute("Span.start_time_millis", Operator.LT, 1570744906673L);
-    Filter mapAttributeFilter =
+    Filter neqFilter =
         Filter.newBuilder()
             .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
             .setOperator(Operator.NEQ)
@@ -397,7 +397,7 @@ public class MigrationTest {
             .setOperator(Operator.AND)
             .addChildFilter(startTimeFilter)
             .addChildFilter(endTimeFilter)
-            .addChildFilter(mapAttributeFilter)
+            .addChildFilter(neqFilter)
             .build();
     builder.setFilter(andFilter);
 
