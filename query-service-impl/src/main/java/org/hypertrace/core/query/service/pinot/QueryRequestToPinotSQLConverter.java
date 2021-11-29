@@ -190,7 +190,7 @@ class QueryRequestToPinotSQLConverter {
           break;
         default:
           if (isMapAttribute(filter.getLhs())) {
-            builder.append(handleFilterForComplexAttribute(filter, paramsBuilder));
+            builder.append(handleFilterForMapAttribute(filter, paramsBuilder));
           } else {
             rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
             builder.append(
@@ -292,15 +292,16 @@ class QueryRequestToPinotSQLConverter {
     return kvp;
   }
 
-  private String handleFilterForComplexAttribute(Filter filter, Builder paramsBuilder) {
-    LiteralConstant[] kvp = getKeyValuePairForMapAttribute(filter.getLhs(), filter.getRhs());
-    String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
-    String valCol = convertExpressionToMapValueColumn(filter.getLhs());
+  private String handleFilterForMapAttribute(Filter filter, Builder paramsBuilder) {
 
     if (!SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES_WITH_SUBPATH.contains(filter.getOperator())) {
       throw new UnsupportedOperationException(
           "Unknown operator for map attributes:" + filter.getOperator());
     }
+
+    LiteralConstant[] kvp = getKeyValuePairForMapAttribute(filter.getLhs(), filter.getRhs());
+    String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
+    String valCol = convertExpressionToMapValueColumn(filter.getLhs());
 
     StringBuilder builder = new StringBuilder();
     builder.append(keyCol);
