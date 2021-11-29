@@ -213,9 +213,7 @@ class QueryRequestToPinotSQLConverter {
    * @return newly created literal {@link Expression} of rhs if converted else the same one.
    */
   private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
-    if (!((lhs.getValueCase().equals(COLUMNIDENTIFIER)
-            || (lhs.getValueCase().equals(ATTRIBUTE_EXPRESSION) && !isMapAttribute(lhs)))
-        && rhs.getValueCase().equals(LITERAL))) {
+    if (!(isColumnIdentifier(lhs) && rhs.getValueCase().equals(LITERAL))) {
       return rhs;
     }
 
@@ -233,6 +231,17 @@ class QueryRequestToPinotSQLConverter {
               "Invalid input:{ %s } for bytes column:{ %s }",
               rhs.getLiteral().getValue(),
               viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
+    }
+  }
+
+  private boolean isColumnIdentifier(Expression expression) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return true;
+      case ATTRIBUTE_EXPRESSION:
+        return !isMapAttribute(expression);
+      default:
+        return false;
     }
   }
 
@@ -390,29 +399,23 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
-    if ((expression.getValueCase() == COLUMNIDENTIFIER)
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isMapAttribute(expression))
-        || (isMapAttribute(expression))) {
+    if (isMapAttribute(expression)) {
       String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
       }
     }
-    throw new IllegalArgumentException(
-        "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
+    throw new IllegalArgumentException("operator supports multi value column only");
   }
 
   private String convertExpressionToMapValueColumn(Expression expression) {
-    if ((expression.getValueCase() == COLUMNIDENTIFIER)
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isMapAttribute(expression))
-        || isMapAttribute(expression)) {
+    if (isMapAttribute(expression)) {
       String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
       }
     }
-    throw new IllegalArgumentException(
-        "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
+    throw new IllegalArgumentException("operator supports multi value column only");
   }
 
   private String getLogicalColumnName(Expression expression) {
@@ -473,8 +476,18 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private boolean isMapAttribute(Expression expression) {
-    return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
-        && expression.getAttributeExpression().hasSubpath();
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return isMapField(expression.getColumnIdentifier().getColumnName());
+      case ATTRIBUTE_EXPRESSION:
+        return isMapField(expression.getAttributeExpression().getAttributeId());
+      default:
+        return false;
+    }
+  }
+
+  private boolean isMapField(String columnName) {
+    return viewDefinition.getColumnType(columnName) == ValueType.STRING_MAP;
   }
 
   /** TODO:Handle all types */
