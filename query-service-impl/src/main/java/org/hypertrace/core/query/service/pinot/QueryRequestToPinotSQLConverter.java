@@ -37,7 +37,7 @@ class QueryRequestToPinotSQLConverter {
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 
-  private static final List<Operator> SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES =
+  private static final List<Operator> SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES_WITH_SUBPATH =
       List.of(Operator.EQ, Operator.NEQ, Operator.GT, Operator.GE, Operator.LT, Operator.LE);
 
   private final ViewDefinition viewDefinition;
@@ -288,7 +288,7 @@ class QueryRequestToPinotSQLConverter {
     String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
     String valCol = convertExpressionToMapValueColumn(filter.getLhs());
 
-    if (!SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES.contains(filter.getOperator())) {
+    if (!SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES_WITH_SUBPATH.contains(filter.getOperator())) {
       throw new UnsupportedOperationException(
           "Unknown operator for map attributes:" + filter.getOperator());
     }
