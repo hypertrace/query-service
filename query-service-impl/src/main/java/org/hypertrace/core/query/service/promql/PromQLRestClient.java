@@ -1,7 +1,10 @@
 package org.hypertrace.core.query.service.promql;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -11,45 +14,55 @@ public class PromQLRestClient {
   private static final String INSTANT_QUERY = "/api/v1/query";
   private static final String RANGE_QUERY = "/api/v1/query_range";
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
   private String endPoint;
-  private OkHttpClient client;
+  private OkHttpClient okHttpClient;
 
-  public PromQLRestClient(String endPoint) {
-    client = new OkHttpClient();
+  public PromQLRestClient(String endPoint, OkHttpClient okHttpClient) {
+    this.okHttpClient = okHttpClient;
     this.endPoint = endPoint;
   }
 
-  public void executeInstantQuery(PromQLQuery query) throws IOException {
-    HttpUrl.Builder urlBuilder = HttpUrl.parse(endPoint + INSTANT_QUERY).newBuilder();
-    urlBuilder.addQueryParameter("query", query.getQueries().get(0));
-    urlBuilder.addQueryParameter("time", String.valueOf(query.getEvalTimeMs()));
-
-    String url = urlBuilder.build().toString();
-
+  public Optional<MetricResponse> executeInstantQuery(PromQLQuery query) throws IOException {
+    String url = getInstantQueryUrl(query);
     Request request = new Request.Builder().url(url).build();
 
-    try (Response response = client.newCall(request).execute()) {
+    try (Response response = okHttpClient.newCall(request).execute()) {
       if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-      System.out.println(response.body().string());
+      MetricResponse data = ResponseParser.parse(response.body().string());
+      return Optional.of(data);
     }
   }
 
-  public void executeRangeQuery(PromQLQuery query) throws IOException {
-    HttpUrl.Builder urlBuilder = HttpUrl.parse(endPoint + INSTANT_QUERY).newBuilder();
+  public String getInstantQueryUrl(PromQLQuery query) {
+    HttpUrl.Builder urlBuilder = HttpUrl.parse("http://" + endPoint + INSTANT_QUERY).newBuilder();
+    Instant evalTime = Instant.ofEpochMilli(query.getEvalTimeMs());
     urlBuilder.addQueryParameter("query", query.getQueries().get(0));
-    urlBuilder.addQueryParameter("start", String.valueOf(query.getStartTimeMs()));
-    urlBuilder.addQueryParameter("end", String.valueOf(query.getEndTimeMs()));
-    urlBuilder.addQueryParameter("step", String.valueOf(query.getStepMs()));
+    urlBuilder.addQueryParameter("time", String.valueOf(evalTime.getEpochSecond()));
+    return urlBuilder.build().toString();
+  }
 
-    String url = urlBuilder.build().toString();
-
+  public Optional<MetricResponse> executeRangeQuery(PromQLQuery query) throws IOException {
+    String url = getRangeQueryUrl(query);
     Request request = new Request.Builder().url(url).build();
 
-    try (Response response = client.newCall(request).execute()) {
+    try (Response response = okHttpClient.newCall(request).execute()) {
       if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-      System.out.println(response.body().string());
+      MetricResponse data = ResponseParser.parse(response.body().string());
+      return Optional.of(data);
     }
+  }
+
+  public String getRangeQueryUrl(PromQLQuery query) {
+    HttpUrl.Builder urlBuilder = HttpUrl.parse("http://" + endPoint + INSTANT_QUERY).newBuilder();
+    Instant startTime = Instant.ofEpochMilli(query.getStartTimeMs());
+    Instant endTime = Instant.ofEpochMilli(query.getEndTimeMs());
+    Duration duration = Duration.of(query.getStepMs(), ChronoUnit.MILLIS);
+
+    urlBuilder.addQueryParameter("query", query.getQueries().get(0));
+    urlBuilder.addQueryParameter("start", String.valueOf(startTime.getEpochSecond()));
+    urlBuilder.addQueryParameter("end", String.valueOf(endTime.getEpochSecond()));
+    urlBuilder.addQueryParameter("step", String.valueOf(duration.getSeconds()));
+
+    return urlBuilder.build().toString();
   }
 }
