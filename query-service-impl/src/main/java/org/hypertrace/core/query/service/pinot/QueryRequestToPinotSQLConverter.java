@@ -37,6 +37,7 @@ class QueryRequestToPinotSQLConverter {
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 
+  /** TODO:Add support for like operator */
   private static final List<Operator> SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES_WITH_SUBPATH =
       List.of(Operator.EQ, Operator.NEQ, Operator.GT, Operator.GE, Operator.LT, Operator.LE);
 
@@ -189,7 +190,8 @@ class QueryRequestToPinotSQLConverter {
           builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
           break;
         default:
-          if (isMapAttribute(filter.getLhs())) {
+          if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION
+              && isMapAttribute(filter.getLhs())) {
             builder.append(handleFilterForMapAttribute(filter, paramsBuilder));
           } else {
             rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
@@ -283,6 +285,10 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private LiteralConstant[] getKeyValuePairForMapAttribute(Expression lhs, Expression rhs) {
+
+    if (lhs.getValueCase() != ATTRIBUTE_EXPRESSION) {
+      throw new UnsupportedOperationException("Only map attributes supported");
+    }
     String pathExpression = lhs.getAttributeExpression().getSubpath();
     LiteralConstant[] kvp = convertExpressionToMapLiterals(rhs);
     kvp[0] =
