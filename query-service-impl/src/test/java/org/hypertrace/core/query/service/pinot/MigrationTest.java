@@ -322,6 +322,25 @@ public class MigrationTest {
   }
 
   @Test
+  public void testQueryWithUnsupportedFilterForMapAttribute() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
+    builder.addSelection(spanKind);
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .setLhs(spanKind)
+            .setRhs(createStringLiteralValueExpression("client"))
+            .build();
+    builder.setFilter(andFilter);
+    assertExceptionOnPQLQuery(
+        builder.build(),
+        UnsupportedOperationException.class,
+        "Unknown operator for map attributes:AND");
+  }
+
+  @Test
   public void testQueryWithOrderByWithMapAttribute() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
@@ -509,6 +528,28 @@ public class MigrationTest {
     Mockito.verify(connection, Mockito.times(1)).execute(statementCaptor.capture());
     Assertions.assertEquals(
         expectedQuery.toLowerCase(), statementCaptor.getValue().getQuery().toLowerCase());
+  }
+
+  private void assertExceptionOnPQLQuery(
+      QueryRequest queryRequest,
+      Class<? extends Throwable> exceptionClass,
+      String expectedMessage) {
+
+    QueryRequestToPinotSQLConverter converter =
+        new QueryRequestToPinotSQLConverter(
+            getDefaultViewDefinition(), new PinotFunctionConverter());
+
+    Throwable exception =
+        Assertions.assertThrows(
+            exceptionClass,
+            () ->
+                converter.toSQL(
+                    new ExecutionContext("__default", queryRequest),
+                    queryRequest,
+                    createSelectionsFromQueryRequest(queryRequest)));
+
+    String actualMessage = exception.getMessage();
+    Assertions.assertTrue(actualMessage.contains(expectedMessage));
   }
 
   // This method will put the selections in a LinkedHashSet in the order that RequestAnalyzer does:
