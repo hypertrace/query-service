@@ -11,8 +11,11 @@ public class PromqlQuery {
   private long stepMs;
 
   public PromqlQuery(
-      List<String> queries,  boolean isInstantRequest,
-      long startTimeMs, long endTimeMs, long stepMs) {
+      List<String> queries,
+      boolean isInstantRequest,
+      long startTimeMs,
+      long endTimeMs,
+      long stepMs) {
     this.queries = queries;
     this.isInstantRequest = isInstantRequest;
     this.startTimeMs = startTimeMs;

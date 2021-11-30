@@ -32,15 +32,13 @@ class QueryRequestToPromqlConverter {
   private final ViewDefinition viewDefinition;
   private final Joiner joiner = Joiner.on(", ").skipNulls();
 
-  QueryRequestToPromqlConverter(
-      ViewDefinition viewDefinition) {
+  QueryRequestToPromqlConverter(ViewDefinition viewDefinition) {
     this.viewDefinition = viewDefinition;
   }
 
   /**
-   * 1. selection should be equal to group by list
-   * 2. number of function selection is equal to number of query fired
-   * 3. count(*) type of query can't be served
+   * 1. selection should be equal to group by list 2. number of function selection is equal to
+   * number of query fired 3. count(*) type of query can't be served
    */
   PromqlQuery toPromql(
       ExecutionContext executionContext,
@@ -51,20 +49,32 @@ class QueryRequestToPromqlConverter {
     StringBuilder filter = new StringBuilder();
     convertFilter2String(request.getFilter(), filter);
 
+    QueryTimeRange queryTimeRange =
+        executionContext
+            .getQueryTimeRange()
+            .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
 
-    QueryTimeRange queryTimeRange = executionContext.getQueryTimeRange().orElseThrow(
-        () -> new RuntimeException("Time Range missing in query"));
-
-    List<String> queries = allSelections.stream().filter(expression -> expression.getValueCase().equals(ValueCase.FUNCTION))
-        .map(functionExpression -> {
-          String functionName = getFunctionName(functionExpression);
-          String metricName = getMetricNameFromFunction(functionExpression);
-          return buildQuery(metricName, functionName, groupByList, filter.toString(), queryTimeRange.getDuration().toMillis());
-        }).collect(Collectors.toUnmodifiableList());
+    List<String> queries =
+        allSelections.stream()
+            .filter(expression -> expression.getValueCase().equals(ValueCase.FUNCTION))
+            .map(
+                functionExpression -> {
+                  String functionName = getFunctionName(functionExpression);
+                  String metricName = getMetricNameFromFunction(functionExpression);
+                  return buildQuery(
+                      metricName,
+                      functionName,
+                      groupByList,
+                      filter.toString(),
+                      queryTimeRange.getDuration().toMillis());
+                })
+            .collect(Collectors.toUnmodifiableList());
 
     return new PromqlQuery(
-        queries, executionContext.getTimeSeriesPeriod().isEmpty(),
-        queryTimeRange.getStartTime(), queryTimeRange.getEndTime(),
+        queries,
+        executionContext.getTimeSeriesPeriod().isEmpty(),
+        queryTimeRange.getStartTime(),
+        queryTimeRange.getEndTime(),
         getStep(executionContext));
   }
 
@@ -79,21 +89,26 @@ class QueryRequestToPromqlConverter {
   }
 
   private long getStep(ExecutionContext executionContext) {
-    return executionContext
-        .getTimeSeriesPeriod().map(Duration::toMillis)
-        .orElse(-1L);
+    return executionContext.getTimeSeriesPeriod().map(Duration::toMillis).orElse(-1L);
   }
 
   private String buildQuery(
-      String metricName, String function,
-      String groupByList, String filter, long durationMillis) {
-    String template = "%s by (%s) (%s(%s{%s}[%sms]))"; // sum by (a1, a2) (sum_over_time(num_calls{a4="..", a5=".."}[xms]))
+      String metricName, String function, String groupByList, String filter, long durationMillis) {
+    String template =
+        "%s by (%s) (%s(%s{%s}[%sms]))"; // sum by (a1, a2) (sum_over_time(num_calls{a4="..",
+    // a5=".."}[xms]))
 
-    return String.format(template, function, groupByList, function + "_over_time", metricName, filter, durationMillis);
+    return String.format(
+        template,
+        function,
+        groupByList,
+        function + "_over_time",
+        metricName,
+        filter,
+        durationMillis);
   }
 
-  private String getFunctionName(
-      Expression functionSelection) {
+  private String getFunctionName(Expression functionSelection) {
     switch (functionSelection.getFunction().getFunctionName().toUpperCase()) {
       case QUERY_FUNCTION_SUM:
         return "sum";
@@ -108,14 +123,12 @@ class QueryRequestToPromqlConverter {
     }
   }
 
-  private String getMetricNameFromFunction(
-      Expression functionSelection) {
+  private String getMetricNameFromFunction(Expression functionSelection) {
     // todo map columnName
     return functionSelection.getColumnIdentifier().getColumnName();
   }
 
-  private String convertColumnIdentifierExpression2String(
-      Expression expression) {
+  private String convertColumnIdentifierExpression2String(Expression expression) {
     String logicalColumnName = expression.getColumnIdentifier().getColumnName();
     List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
     return joiner.join(columnNames);
@@ -124,7 +137,7 @@ class QueryRequestToPromqlConverter {
   /**
    * only `AND` operator in filter is allowed
    *
-   * rhs of leaf filter should be literal
+   * <p>rhs of leaf filter should be literal
    */
   private void convertFilter2String(Filter filter, StringBuilder builder) {
     if (filter.getChildFilterCount() > 0) {
@@ -135,8 +148,7 @@ class QueryRequestToPromqlConverter {
         builder.append(" ");
       }
     } else {
-      builder.append(
-          convertColumnIdentifierExpression2String(filter.getLhs()));
+      builder.append(convertColumnIdentifierExpression2String(filter.getLhs()));
       switch (filter.getOperator()) {
         case IN:
         case EQ:
