@@ -1,4 +1,4 @@
-package org.hypertrace.core.query.service.promql;
+package org.hypertrace.core.query.service.prometheus;
 
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_MAX;

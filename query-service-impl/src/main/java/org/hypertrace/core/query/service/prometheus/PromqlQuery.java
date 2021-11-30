@@ -1,4 +1,4 @@
-package org.hypertrace.core.query.service.promql;
+package org.hypertrace.core.query.service.prometheus;
 
 import java.util.List;
 
