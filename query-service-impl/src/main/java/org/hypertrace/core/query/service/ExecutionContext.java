@@ -48,7 +48,7 @@ public class ExecutionContext {
   private final LinkedHashSet<Expression> allSelections;
   private final Optional<Duration> timeSeriesPeriod;
   private final Filter queryRequestFilter;
-  private final Supplier<Optional<Duration>> timeRangeDurationSupplier;
+  private final Supplier<Optional<QueryTimeRange>> queryTimeRangeSupplier;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
@@ -56,9 +56,9 @@ public class ExecutionContext {
     this.allSelections = new LinkedHashSet<>();
     this.timeSeriesPeriod = calculateTimeSeriesPeriod(request);
     this.queryRequestFilter = request.getFilter();
-    timeRangeDurationSupplier =
+    queryTimeRangeSupplier =
         Suppliers.memoize(
-            () -> findTimeRangeDuration(this.queryRequestFilter, this.timeFilterColumn));
+            () -> buildQueryTimeRange(this.queryRequestFilter, this.timeFilterColumn));
     analyze(request);
   }
 
@@ -192,7 +192,7 @@ public class ExecutionContext {
     }
   }
 
-  private Optional<Duration> findTimeRangeDuration(Filter filter, String timeFilterColumn) {
+  private Optional<QueryTimeRange> buildQueryTimeRange(Filter filter, String timeFilterColumn) {
 
     // time filter will always be present with AND operator
     if (filter.getOperator() != Operator.AND) {
@@ -218,11 +218,11 @@ public class ExecutionContext {
             .findFirst();
 
     if (timeRangeStart.isPresent() && timeRangeEnd.isPresent()) {
-      return Optional.of(Duration.ofMillis(timeRangeEnd.get() - timeRangeStart.get()));
+      return Optional.of(new QueryTimeRange(timeRangeStart.get(), timeRangeEnd.get()));
     }
 
     return filter.getChildFilterList().stream()
-        .map(childFilter -> this.findTimeRangeDuration(childFilter, timeFilterColumn))
+        .map(childFilter -> this.buildQueryTimeRange(childFilter, timeFilterColumn))
         .flatMap(Optional::stream)
         .findFirst();
   }
@@ -274,6 +274,10 @@ public class ExecutionContext {
   }
 
   public Optional<Duration> getTimeRangeDuration() {
-    return timeRangeDurationSupplier.get();
+    return queryTimeRangeSupplier.get().map(QueryTimeRange::getDuration);
+  }
+
+  public Optional<QueryTimeRange> getQueryTimeRange() {
+    return queryTimeRangeSupplier.get();
   }
 }

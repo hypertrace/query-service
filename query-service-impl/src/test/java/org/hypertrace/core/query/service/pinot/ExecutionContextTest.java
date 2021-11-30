@@ -389,7 +389,7 @@ public class ExecutionContextTest {
             .build();
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     context.setTimeFilterColumn("SERVICE.startTime");
-    assertEquals(Optional.empty(), context.getTimeRangeDuration());
+    assertEquals(Optional.empty(), context.getQueryTimeRange());
   }
 
   @ParameterizedTest
@@ -397,7 +397,7 @@ public class ExecutionContextTest {
   public void testGetTimeRangeDuration(QueryRequest queryRequest) {
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     context.setTimeFilterColumn("SERVICE.startTime");
-    assertEquals(Optional.of(Duration.ofMinutes(60)), context.getTimeRangeDuration());
+    assertEquals(Optional.of(Duration.ofMinutes(60)), context.getQueryTimeRange());
   }
 
   private static Stream<Arguments> provideQueryRequest() {
