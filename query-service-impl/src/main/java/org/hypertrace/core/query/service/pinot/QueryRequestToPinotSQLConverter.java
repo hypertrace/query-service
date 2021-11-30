@@ -303,30 +303,28 @@ class QueryRequestToPinotSQLConverter {
     String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
     String valCol = convertExpressionToMapValueColumn(filter.getLhs());
 
-    StringBuilder builder = new StringBuilder();
-    builder.append(keyCol);
-    builder.append(" = ");
-    builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-    builder.append(" AND ");
-    builder.append(valCol);
-    builder.append(" ");
-    builder.append(convertOperator2String(filter.getOperator()));
-    builder.append(" ");
-    builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-    builder.append(" AND ");
-    builder.append(MAP_VALUE);
-    builder.append("(");
-    builder.append(keyCol);
-    builder.append(",");
-    builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-    builder.append(",");
-    builder.append(valCol);
-    builder.append(")");
-    builder.append(" ");
-    builder.append(convertOperator2String(filter.getOperator()));
-    builder.append(" ");
-    builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-    return builder.toString();
+    return keyCol
+        + " = "
+        + convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder)
+        + " AND "
+        + valCol
+        + " "
+        + convertOperator2String(filter.getOperator())
+        + " "
+        + convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder)
+        + " AND "
+        + MAP_VALUE
+        + "("
+        + keyCol
+        + ","
+        + convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder)
+        + ","
+        + valCol
+        + ")"
+        + " "
+        + convertOperator2String(filter.getOperator())
+        + " "
+        + convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder);
   }
 
   private boolean isGroupingSelectionForMapAttribute(
@@ -352,22 +350,19 @@ class QueryRequestToPinotSQLConverter {
       String keyCol = convertExpressionToMapKeyColumn(expression);
       String valCol = convertExpressionToMapValueColumn(expression);
       String pathExpression = expression.getAttributeExpression().getSubpath();
+      LiteralConstant pathExpressionLiteral =
+          LiteralConstant.newBuilder()
+              .setValue(Value.newBuilder().setString(pathExpression).build())
+              .build();
 
-      StringBuilder builder = new StringBuilder();
-      builder.append(MAP_VALUE);
-      builder.append("(");
-      builder.append(keyCol);
-      builder.append(",");
-      builder.append(
-          convertLiteralToString(
-              LiteralConstant.newBuilder()
-                  .setValue(Value.newBuilder().setString(pathExpression).build())
-                  .build(),
-              paramsBuilder));
-      builder.append(",");
-      builder.append(valCol);
-      builder.append(")");
-      return builder.toString();
+      return MAP_VALUE
+          + "("
+          + keyCol
+          + ","
+          + convertLiteralToString(pathExpressionLiteral, paramsBuilder)
+          + ","
+          + valCol
+          + ")";
     } else {
       return convertExpression2String(expression, paramsBuilder, executionContext);
     }
