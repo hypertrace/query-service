@@ -48,6 +48,8 @@ dependencies {
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.9.1")
   implementation("com.google.code.gson:gson:2.8.9")
+  annotationProcessor("org.projectlombok:lombok:1.18.20")
+  compileOnly("org.projectlombok:lombok:1.18.20")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")

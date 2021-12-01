@@ -1,4 +1,4 @@
-package org.hypertrace.core.query.service.promql;
+package org.hypertrace.core.query.service.prometheus;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Optional;
 import okhttp3.Call;
 import okhttp3.MediaType;
@@ -19,43 +20,48 @@ import okhttp3.ResponseBody;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class PromQLRestClientTest {
+public class PrometheusRestClientTest {
 
   @Test
   public void testInstantQuery() throws IOException {
     URL fileUrl =
-        PromQLRestClientTest.class.getClassLoader().getResource("promql_vector_result.json");
+        PrometheusRestClientTest.class.getClassLoader().getResource("promql_vector_result.json");
     String content = new String(Files.readAllBytes(Paths.get(fileUrl.getFile())));
     String url = "http://localhost?api/v1/query?query=up&time=1435781451";
     OkHttpClient okHttpClient = mockHttpClient(url, content);
-    PromQLRestClient promQLRestClient = new PromQLRestClient("localhost", okHttpClient);
+    PrometheusRestClient prometheusRestClient =
+        new PrometheusRestClient("localhost", 9090, okHttpClient);
     PromQLQuery query =
-        PromQLQuery.Builder.newBuilder()
-            .addQuery("up")
-            .setEvalTimeMs(1435781451000L)
-            .setInstantRequest(true)
+        PromQLQuery.builder()
+            .queries(List.of("up"))
+            .evalTimeMs(1435781451000L)
+            .isInstantRequest(true)
             .build();
-    Optional<MetricResponse> metricResponse = promQLRestClient.executeInstantQuery(query);
+    Optional<PrometheusMetricQueryResponse> metricResponse =
+        prometheusRestClient.executeInstantQuery(query);
     Assertions.assertTrue(metricResponse.isPresent());
   }
 
   @Test
   public void testRangeQuery() throws IOException {
     URL fileUrl =
-        PromQLRestClientTest.class.getClassLoader().getResource("promql_matrix_result.json");
+        PrometheusRestClientTest.class.getClassLoader().getResource("promql_matrix_result.json");
     String content = new String(Files.readAllBytes(Paths.get(fileUrl.getFile())));
     String url = "http://localhost?api/v1/query?query=up&start=1435781430&end=1435781460&step=15";
     OkHttpClient okHttpClient = mockHttpClient(url, content);
-    PromQLRestClient promQLRestClient = new PromQLRestClient("localhost", okHttpClient);
+    PrometheusRestClient prometheusRestClient =
+        new PrometheusRestClient("localhost", 9090, okHttpClient);
     PromQLQuery query =
-        PromQLQuery.Builder.newBuilder()
-            .addQuery("up")
-            .setStartTimeMs(1435781430000L)
-            .setEndTimeMs(1435781460000L)
-            .setInstantRequest(false)
-            .setStepMs(15000)
+        PromQLQuery.builder()
+            .queries(List.of("up"))
+            .startTimeMs(1435781430000L)
+            .endTimeMs(1435781460000L)
+            .isInstantRequest(false)
+            .stepMs(1500)
             .build();
-    Optional<MetricResponse> metricResponse = promQLRestClient.executeRangeQuery(query);
+
+    Optional<PrometheusMetricQueryResponse> metricResponse =
+        prometheusRestClient.executeRangeQuery(query);
     Assertions.assertTrue(metricResponse.isPresent());
   }
 
