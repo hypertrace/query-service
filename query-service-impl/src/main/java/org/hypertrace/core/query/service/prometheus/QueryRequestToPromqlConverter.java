@@ -5,7 +5,6 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_MIN;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_SUM;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.time.Duration;
@@ -21,7 +20,7 @@ import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Value;
-import org.hypertrace.core.query.service.pinot.ViewDefinition;
+import org.hypertrace.core.query.service.prometheus.PrometheusViewDefinition.MetricConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,11 +28,10 @@ class QueryRequestToPromqlConverter {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryRequestToPromqlConverter.class);
 
-  private final ViewDefinition viewDefinition;
-  private final Joiner joiner = Joiner.on(", ").skipNulls();
+  private final PrometheusViewDefinition prometheusViewDefinition;
 
-  QueryRequestToPromqlConverter(ViewDefinition viewDefinition) {
-    this.viewDefinition = viewDefinition;
+  QueryRequestToPromqlConverter(PrometheusViewDefinition prometheusViewDefinition) {
+    this.prometheusViewDefinition = prometheusViewDefinition;
   }
 
   /**
@@ -60,9 +58,9 @@ class QueryRequestToPromqlConverter {
             .map(
                 functionExpression -> {
                   String functionName = getFunctionName(functionExpression);
-                  String metricName = getMetricNameFromFunction(functionExpression);
+                  MetricConfig metricConfig = getMetricConfigForFunction(functionExpression);
                   return buildQuery(
-                      metricName,
+                      metricConfig.getName(),
                       functionName,
                       groupByList,
                       filter.toString(),
@@ -102,7 +100,7 @@ class QueryRequestToPromqlConverter {
         template,
         function,
         groupByList,
-        function + "_over_time",
+        function + "_over_time", // assuming gauge type of metric
         metricName,
         filter,
         durationMillis);
@@ -123,15 +121,13 @@ class QueryRequestToPromqlConverter {
     }
   }
 
-  private String getMetricNameFromFunction(Expression functionSelection) {
-    // todo map columnName
-    return functionSelection.getColumnIdentifier().getColumnName();
+  private MetricConfig getMetricConfigForFunction(Expression functionSelection) {
+    return prometheusViewDefinition.getMetricConfig(functionSelection.getColumnIdentifier().getColumnName());
   }
 
   private String convertColumnIdentifierExpression2String(Expression expression) {
     String logicalColumnName = expression.getColumnIdentifier().getColumnName();
-    List<String> columnNames = viewDefinition.getPhysicalColumnNames(logicalColumnName);
-    return joiner.join(columnNames);
+    return prometheusViewDefinition.getPhysicalColumnName(logicalColumnName);
   }
 
   /**

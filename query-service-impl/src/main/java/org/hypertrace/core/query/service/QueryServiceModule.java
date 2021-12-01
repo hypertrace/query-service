@@ -8,6 +8,7 @@ import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClien
 import org.hypertrace.core.query.service.api.QueryServiceGrpc.QueryServiceImplBase;
 import org.hypertrace.core.query.service.pinot.PinotModule;
 import org.hypertrace.core.query.service.projection.ProjectionModule;
+import org.hypertrace.core.query.service.prometheus.PrometheusModule;
 import org.hypertrace.core.serviceframework.spi.PlatformServiceLifecycle;
 
 class QueryServiceModule extends AbstractModule {
@@ -31,5 +32,6 @@ class QueryServiceModule extends AbstractModule {
         .in(Singleton.class);
     install(new PinotModule());
     install(new ProjectionModule());
+    install(new PrometheusModule());
   }
 }
