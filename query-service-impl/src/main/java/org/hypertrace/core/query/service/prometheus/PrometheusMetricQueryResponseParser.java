@@ -61,9 +61,11 @@ public class PrometheusMetricQueryResponseParser {
       }
     }
     reader.endObject();
-    PrometheusMetricQueryResponse prometheusMetricQueryResponse =
-        new PrometheusMetricQueryResponse(status, resultType, prometheusMetricResultList);
-    return prometheusMetricQueryResponse;
+    return PrometheusMetricQueryResponse.builder()
+        .status(status)
+        .resultType(resultType)
+        .metrics(prometheusMetricResultList)
+        .build();
   }
 
   private static PrometheusMetricResult convert(JsonReader reader, String resultType)
@@ -96,6 +98,9 @@ public class PrometheusMetricQueryResponseParser {
       }
     }
     reader.endObject();
-    return new PrometheusMetricResult(metric, prometheusMetricValues);
+    return PrometheusMetricResult.builder()
+        .metricAttributes(metric)
+        .values(prometheusMetricValues)
+        .build();
   }
 }

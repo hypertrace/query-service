@@ -1,17 +1,18 @@
 package org.hypertrace.core.query.service.prometheus;
 
 import java.util.List;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.Singular;
 
-// todo: PrometheusMetricQueryResponse
+@Getter
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class PrometheusMetricQueryResponse {
-  private String status;
+  @NonNull private String status;
   private String resultType;
-  private List<PrometheusMetricResult> metrics; // PromQLMetric, PrometheusMetricResponse, ?
-
-  public PrometheusMetricQueryResponse(
-      String status, String resultType, List<PrometheusMetricResult> metrics) {
-    this.status = status;
-    this.resultType = resultType;
-    this.metrics = metrics;
-  }
+  @Singular private List<PrometheusMetricResult> metrics;
 }
