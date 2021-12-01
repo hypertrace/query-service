@@ -1,9 +1,6 @@
 package org.hypertrace.core.query.service.prometheus;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -52,22 +49,18 @@ public class PrometheusRestClient {
 
   private String getInstantQueryUrl(PromQLQuery query) {
     HttpUrl.Builder urlBuilder = HttpUrl.parse(getApi(INSTANT_QUERY)).newBuilder();
-    Instant evalTime = Instant.ofEpochMilli(query.getEvalTimeMs());
     urlBuilder.addQueryParameter("query", query.getQueries().get(0));
-    urlBuilder.addQueryParameter("time", String.valueOf(evalTime.getEpochSecond()));
+    urlBuilder.addQueryParameter("time", String.valueOf(query.getEndTime().getEpochSecond()));
     return urlBuilder.build().toString();
   }
 
   private String getRangeQueryUrl(PromQLQuery query) {
     HttpUrl.Builder urlBuilder = HttpUrl.parse(getApi(RANGE_QUERY)).newBuilder();
-    Instant startTime = Instant.ofEpochMilli(query.getStartTimeMs());
-    Instant endTime = Instant.ofEpochMilli(query.getEndTimeMs());
-    Duration duration = Duration.of(query.getStepMs(), ChronoUnit.MILLIS);
 
     urlBuilder.addQueryParameter("query", query.getQueries().get(0));
-    urlBuilder.addQueryParameter("start", String.valueOf(startTime.getEpochSecond()));
-    urlBuilder.addQueryParameter("end", String.valueOf(endTime.getEpochSecond()));
-    urlBuilder.addQueryParameter("step", String.valueOf(duration.getSeconds()));
+    urlBuilder.addQueryParameter("start", String.valueOf(query.getStartTime().getEpochSecond()));
+    urlBuilder.addQueryParameter("end", String.valueOf(query.getEndTime().getEpochSecond()));
+    urlBuilder.addQueryParameter("step", String.valueOf(query.getStep().getSeconds()));
 
     return urlBuilder.build().toString();
   }

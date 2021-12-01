@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import okhttp3.Call;
 import okhttp3.MediaType;
@@ -31,7 +34,11 @@ public class PrometheusRestClientTest {
     PrometheusRestClient prometheusRestClient =
         new PrometheusRestClient("localhost", 9090, okHttpClient);
     PromQLQuery query =
-        PromQLQuery.builder().query("up").evalTimeMs(1435781451000L).isInstantRequest(true).build();
+        PromQLQuery.builder()
+            .query("up")
+            .endTime(Instant.ofEpochMilli(1435781451000L))
+            .isInstantRequest(true)
+            .build();
     Optional<PrometheusMetricQueryResponse> metricResponse =
         prometheusRestClient.executeInstantQuery(query);
     Assertions.assertTrue(metricResponse.isPresent());
@@ -49,10 +56,10 @@ public class PrometheusRestClientTest {
     PromQLQuery query =
         PromQLQuery.builder()
             .query("up")
-            .startTimeMs(1435781430000L)
-            .endTimeMs(1435781460000L)
+            .startTime(Instant.ofEpochMilli(1435781430000L))
+            .endTime(Instant.ofEpochMilli(1435781460000L))
             .isInstantRequest(false)
-            .stepMs(1500)
+            .step(Duration.of(1500, ChronoUnit.MILLIS))
             .build();
 
     Optional<PrometheusMetricQueryResponse> metricResponse =
