@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Optional;
 import okhttp3.Call;
 import okhttp3.MediaType;
@@ -32,11 +31,7 @@ public class PrometheusRestClientTest {
     PrometheusRestClient prometheusRestClient =
         new PrometheusRestClient("localhost", 9090, okHttpClient);
     PromQLQuery query =
-        PromQLQuery.builder()
-            .queries(List.of("up"))
-            .evalTimeMs(1435781451000L)
-            .isInstantRequest(true)
-            .build();
+        PromQLQuery.builder().query("up").evalTimeMs(1435781451000L).isInstantRequest(true).build();
     Optional<PrometheusMetricQueryResponse> metricResponse =
         prometheusRestClient.executeInstantQuery(query);
     Assertions.assertTrue(metricResponse.isPresent());
@@ -53,7 +48,7 @@ public class PrometheusRestClientTest {
         new PrometheusRestClient("localhost", 9090, okHttpClient);
     PromQLQuery query =
         PromQLQuery.builder()
-            .queries(List.of("up"))
+            .query("up")
             .startTimeMs(1435781430000L)
             .endTimeMs(1435781460000L)
             .isInstantRequest(false)
