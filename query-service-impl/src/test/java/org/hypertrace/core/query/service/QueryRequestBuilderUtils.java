@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service;
 
 import java.util.Arrays;
 import java.util.List;
+import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -19,6 +20,11 @@ public class QueryRequestBuilderUtils {
         .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
   }
 
+  public static Expression.Builder createSimpleAttributeExpression(String columnName) {
+    return Expression.newBuilder()
+        .setAttributeExpression(AttributeExpression.newBuilder().setAttributeId(columnName));
+  }
+
   public static Expression createAliasedColumnExpression(String columnName, String alias) {
     return Expression.newBuilder()
         .setColumnIdentifier(
@@ -28,6 +34,10 @@ public class QueryRequestBuilderUtils {
 
   public static Expression createCountByColumnSelection(String columnNames) {
     return createFunctionExpression("Count", createColumnExpression(columnNames).build());
+  }
+
+  public static Expression createCountByColumnSelectionWithSimpleAttribute(String columnNames) {
+    return createFunctionExpression("Count", createSimpleAttributeExpression(columnNames).build());
   }
 
   public static Expression createTimeColumnGroupByExpression(String timeColumn, String period) {
@@ -57,6 +67,16 @@ public class QueryRequestBuilderUtils {
                 .setAlias(alias)
                 .setFunctionName(functionName)
                 .addArguments(createColumnExpression(columnNameArg)));
+  }
+
+  public static Expression.Builder createAliasedFunctionExpressionWithSimpleAttribute(
+      String functionName, String columnNameArg, String alias) {
+    return Expression.newBuilder()
+        .setFunction(
+            Function.newBuilder()
+                .setAlias(alias)
+                .setFunctionName(functionName)
+                .addArguments(createSimpleAttributeExpression(columnNameArg)));
   }
 
   public static Expression createAliasedFunctionExpression(
@@ -118,8 +138,18 @@ public class QueryRequestBuilderUtils {
     return createFilter(columnName, op, createLongLiteralValueExpression(value));
   }
 
+  public static Filter createTimeFilterWithSimpleAttribute(
+      String columnName, Operator op, long value) {
+    return createSimpleAttributeFilter(columnName, op, createLongLiteralValueExpression(value));
+  }
+
   public static Filter createFilter(String column, Operator operator, Expression expression) {
     return createFilter(createColumnExpression(column).build(), operator, expression);
+  }
+
+  public static Filter createSimpleAttributeFilter(
+      String column, Operator operator, Expression expression) {
+    return createFilter(createSimpleAttributeExpression(column).build(), operator, expression);
   }
 
   public static Filter createFilter(
