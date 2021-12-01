@@ -90,6 +90,44 @@ public class MigrationTest {
   }
 
   @Test
+  public void testQuerySelectionUsingMapAttributeWithSubPath() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createComplexAttributeExpression("Span.tags", "span.kind"));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "Select mapValue(tags__KEYS,'span.kind',tags__VALUES) FROM SpanEventView "
+            + "where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQuerySelectionUsingMapAttributeWithoutSubPath() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createSimpleAttributeExpression("Span.tags"));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "Select tags__KEYS, tags__VALUES FROM SpanEventView "
+            + "where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
   public void testQueryMultipleDistinctSelection() {
     Builder builder = QueryRequest.newBuilder();
     builder
@@ -280,7 +318,7 @@ public class MigrationTest {
 
     assertPQLQuery(
         builder.build(),
-        "SELECT tags__keys, tags__values FROM SpanEventView "
+        "SELECT mapValue(tags__keys,'flags',tags__values) FROM SpanEventView "
             + "WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"
@@ -310,7 +348,7 @@ public class MigrationTest {
 
     assertPQLQuery(
         builder.build(),
-        "SELECT tags__keys, tags__values FROM SpanEventView "
+        "SELECT mapValue(tags__keys,'span.kind',tags__values) FROM SpanEventView "
             + "WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"
@@ -360,7 +398,7 @@ public class MigrationTest {
 
     assertPQLQuery(
         builder.build(),
-        "select tags__KEYS, tags__VALUES FROM spanEventView "
+        "select mapValue(tags__KEYS,'span.kind',tags__VALUES) FROM spanEventView "
             + "WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"

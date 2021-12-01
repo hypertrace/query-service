@@ -378,11 +378,19 @@ class QueryRequestToPinotSQLConverter {
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
-      case ATTRIBUTE_EXPRESSION:
         // this takes care of the Map Type where it's split into 2 columns
         List<String> columnNames =
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
+      case ATTRIBUTE_EXPRESSION:
+        if (expression.getAttributeExpression().hasSubpath() && isMapAttribute(expression)) {
+          return convertExpression2StringForMapAttribute(
+              expression, paramsBuilder, executionContext);
+        } else {
+          // this takes care of the Map Type where it's split into 2 columns
+          columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
+          return joiner.join(columnNames);
+        }
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
