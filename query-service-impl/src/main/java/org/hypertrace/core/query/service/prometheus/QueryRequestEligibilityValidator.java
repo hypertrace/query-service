@@ -13,15 +13,12 @@ import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 
-/**
- * Set of rules to check if the given request can be served by prometheus
- */
+/** Set of rules to check if the given request can be served by prometheus */
 class QueryRequestEligibilityValidator {
 
   private final PrometheusViewDefinition prometheusViewDefinition;
 
-  public QueryRequestEligibilityValidator(
-      PrometheusViewDefinition prometheusViewDefinition) {
+  public QueryRequestEligibilityValidator(PrometheusViewDefinition prometheusViewDefinition) {
     this.prometheusViewDefinition = prometheusViewDefinition;
   }
 
@@ -32,8 +29,9 @@ class QueryRequestEligibilityValidator {
     }
 
     // only aggregation queries are supported
-    if (queryRequest.getAggregationCount() == 0 ||
-        queryRequest.getGroupByCount() == 0 || queryRequest.getDistinctSelections()) {
+    if (queryRequest.getAggregationCount() == 0
+        || queryRequest.getGroupByCount() == 0
+        || queryRequest.getDistinctSelections()) {
       return QueryCost.UNSUPPORTED;
     }
 
@@ -51,14 +49,15 @@ class QueryRequestEligibilityValidator {
       return QueryCost.UNSUPPORTED;
     }
 
-    if (!selectionAndGroupByOnSameColumn(queryRequest.getSelectionList(), queryRequest.getGroupByList())) {
+    if (!selectionAndGroupByOnSameColumn(
+        queryRequest.getSelectionList(), queryRequest.getGroupByList())) {
       return QueryCost.UNSUPPORTED;
     }
-    
+
     if (!analyseFilter(queryRequest.getFilter())) {
       return QueryCost.UNSUPPORTED;
     }
-    
+
     // value 1.0 so that prometheus is preferred over others
     return new QueryCost(1.0);
   }
@@ -94,7 +93,8 @@ class QueryRequestEligibilityValidator {
         return false;
       }
       if (prometheusViewDefinition.getMetricConfig(
-          function.getArgumentsList().get(0).getColumnIdentifier().getColumnName()) == null) {
+              function.getArgumentsList().get(0).getColumnIdentifier().getColumnName())
+          == null) {
         return false;
       }
       // todo check if the function is supported or not
@@ -115,12 +115,12 @@ class QueryRequestEligibilityValidator {
       }
     }
 
-    // filter rhs should be literal only 
+    // filter rhs should be literal only
     if (filter.getRhs().getValueCase() != ValueCase.LITERAL) {
       return false;
     }
-    
-    // filter lhs should be column 
+
+    // filter lhs should be column
     if (filter.getLhs().getValueCase() != ValueCase.COLUMNIDENTIFIER) {
       return false;
     }

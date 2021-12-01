@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 public class PrometheusBasedRequestHandler implements RequestHandler {
 
-
   private static final Logger LOG = LoggerFactory.getLogger(PinotBasedRequestHandler.class);
 
   public static final String VIEW_DEFINITION_CONFIG_KEY = "viewDefinition";
@@ -28,13 +27,11 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
   private Optional<String> startTimeAttributeName;
   private QueryRequestToPromqlConverter requestToPromqlConverter;
 
-  PrometheusBasedRequestHandler(
-      String name,
-      Config config) {
+  PrometheusBasedRequestHandler(String name, Config config) {
     this.name = name;
     this.processConfig(config);
-    this.queryRequestEligibilityValidator = new QueryRequestEligibilityValidator(
-        prometheusViewDefinition);
+    this.queryRequestEligibilityValidator =
+        new QueryRequestEligibilityValidator(prometheusViewDefinition);
   }
 
   @Override
@@ -56,16 +53,15 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
 
     String tenantColumnName = config.getString(TENANT_COLUMN_NAME_CONFIG_KEY);
     this.prometheusViewDefinition =
-        PrometheusViewDefinition.parse(config.getConfig(VIEW_DEFINITION_CONFIG_KEY),
-            tenantColumnName);
+        PrometheusViewDefinition.parse(
+            config.getConfig(VIEW_DEFINITION_CONFIG_KEY), tenantColumnName);
 
     this.startTimeAttributeName =
         config.hasPath(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY)
             ? Optional.of(config.getString(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY))
             : Optional.empty();
 
-    this.requestToPromqlConverter =
-        new QueryRequestToPromqlConverter(prometheusViewDefinition);
+    this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
   }
 
   /**

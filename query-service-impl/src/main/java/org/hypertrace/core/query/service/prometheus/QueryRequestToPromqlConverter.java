@@ -122,7 +122,8 @@ class QueryRequestToPromqlConverter {
   }
 
   private MetricConfig getMetricConfigForFunction(Expression functionSelection) {
-    return prometheusViewDefinition.getMetricConfig(functionSelection.getColumnIdentifier().getColumnName());
+    return prometheusViewDefinition.getMetricConfig(
+        functionSelection.getColumnIdentifier().getColumnName());
   }
 
   private String convertColumnIdentifierExpression2String(Expression expression) {

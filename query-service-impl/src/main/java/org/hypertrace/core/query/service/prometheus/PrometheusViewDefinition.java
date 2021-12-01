@@ -8,9 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-/**
- * Prometheus metric & attribute mapping for a pinot view
- */
+/** Prometheus metric & attribute mapping for a pinot view */
 public class PrometheusViewDefinition {
 
   private static final String VIEW_NAME_CONFIG_KEY = "viewName";
@@ -74,8 +72,7 @@ public class PrometheusViewDefinition {
     private final String name;
     private final MetricType metricType;
 
-    public MetricConfig(String name,
-        MetricType metricType) {
+    public MetricConfig(String name, MetricType metricType) {
       this.name = name;
       this.metricType = metricType;
     }

@@ -4,7 +4,6 @@ import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
 import org.hypertrace.core.query.service.RequestHandlerBuilder;
 import org.hypertrace.core.query.service.RequestHandlerClientConfigRegistry;
-import org.hypertrace.core.query.service.pinot.PinotRequestHandlerBuilder;
 
 public class PrometheusModule extends AbstractModule {
 
