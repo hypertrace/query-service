@@ -148,52 +148,53 @@ class QueryRequestToPinotSQLConverter {
       }
       builder.append(")");
     } else {
-      switch (filter.getOperator()) {
-        case LIKE:
-          // The like operation in PQL looks like `regexp_like(lhs, rhs)`
-          Expression rhs =
-              handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          builder.append(operator);
-          builder.append("(");
-          builder.append(
-              convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
-          builder.append(",");
-          builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
-          builder.append(")");
-          break;
-        case CONTAINS_KEY:
-          LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs());
-          builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
-          builder.append(" = ");
-          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-          break;
-        case CONTAINS_KEYVALUE:
-          kvp = convertExpressionToMapLiterals(filter.getRhs());
-          String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
-          String valCol = convertExpressionToMapValueColumn(filter.getLhs());
-          builder.append(keyCol);
-          builder.append(" = ");
-          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-          builder.append(" AND ");
-          builder.append(valCol);
-          builder.append(" = ");
-          builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-          builder.append(" AND ");
-          builder.append(MAP_VALUE);
-          builder.append("(");
-          builder.append(keyCol);
-          builder.append(",");
-          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-          builder.append(",");
-          builder.append(valCol);
-          builder.append(") = ");
-          builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-          break;
-        default:
-          if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION
-              && isMapAttribute(filter.getLhs())) {
-            builder.append(handleFilterForMapAttribute(filter, paramsBuilder));
-          } else {
+      if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION
+          && filter.getLhs().getAttributeExpression().hasSubpath()
+          && isMapAttribute(filter.getLhs())) {
+        builder.append(handleFilterForMapAttribute(filter, paramsBuilder));
+      } else {
+        switch (filter.getOperator()) {
+          case LIKE:
+            // The like operation in PQL looks like `regexp_like(lhs, rhs)`
+            Expression rhs =
+                handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+            builder.append(operator);
+            builder.append("(");
+            builder.append(
+                convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+            builder.append(",");
+            builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
+            builder.append(")");
+            break;
+          case CONTAINS_KEY:
+            LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs());
+            builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
+            builder.append(" = ");
+            builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+            break;
+          case CONTAINS_KEYVALUE:
+            kvp = convertExpressionToMapLiterals(filter.getRhs());
+            String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
+            String valCol = convertExpressionToMapValueColumn(filter.getLhs());
+            builder.append(keyCol);
+            builder.append(" = ");
+            builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+            builder.append(" AND ");
+            builder.append(valCol);
+            builder.append(" = ");
+            builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+            builder.append(" AND ");
+            builder.append(MAP_VALUE);
+            builder.append("(");
+            builder.append(keyCol);
+            builder.append(",");
+            builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+            builder.append(",");
+            builder.append(valCol);
+            builder.append(") = ");
+            builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+            break;
+          default:
             rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
             builder.append(
                 convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
@@ -201,7 +202,7 @@ class QueryRequestToPinotSQLConverter {
             builder.append(operator);
             builder.append(" ");
             builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
-          }
+        }
       }
     }
     return builder.toString();
