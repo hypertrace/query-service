@@ -71,7 +71,7 @@ class QueryRequestToPinotSQLConverter {
       pqlBuilder.append(delim);
       pqlBuilder.append(
           isGroupingSelectionForMapAttribute(expr, request.getGroupByList())
-              ? convertExpression2StringForMapAttribute(expr, paramsBuilder, executionContext)
+              ? convertExpression2StringForMapAttribute(expr, paramsBuilder)
               : convertExpression2String(expr, paramsBuilder, executionContext));
       delim = ", ";
     }
@@ -96,8 +96,7 @@ class QueryRequestToPinotSQLConverter {
         pqlBuilder.append(delim);
         pqlBuilder.append(
             isAttributeMapAttribute(groupByExpression)
-                ? convertExpression2StringForMapAttribute(
-                    groupByExpression, paramsBuilder, executionContext)
+                ? convertExpression2StringForMapAttribute(groupByExpression, paramsBuilder)
                 : convertExpression2String(groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
@@ -110,7 +109,7 @@ class QueryRequestToPinotSQLConverter {
         String orderBy =
             isAttributeMapAttribute(orderByExpression.getExpression())
                 ? convertExpression2StringForMapAttribute(
-                    orderByExpression.getExpression(), paramsBuilder, executionContext)
+                    orderByExpression.getExpression(), paramsBuilder)
                 : convertExpression2String(
                     orderByExpression.getExpression(), paramsBuilder, executionContext);
         pqlBuilder.append(orderBy);
@@ -340,7 +339,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpression2StringForMapAttribute(
-      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
+      Expression expression, Builder paramsBuilder) {
     if (isAttributeMapAttribute(expression)) {
       String keyCol = convertExpressionToMapKeyColumn(expression, this::isAttributeMapAttribute);
       String valCol = convertExpressionToMapValueColumn(expression, this::isAttributeMapAttribute);
@@ -374,8 +373,7 @@ class QueryRequestToPinotSQLConverter {
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
         if (isAttributeMapAttribute(expression)) {
-          return convertExpression2StringForMapAttribute(
-              expression, paramsBuilder, executionContext);
+          return convertExpression2StringForMapAttribute(expression, paramsBuilder);
         } else {
           // this takes care of the Map Type where it's split into 2 columns
           columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
