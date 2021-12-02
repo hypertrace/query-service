@@ -95,8 +95,10 @@ class QueryRequestToPinotSQLConverter {
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
         pqlBuilder.append(
-            convertExpression2StringForMapAttribute(
-                groupByExpression, paramsBuilder, executionContext));
+            isAttributeMapAttribute(groupByExpression)
+                ? convertExpression2StringForMapAttribute(
+                    groupByExpression, paramsBuilder, executionContext)
+                : convertExpression2String(groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
     }
@@ -106,8 +108,11 @@ class QueryRequestToPinotSQLConverter {
       for (OrderByExpression orderByExpression : request.getOrderByList()) {
         pqlBuilder.append(delim);
         String orderBy =
-            convertExpression2StringForMapAttribute(
-                orderByExpression.getExpression(), paramsBuilder, executionContext);
+            isAttributeMapAttribute(orderByExpression.getExpression())
+                ? convertExpression2StringForMapAttribute(
+                    orderByExpression.getExpression(), paramsBuilder, executionContext)
+                : convertExpression2String(
+                    orderByExpression.getExpression(), paramsBuilder, executionContext);
         pqlBuilder.append(orderBy);
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
           pqlBuilder.append(" desc ");
@@ -167,14 +172,17 @@ class QueryRequestToPinotSQLConverter {
           case CONTAINS_KEY:
             LiteralConstant[] kvp =
                 convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
-            builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
+            builder.append(
+                convertExpressionToMapKeyColumn(filter.getLhs(), this::isColumnMapAttribute));
             builder.append(" = ");
             builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
             break;
           case CONTAINS_KEYVALUE:
             kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
-            String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
-            String valCol = convertExpressionToMapValueColumn(filter.getLhs());
+            String keyCol =
+                convertExpressionToMapKeyColumn(filter.getLhs(), this::isColumnMapAttribute);
+            String valCol =
+                convertExpressionToMapValueColumn(filter.getLhs(), this::isColumnMapAttribute);
             builder.append(keyCol);
             builder.append(" = ");
             builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
@@ -287,8 +295,9 @@ class QueryRequestToPinotSQLConverter {
     }
 
     LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
-    String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
-    String valCol = convertExpressionToMapValueColumn(filter.getLhs());
+    String keyCol = convertExpressionToMapKeyColumn(filter.getLhs(), this::isAttributeMapAttribute);
+    String valCol =
+        convertExpressionToMapValueColumn(filter.getLhs(), this::isAttributeMapAttribute);
 
     return keyCol
         + " = "
@@ -333,8 +342,8 @@ class QueryRequestToPinotSQLConverter {
   private String convertExpression2StringForMapAttribute(
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     if (isAttributeMapAttribute(expression)) {
-      String keyCol = convertExpressionToMapKeyColumn(expression);
-      String valCol = convertExpressionToMapValueColumn(expression);
+      String keyCol = convertExpressionToMapKeyColumn(expression, this::isAttributeMapAttribute);
+      String valCol = convertExpressionToMapValueColumn(expression, this::isAttributeMapAttribute);
       String pathExpression = expression.getAttributeExpression().getSubpath();
       LiteralConstant pathExpressionLiteral =
           LiteralConstant.newBuilder()
@@ -350,7 +359,8 @@ class QueryRequestToPinotSQLConverter {
           + valCol
           + ")";
     } else {
-      return convertExpression2String(expression, paramsBuilder, executionContext);
+      throw new IllegalArgumentException(
+          "Supports " + ATTRIBUTE_EXPRESSION + " expression type only");
     }
   }
 
@@ -388,8 +398,9 @@ class QueryRequestToPinotSQLConverter {
     return "";
   }
 
-  private String convertExpressionToMapKeyColumn(Expression expression) {
-    if (isMapAttribute(expression)) {
+  private String convertExpressionToMapKeyColumn(
+      Expression expression, java.util.function.Function<Expression, Boolean> isMapAttribute) {
+    if (isMapAttribute.apply(expression)) {
       String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -398,8 +409,9 @@ class QueryRequestToPinotSQLConverter {
     throw new IllegalArgumentException("operator supports multi value column only");
   }
 
-  private String convertExpressionToMapValueColumn(Expression expression) {
-    if (isMapAttribute(expression)) {
+  private String convertExpressionToMapValueColumn(
+      Expression expression, java.util.function.Function<Expression, Boolean> isMapAttribute) {
+    if (isMapAttribute.apply(expression)) {
       String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -456,17 +468,6 @@ class QueryRequestToPinotSQLConverter {
               .build();
     }
     return literals;
-  }
-
-  private boolean isMapAttribute(Expression expression) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        return isMapField(expression.getColumnIdentifier().getColumnName());
-      case ATTRIBUTE_EXPRESSION:
-        return isMapField(expression.getAttributeExpression().getAttributeId());
-      default:
-        return false;
-    }
   }
 
   private boolean isColumnMapAttribute(Expression expression) {

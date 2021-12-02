@@ -7,7 +7,6 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createC
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createSimpleAttributeExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilterWithSimpleAttribute;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,7 +16,6 @@ import static org.mockito.Mockito.when;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
@@ -264,37 +262,6 @@ public class MigrationTest {
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " limit 15",
-        viewDefinition,
-        executionContext);
-  }
-
-  @Test
-  public void testQueryWithContainsKeyValueOperator() {
-    Builder builder = QueryRequest.newBuilder();
-    Expression spanTag = createSimpleAttributeExpression("Span.tags").build();
-    builder.addSelection(spanTag);
-
-    Expression tag = createStringArrayLiteralValueExpression(List.of("FLAGS", "0"));
-    Filter likeFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEYVALUE)
-            .setLhs(spanTag)
-            .setRhs(tag)
-            .build();
-    builder.setFilter(likeFilter);
-
-    ViewDefinition viewDefinition = getDefaultViewDefinition();
-    defaultMockingForExecutionContext();
-
-    assertPQLQuery(
-        builder.build(),
-        "SELECT tags__keys, tags__values FROM SpanEventView "
-            + "WHERE "
-            + viewDefinition.getTenantIdColumn()
-            + " = '"
-            + TENANT_ID
-            + "' "
-            + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'",
         viewDefinition,
         executionContext);
   }
