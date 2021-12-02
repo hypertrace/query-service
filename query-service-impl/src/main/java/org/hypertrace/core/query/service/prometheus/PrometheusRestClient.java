@@ -3,7 +3,6 @@ package org.hypertrace.core.query.service.prometheus;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import lombok.NoArgsConstructor;
@@ -31,7 +30,7 @@ public class PrometheusRestClient {
   @SuppressWarnings("unchecked")
   public List<PrometheusMetricQueryResponse> execute(PromQLQuery query) {
     List<Request> requests =
-        query.isInstantRequest() ? getInstantQueryUrlList(query) : getRangeQueryUrlList(query);
+        query.isInstantRequest() ? getInstantQueryRequests(query) : getRangeQueryRequests(query);
 
     CompletableFuture<Response>[] completableFutures =
         requests.stream()
@@ -64,33 +63,7 @@ public class PrometheusRestClient {
     }
   }
 
-  public Optional<PrometheusMetricQueryResponse> executeInstantQuery(PromQLQuery query)
-      throws IOException {
-    String url = getInstantQueryUrl(query);
-    Request request = new Request.Builder().url(url).build();
-
-    try (Response response = okHttpClient.newCall(request).execute()) {
-      if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-      PrometheusMetricQueryResponse data =
-          PrometheusMetricQueryResponseParser.parse(response.body().string());
-      return Optional.of(data);
-    }
-  }
-
-  public Optional<PrometheusMetricQueryResponse> executeRangeQuery(PromQLQuery query)
-      throws IOException {
-    String url = getRangeQueryUrl(query);
-    Request request = new Request.Builder().url(url).build();
-
-    try (Response response = okHttpClient.newCall(request).execute()) {
-      if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-      PrometheusMetricQueryResponse data =
-          PrometheusMetricQueryResponseParser.parse(response.body().string());
-      return Optional.of(data);
-    }
-  }
-
-  private List<Request> getInstantQueryUrlList(PromQLQuery promQLQuery) {
+  private List<Request> getInstantQueryRequests(PromQLQuery promQLQuery) {
     return promQLQuery.getQueries().stream()
         .map(
             query -> {
@@ -103,7 +76,7 @@ public class PrometheusRestClient {
         .collect(Collectors.toList());
   }
 
-  private List<Request> getRangeQueryUrlList(PromQLQuery promQLQuery) {
+  private List<Request> getRangeQueryRequests(PromQLQuery promQLQuery) {
     return promQLQuery.getQueries().stream()
         .map(
             query -> {
@@ -118,24 +91,6 @@ public class PrometheusRestClient {
               return new Request.Builder().url(urlBuilder.build().toString()).build();
             })
         .collect(Collectors.toList());
-  }
-
-  private String getInstantQueryUrl(PromQLQuery query) {
-    HttpUrl.Builder urlBuilder = HttpUrl.parse(getRequestUrl(INSTANT_QUERY)).newBuilder();
-    urlBuilder.addQueryParameter("query", query.getQueries().get(0));
-    urlBuilder.addQueryParameter("time", String.valueOf(query.getEndTime().getEpochSecond()));
-    return urlBuilder.build().toString();
-  }
-
-  private String getRangeQueryUrl(PromQLQuery query) {
-    HttpUrl.Builder urlBuilder = HttpUrl.parse(getRequestUrl(RANGE_QUERY)).newBuilder();
-
-    urlBuilder.addQueryParameter("query", query.getQueries().get(0));
-    urlBuilder.addQueryParameter("start", String.valueOf(query.getStartTime().getEpochSecond()));
-    urlBuilder.addQueryParameter("end", String.valueOf(query.getEndTime().getEpochSecond()));
-    urlBuilder.addQueryParameter("step", String.valueOf(query.getStep().getSeconds()));
-
-    return urlBuilder.build().toString();
   }
 
   private String getRequestUrl(String path) {

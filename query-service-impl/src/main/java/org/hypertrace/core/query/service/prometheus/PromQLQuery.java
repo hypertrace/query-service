@@ -25,7 +25,7 @@ public class PromQLQuery {
     PromQLQuery build() {
       if (queries.size() == 0) {
         throw new UnsupportedOperationException(
-            "Minimum one query requires either for Instant or Range query");
+            "query string requires for Instant or Range query request");
       }
       if (isInstantRequest && endTime == null) {
         throw new UnsupportedOperationException("endTime requires for instant query");

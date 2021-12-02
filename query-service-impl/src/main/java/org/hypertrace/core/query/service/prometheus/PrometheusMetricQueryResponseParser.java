@@ -6,10 +6,6 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class PrometheusMetricQueryResponseParser {
 
@@ -25,7 +21,7 @@ public class PrometheusMetricQueryResponseParser {
                   }
 
                   @Override
-                  public void write(JsonWriter arg0, PrometheusMetricQueryResponse vectorData)
+                  public void write(JsonWriter writer, PrometheusMetricQueryResponse vectorData)
                       throws IOException {}
                 })
             .create();
@@ -34,73 +30,118 @@ public class PrometheusMetricQueryResponseParser {
 
   private static PrometheusMetricQueryResponse parseMetricResponse(JsonReader reader)
       throws IOException {
-    List<PrometheusMetricResult> prometheusMetricResultList = new ArrayList<>();
-    String status = null;
-    String resultType = null;
+    PrometheusMetricQueryResponse.PrometheusMetricQueryResponseBuilder queryResponseBuilder =
+        PrometheusMetricQueryResponse.builder();
+
+    // read response object
     reader.beginObject();
     while (reader.hasNext()) {
       String propertyName = reader.nextName();
       if ("status".equals(propertyName)) {
-        status = reader.nextString();
+        queryResponseBuilder.status(reader.nextString());
       } else if ("data".equals(propertyName)) {
-        reader.beginObject();
-        while (reader.hasNext()) {
-          propertyName = reader.nextName();
-          if ("resultType".equals(propertyName)) {
-            resultType = reader.nextString();
-          } else if ("result".equals(propertyName)) {
-            reader.beginArray();
-            while (reader.hasNext()) {
-              PrometheusMetricResult prometheusMetricResult = convert(reader, resultType);
-              prometheusMetricResultList.add(prometheusMetricResult);
-            }
-            reader.endArray();
-          }
-        }
-        reader.endObject();
+        parseDataBlock(reader, queryResponseBuilder);
       }
     }
     reader.endObject();
-    return PrometheusMetricQueryResponse.builder()
-        .status(status)
-        .resultType(resultType)
-        .metrics(prometheusMetricResultList)
-        .build();
+
+    return queryResponseBuilder.build();
   }
 
-  private static PrometheusMetricResult convert(JsonReader reader, String resultType)
+  private static void parseDataBlock(
+      JsonReader reader,
+      PrometheusMetricQueryResponse.PrometheusMetricQueryResponseBuilder queryResponseBuilder)
       throws IOException {
-    Map<String, String> metric = new HashMap<String, String>();
-    List<PrometheusMetricValue> prometheusMetricValues = new ArrayList<PrometheusMetricValue>();
+    String resultType = null;
+
+    // read data block object
+    reader.beginObject();
+    while (reader.hasNext()) {
+      String propertyName = reader.nextName();
+      if ("resultType".equals(propertyName)) {
+        resultType = reader.nextString();
+        queryResponseBuilder.resultType(resultType);
+      } else if ("result".equals(propertyName)) {
+        parseResultBlock(reader, resultType, queryResponseBuilder);
+      }
+    }
+    reader.endObject();
+  }
+
+  private static void parseResultBlock(
+      JsonReader reader,
+      String resultType,
+      PrometheusMetricQueryResponse.PrometheusMetricQueryResponseBuilder queryResponseBuilder)
+      throws IOException {
+    // read result array
+    reader.beginArray();
+    while (reader.hasNext()) {
+      parseMetricBlock(reader, resultType, queryResponseBuilder);
+    }
+    reader.endArray();
+  }
+
+  private static void parseMetricBlock(
+      JsonReader reader,
+      String resultType,
+      PrometheusMetricQueryResponse.PrometheusMetricQueryResponseBuilder queryResponseBuilder)
+      throws IOException {
+    PrometheusMetricResult.PrometheusMetricResultBuilder metricResultBuilder =
+        PrometheusMetricResult.builder();
+
+    // metric bock is an object
     reader.beginObject();
     while (reader.hasNext()) {
       String name = reader.nextName();
       if ("metric".equalsIgnoreCase(name)) {
-        reader.beginObject();
-        while (reader.hasNext()) {
-          metric.put(reader.nextName(), reader.nextString());
-        }
-        reader.endObject();
+        parseMetricAttributes(reader, metricResultBuilder);
       } else if ("value".equalsIgnoreCase(name) && resultType.equalsIgnoreCase("vector")) {
-        reader.beginArray();
-        prometheusMetricValues.add(
-            new PrometheusMetricValue((long) reader.nextDouble(), reader.nextDouble()));
-        reader.endArray();
+        parseMetricValue(reader, metricResultBuilder);
       } else if ("values".equalsIgnoreCase(name) && resultType.equalsIgnoreCase("matrix")) {
-        reader.beginArray();
-        while (reader.hasNext()) {
-          reader.beginArray();
-          prometheusMetricValues.add(
-              new PrometheusMetricValue((long) reader.nextDouble(), reader.nextDouble()));
-          reader.endArray();
-        }
-        reader.endArray();
+        parseMetricValues(reader, metricResultBuilder);
       }
     }
     reader.endObject();
-    return PrometheusMetricResult.builder()
-        .metricAttributes(metric)
-        .values(prometheusMetricValues)
-        .build();
+
+    queryResponseBuilder.metric(metricResultBuilder.build());
+  }
+
+  private static void parseMetricAttributes(
+      JsonReader reader, PrometheusMetricResult.PrometheusMetricResultBuilder metricResultBuilder)
+      throws IOException {
+    // metric attributes is an object
+    reader.beginObject();
+    while (reader.hasNext()) {
+      metricResultBuilder.metricAttribute(reader.nextName(), reader.nextString());
+    }
+    reader.endObject();
+  }
+
+  private static void parseMetricValue(
+      JsonReader reader, PrometheusMetricResult.PrometheusMetricResultBuilder metricResultBuilder)
+      throws IOException {
+    // value is an array of single value
+    reader.beginArray();
+    metricResultBuilder.value(
+        new PrometheusMetricValue(convertTimestamp(reader.nextDouble()), reader.nextDouble()));
+    reader.endArray();
+  }
+
+  private static void parseMetricValues(
+      JsonReader reader, PrometheusMetricResult.PrometheusMetricResultBuilder metricResultBuilder)
+      throws IOException {
+    // values is an array of array of multiple values
+    reader.beginArray();
+    while (reader.hasNext()) {
+      reader.beginArray();
+      metricResultBuilder.value(
+          new PrometheusMetricValue(convertTimestamp(reader.nextDouble()), reader.nextDouble()));
+      reader.endArray();
+    }
+    reader.endArray();
+  }
+
+  private static long convertTimestamp(double timeStamp) {
+    return (long) (timeStamp * 1000L);
   }
 }
