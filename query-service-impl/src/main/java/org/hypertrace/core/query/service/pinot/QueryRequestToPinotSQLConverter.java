@@ -148,9 +148,7 @@ class QueryRequestToPinotSQLConverter {
       }
       builder.append(")");
     } else {
-      if (filter.getLhs().getValueCase() == ATTRIBUTE_EXPRESSION
-          && filter.getLhs().getAttributeExpression().hasSubpath()
-          && isMapAttribute(filter.getLhs())) {
+      if (isAttributeMapAttribute(filter.getLhs())) {
         builder.append(handleFilterForMapAttribute(filter, paramsBuilder));
       } else {
         switch (filter.getOperator()) {
@@ -239,14 +237,9 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private boolean isColumnIdentifier(Expression expression) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        return true;
-      case ATTRIBUTE_EXPRESSION:
-        return !isMapAttribute(expression);
-      default:
-        return false;
-    }
+    return (expression.getValueCase() == COLUMNIDENTIFIER)
+        || ((expression.getValueCase() == ATTRIBUTE_EXPRESSION)
+            && (!isAttributeMapAttribute(expression)));
   }
 
   private String convertOperator2String(Operator operator) {
@@ -323,12 +316,11 @@ class QueryRequestToPinotSQLConverter {
 
   private boolean isGroupingSelectionForMapAttribute(
       Expression expression, List<Expression> groupByList) {
-    if (expression.getValueCase() == ATTRIBUTE_EXPRESSION && isMapAttribute(expression)) {
+    if (isAttributeMapAttribute(expression)) {
       String attributeId = expression.getAttributeExpression().getAttributeId();
       String subPath = expression.getAttributeExpression().getSubpath();
       for (Expression groupByExpression : groupByList) {
-        if (groupByExpression.getValueCase() == ATTRIBUTE_EXPRESSION
-            && isMapAttribute(groupByExpression)
+        if (isAttributeMapAttribute(groupByExpression)
             && groupByExpression.getAttributeExpression().getSubpath().equals(subPath)
             && groupByExpression.getAttributeExpression().getAttributeId().equals(attributeId)) {
           return true;
@@ -340,7 +332,7 @@ class QueryRequestToPinotSQLConverter {
 
   private String convertExpression2StringForMapAttribute(
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
-    if (expression.getValueCase() == ATTRIBUTE_EXPRESSION && isMapAttribute(expression)) {
+    if (isAttributeMapAttribute(expression)) {
       String keyCol = convertExpressionToMapKeyColumn(expression);
       String valCol = convertExpressionToMapValueColumn(expression);
       String pathExpression = expression.getAttributeExpression().getSubpath();
@@ -371,7 +363,7 @@ class QueryRequestToPinotSQLConverter {
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
-        if (expression.getAttributeExpression().hasSubpath() && isMapAttribute(expression)) {
+        if (isAttributeMapAttribute(expression)) {
           return convertExpression2StringForMapAttribute(
               expression, paramsBuilder, executionContext);
         } else {
@@ -475,6 +467,17 @@ class QueryRequestToPinotSQLConverter {
       default:
         return false;
     }
+  }
+
+  private boolean isColumnMapAttribute(Expression expression) {
+    return expression.getValueCase() == COLUMNIDENTIFIER
+        && isMapField(expression.getColumnIdentifier().getColumnName());
+  }
+
+  private boolean isAttributeMapAttribute(Expression expression) {
+    return expression.getValueCase() == ATTRIBUTE_EXPRESSION
+        && expression.getAttributeExpression().hasSubpath()
+        && isMapField(expression.getAttributeExpression().getAttributeId());
   }
 
   private boolean isMapField(String columnName) {
