@@ -71,8 +71,8 @@ class QueryRequestToPinotSQLConverter {
       pqlBuilder.append(delim);
       pqlBuilder.append(
           isGroupingSelectionForMapAttribute(expr, request.getGroupByList())
-              ? convertExpression2StringForMapAttribute(expr, paramsBuilder)
-              : convertExpression2String(expr, paramsBuilder, executionContext));
+              ? convertExpressionToStringForMapAttribute(expr, paramsBuilder)
+              : convertExpressionToString(expr, paramsBuilder, executionContext));
       delim = ", ";
     }
 
@@ -85,7 +85,7 @@ class QueryRequestToPinotSQLConverter {
     if (request.hasFilter()) {
       pqlBuilder.append(" AND ");
       String filterClause =
-          convertFilter2String(request.getFilter(), paramsBuilder, executionContext);
+          convertFilterToString(request.getFilter(), paramsBuilder, executionContext);
       pqlBuilder.append(filterClause);
     }
 
@@ -96,8 +96,8 @@ class QueryRequestToPinotSQLConverter {
         pqlBuilder.append(delim);
         pqlBuilder.append(
             isAttributeMapAttribute(groupByExpression)
-                ? convertExpression2StringForMapAttribute(groupByExpression, paramsBuilder)
-                : convertExpression2String(groupByExpression, paramsBuilder, executionContext));
+                ? convertExpressionToStringForMapAttribute(groupByExpression, paramsBuilder)
+                : convertExpressionToString(groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
     }
@@ -108,9 +108,9 @@ class QueryRequestToPinotSQLConverter {
         pqlBuilder.append(delim);
         String orderBy =
             isAttributeMapAttribute(orderByExpression.getExpression())
-                ? convertExpression2StringForMapAttribute(
+                ? convertExpressionToStringForMapAttribute(
                     orderByExpression.getExpression(), paramsBuilder)
-                : convertExpression2String(
+                : convertExpressionToString(
                     orderByExpression.getExpression(), paramsBuilder, executionContext);
         pqlBuilder.append(orderBy);
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
@@ -153,7 +153,7 @@ class QueryRequestToPinotSQLConverter {
     return false;
   }
 
-  private String convertExpression2String(
+  private String convertExpressionToString(
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
@@ -163,7 +163,7 @@ class QueryRequestToPinotSQLConverter {
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
         if (isAttributeMapAttribute(expression)) {
-          return convertExpression2StringForMapAttribute(expression, paramsBuilder);
+          return convertExpressionToStringForMapAttribute(expression, paramsBuilder);
         } else {
           // this takes care of the Map Type where it's split into 2 columns
           columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
@@ -176,17 +176,17 @@ class QueryRequestToPinotSQLConverter {
             executionContext,
             expression.getFunction(),
             argExpression ->
-                convertExpression2String(argExpression, paramsBuilder, executionContext));
+                convertExpressionToString(argExpression, paramsBuilder, executionContext));
       case ORDERBY:
         OrderByExpression orderBy = expression.getOrderBy();
-        return convertExpression2String(orderBy.getExpression(), paramsBuilder, executionContext);
+        return convertExpressionToString(orderBy.getExpression(), paramsBuilder, executionContext);
       case VALUE_NOT_SET:
         break;
     }
     return "";
   }
 
-  private String convertExpression2StringForMapAttribute(
+  private String convertExpressionToStringForMapAttribute(
       Expression expression, Builder paramsBuilder) {
     String keyCol = convertExpressionToMapKeyColumn(expression, this::isAttributeMapAttribute);
     String valCol = convertExpressionToMapValueColumn(expression, this::isAttributeMapAttribute);
@@ -206,16 +206,16 @@ class QueryRequestToPinotSQLConverter {
         + ")";
   }
 
-  private String convertFilter2String(
+  private String convertFilterToString(
       Filter filter, Builder paramsBuilder, ExecutionContext executionContext) {
     StringBuilder builder = new StringBuilder();
-    String operator = convertOperator2String(filter.getOperator());
+    String operator = convertOperatorToString(filter.getOperator());
     if (filter.getChildFilterCount() > 0) {
       String delim = "";
       builder.append("( ");
       for (Filter childFilter : filter.getChildFilterList()) {
         builder.append(delim);
-        builder.append(convertFilter2String(childFilter, paramsBuilder, executionContext));
+        builder.append(convertFilterToString(childFilter, paramsBuilder, executionContext));
         builder.append(" ");
         delim = operator + " ";
       }
@@ -229,7 +229,7 @@ class QueryRequestToPinotSQLConverter {
     return builder.toString();
   }
 
-  private String convertOperator2String(Operator operator) {
+  private String convertOperatorToString(Operator operator) {
     switch (operator) {
       case AND:
         return "AND";
@@ -277,9 +277,9 @@ class QueryRequestToPinotSQLConverter {
             handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
         builder.append(operator);
         builder.append("(");
-        builder.append(convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+        builder.append(convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
         builder.append(",");
-        builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
+        builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
         builder.append(")");
         break;
       case CONTAINS_KEY:
@@ -315,11 +315,11 @@ class QueryRequestToPinotSQLConverter {
         break;
       default:
         rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-        builder.append(convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+        builder.append(convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
         builder.append(" ");
         builder.append(operator);
         builder.append(" ");
-        builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
+        builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
     }
     return builder.toString();
   }
@@ -342,7 +342,7 @@ class QueryRequestToPinotSQLConverter {
         + " AND "
         + valCol
         + " "
-        + convertOperator2String(filter.getOperator())
+        + convertOperatorToString(filter.getOperator())
         + " "
         + convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder)
         + " AND "
@@ -355,7 +355,7 @@ class QueryRequestToPinotSQLConverter {
         + valCol
         + ")"
         + " "
-        + convertOperator2String(filter.getOperator())
+        + convertOperatorToString(filter.getOperator())
         + " "
         + convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder);
   }
