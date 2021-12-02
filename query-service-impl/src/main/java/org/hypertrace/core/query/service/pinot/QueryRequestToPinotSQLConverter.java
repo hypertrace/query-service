@@ -137,6 +137,75 @@ class QueryRequestToPinotSQLConverter {
     return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
   }
 
+  private boolean isGroupingSelectionForMapAttribute(
+      Expression expression, List<Expression> groupByList) {
+    if (isAttributeMapAttribute(expression)) {
+      String attributeId = expression.getAttributeExpression().getAttributeId();
+      String subPath = expression.getAttributeExpression().getSubpath();
+      for (Expression groupByExpression : groupByList) {
+        if (isAttributeMapAttribute(groupByExpression)
+            && groupByExpression.getAttributeExpression().getSubpath().equals(subPath)
+            && groupByExpression.getAttributeExpression().getAttributeId().equals(attributeId)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private String convertExpression2String(
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        // this takes care of the Map Type where it's split into 2 columns
+        List<String> columnNames =
+            viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
+        return joiner.join(columnNames);
+      case ATTRIBUTE_EXPRESSION:
+        if (isAttributeMapAttribute(expression)) {
+          return convertExpression2StringForMapAttribute(expression, paramsBuilder);
+        } else {
+          // this takes care of the Map Type where it's split into 2 columns
+          columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
+          return joiner.join(columnNames);
+        }
+      case LITERAL:
+        return convertLiteralToString(expression.getLiteral(), paramsBuilder);
+      case FUNCTION:
+        return this.functionConverter.convert(
+            executionContext,
+            expression.getFunction(),
+            argExpression ->
+                convertExpression2String(argExpression, paramsBuilder, executionContext));
+      case ORDERBY:
+        OrderByExpression orderBy = expression.getOrderBy();
+        return convertExpression2String(orderBy.getExpression(), paramsBuilder, executionContext);
+      case VALUE_NOT_SET:
+        break;
+    }
+    return "";
+  }
+
+  private String convertExpression2StringForMapAttribute(
+      Expression expression, Builder paramsBuilder) {
+    String keyCol = convertExpressionToMapKeyColumn(expression, this::isAttributeMapAttribute);
+    String valCol = convertExpressionToMapValueColumn(expression, this::isAttributeMapAttribute);
+    String pathExpression = expression.getAttributeExpression().getSubpath();
+    LiteralConstant pathExpressionLiteral =
+        LiteralConstant.newBuilder()
+            .setValue(Value.newBuilder().setString(pathExpression).build())
+            .build();
+
+    return MAP_VALUE
+        + "("
+        + keyCol
+        + ","
+        + convertLiteralToString(pathExpressionLiteral, paramsBuilder)
+        + ","
+        + valCol
+        + ")";
+  }
+
   private String convertFilter2String(
       Filter filter, Builder paramsBuilder, ExecutionContext executionContext) {
     StringBuilder builder = new StringBuilder();
@@ -152,101 +221,12 @@ class QueryRequestToPinotSQLConverter {
       }
       builder.append(")");
     } else {
-      if (isAttributeMapAttribute(filter.getLhs())) {
-        builder.append(handleFilterForMapAttribute(filter, paramsBuilder));
-      } else {
-        switch (filter.getOperator()) {
-          case LIKE:
-            // The like operation in PQL looks like `regexp_like(lhs, rhs)`
-            Expression rhs =
-                handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-            builder.append(operator);
-            builder.append("(");
-            builder.append(
-                convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
-            builder.append(",");
-            builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
-            builder.append(")");
-            break;
-          case CONTAINS_KEY:
-            LiteralConstant[] kvp =
-                convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
-            builder.append(
-                convertExpressionToMapKeyColumn(filter.getLhs(), this::isColumnMapAttribute));
-            builder.append(" = ");
-            builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-            break;
-          case CONTAINS_KEYVALUE:
-            kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
-            String keyCol =
-                convertExpressionToMapKeyColumn(filter.getLhs(), this::isColumnMapAttribute);
-            String valCol =
-                convertExpressionToMapValueColumn(filter.getLhs(), this::isColumnMapAttribute);
-            builder.append(keyCol);
-            builder.append(" = ");
-            builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-            builder.append(" AND ");
-            builder.append(valCol);
-            builder.append(" = ");
-            builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-            builder.append(" AND ");
-            builder.append(MAP_VALUE);
-            builder.append("(");
-            builder.append(keyCol);
-            builder.append(",");
-            builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
-            builder.append(",");
-            builder.append(valCol);
-            builder.append(") = ");
-            builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
-            break;
-          default:
-            rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-            builder.append(
-                convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
-            builder.append(" ");
-            builder.append(operator);
-            builder.append(" ");
-            builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
-        }
-      }
+      builder.append(
+          isAttributeMapAttribute(filter.getLhs())
+              ? handleFilterForMapAttribute(filter, paramsBuilder)
+              : handleFilterForAttribute(filter, paramsBuilder, operator, executionContext));
     }
     return builder.toString();
-  }
-
-  /**
-   * Handles value conversion of a literal expression based on its associated column.
-   *
-   * @param lhs LHS expression with which literal is associated with
-   * @param rhs RHS expression which needs value conversion if its a literal expression
-   * @return newly created literal {@link Expression} of rhs if converted else the same one.
-   */
-  private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
-    if (!(isColumnIdentifier(lhs) && rhs.getValueCase().equals(LITERAL))) {
-      return rhs;
-    }
-
-    String lhsColumnName = getLogicalColumnName(lhs);
-    try {
-      Value value =
-          DestinationColumnValueConverter.INSTANCE.convert(
-              rhs.getLiteral().getValue(), viewDefinition.getColumnType(lhsColumnName));
-      return Expression.newBuilder()
-          .setLiteral(LiteralConstant.newBuilder().setValue(value))
-          .build();
-    } catch (Exception e) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Invalid input:{ %s } for bytes column:{ %s }",
-              rhs.getLiteral().getValue(),
-              viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
-    }
-  }
-
-  private boolean isColumnIdentifier(Expression expression) {
-    return (expression.getValueCase() == COLUMNIDENTIFIER)
-        || ((expression.getValueCase() == ATTRIBUTE_EXPRESSION)
-            && (!isAttributeMapAttribute(expression)));
   }
 
   private String convertOperator2String(Operator operator) {
@@ -286,6 +266,64 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
+  private String handleFilterForAttribute(
+      Filter filter, Builder paramsBuilder, String operator, ExecutionContext executionContext) {
+    StringBuilder builder = new StringBuilder();
+
+    switch (filter.getOperator()) {
+      case LIKE:
+        // The like operation in PQL looks like `regexp_like(lhs, rhs)`
+        Expression rhs =
+            handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+        builder.append(operator);
+        builder.append("(");
+        builder.append(convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+        builder.append(",");
+        builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
+        builder.append(")");
+        break;
+      case CONTAINS_KEY:
+        LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
+        builder.append(
+            convertExpressionToMapKeyColumn(filter.getLhs(), this::isColumnMapAttribute));
+        builder.append(" = ");
+        builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+        break;
+      case CONTAINS_KEYVALUE:
+        kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
+        String keyCol =
+            convertExpressionToMapKeyColumn(filter.getLhs(), this::isColumnMapAttribute);
+        String valCol =
+            convertExpressionToMapValueColumn(filter.getLhs(), this::isColumnMapAttribute);
+        builder.append(keyCol);
+        builder.append(" = ");
+        builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+        builder.append(" AND ");
+        builder.append(valCol);
+        builder.append(" = ");
+        builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+        builder.append(" AND ");
+        builder.append(MAP_VALUE);
+        builder.append("(");
+        builder.append(keyCol);
+        builder.append(",");
+        builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+        builder.append(",");
+        builder.append(valCol);
+        builder.append(") = ");
+        builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+        break;
+      default:
+        rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+        builder.append(convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+        builder.append(" ");
+        builder.append(operator);
+        builder.append(" ");
+        builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
+    }
+    return builder.toString();
+  }
+
   private String handleFilterForMapAttribute(Filter filter, Builder paramsBuilder) {
 
     if (!SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES_WITH_SUBPATH.contains(filter.getOperator())) {
@@ -322,78 +360,39 @@ class QueryRequestToPinotSQLConverter {
         + convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder);
   }
 
-  private boolean isGroupingSelectionForMapAttribute(
-      Expression expression, List<Expression> groupByList) {
-    if (isAttributeMapAttribute(expression)) {
-      String attributeId = expression.getAttributeExpression().getAttributeId();
-      String subPath = expression.getAttributeExpression().getSubpath();
-      for (Expression groupByExpression : groupByList) {
-        if (isAttributeMapAttribute(groupByExpression)
-            && groupByExpression.getAttributeExpression().getSubpath().equals(subPath)
-            && groupByExpression.getAttributeExpression().getAttributeId().equals(attributeId)) {
-          return true;
-        }
-      }
+  /**
+   * Handles value conversion of a literal expression based on its associated column.
+   *
+   * @param lhs LHS expression with which literal is associated with
+   * @param rhs RHS expression which needs value conversion if its a literal expression
+   * @return newly created literal {@link Expression} of rhs if converted else the same one.
+   */
+  private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
+    if (!(isColumnIdentifier(lhs) && rhs.getValueCase().equals(LITERAL))) {
+      return rhs;
     }
-    return false;
-  }
 
-  private String convertExpression2StringForMapAttribute(
-      Expression expression, Builder paramsBuilder) {
-    if (isAttributeMapAttribute(expression)) {
-      String keyCol = convertExpressionToMapKeyColumn(expression, this::isAttributeMapAttribute);
-      String valCol = convertExpressionToMapValueColumn(expression, this::isAttributeMapAttribute);
-      String pathExpression = expression.getAttributeExpression().getSubpath();
-      LiteralConstant pathExpressionLiteral =
-          LiteralConstant.newBuilder()
-              .setValue(Value.newBuilder().setString(pathExpression).build())
-              .build();
-
-      return MAP_VALUE
-          + "("
-          + keyCol
-          + ","
-          + convertLiteralToString(pathExpressionLiteral, paramsBuilder)
-          + ","
-          + valCol
-          + ")";
-    } else {
+    String lhsColumnName = getLogicalColumnName(lhs);
+    try {
+      Value value =
+          DestinationColumnValueConverter.INSTANCE.convert(
+              rhs.getLiteral().getValue(), viewDefinition.getColumnType(lhsColumnName));
+      return Expression.newBuilder()
+          .setLiteral(LiteralConstant.newBuilder().setValue(value))
+          .build();
+    } catch (Exception e) {
       throw new IllegalArgumentException(
-          "Supports " + ATTRIBUTE_EXPRESSION + " expression type only");
+          String.format(
+              "Invalid input:{ %s } for bytes column:{ %s }",
+              rhs.getLiteral().getValue(),
+              viewDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
     }
   }
 
-  private String convertExpression2String(
-      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        // this takes care of the Map Type where it's split into 2 columns
-        List<String> columnNames =
-            viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
-        return joiner.join(columnNames);
-      case ATTRIBUTE_EXPRESSION:
-        if (isAttributeMapAttribute(expression)) {
-          return convertExpression2StringForMapAttribute(expression, paramsBuilder);
-        } else {
-          // this takes care of the Map Type where it's split into 2 columns
-          columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
-          return joiner.join(columnNames);
-        }
-      case LITERAL:
-        return convertLiteralToString(expression.getLiteral(), paramsBuilder);
-      case FUNCTION:
-        return this.functionConverter.convert(
-            executionContext,
-            expression.getFunction(),
-            argExpression ->
-                convertExpression2String(argExpression, paramsBuilder, executionContext));
-      case ORDERBY:
-        OrderByExpression orderBy = expression.getOrderBy();
-        return convertExpression2String(orderBy.getExpression(), paramsBuilder, executionContext);
-      case VALUE_NOT_SET:
-        break;
-    }
-    return "";
+  private boolean isColumnIdentifier(Expression expression) {
+    return (expression.getValueCase() == COLUMNIDENTIFIER)
+        || ((expression.getValueCase() == ATTRIBUTE_EXPRESSION)
+            && (!isAttributeMapAttribute(expression)));
   }
 
   private String convertExpressionToMapKeyColumn(
