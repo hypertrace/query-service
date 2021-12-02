@@ -27,7 +27,9 @@ public class PrometheusRestClientTest {
   @Test
   public void testInstantQuery() throws IOException {
     URL fileUrl =
-        PrometheusRestClientTest.class.getClassLoader().getResource("promql_vector_result.json");
+        PrometheusRestClientTest.class
+            .getClassLoader()
+            .getResource("promql_error_count_vector.json");
     String content = new String(Files.readAllBytes(Paths.get(fileUrl.getFile())));
     String url = "http://localhost?api/v1/query?query=up&time=1435781451";
     OkHttpClient okHttpClient = mockHttpClient(url, content);
@@ -47,7 +49,9 @@ public class PrometheusRestClientTest {
   @Test
   public void testRangeQuery() throws IOException {
     URL fileUrl =
-        PrometheusRestClientTest.class.getClassLoader().getResource("promql_matrix_result.json");
+        PrometheusRestClientTest.class
+            .getClassLoader()
+            .getResource("promql_error_count_matrix.json");
     String content = new String(Files.readAllBytes(Paths.get(fileUrl.getFile())));
     String url = "http://localhost?api/v1/query?query=up&start=1435781430&end=1435781460&step=15";
     OkHttpClient okHttpClient = mockHttpClient(url, content);
@@ -70,7 +74,6 @@ public class PrometheusRestClientTest {
   private static OkHttpClient mockHttpClient(final String url, final String serializedBody)
       throws IOException {
     final OkHttpClient okHttpClient = mock(OkHttpClient.class);
-
     final Call remoteCall = mock(Call.class);
 
     final Response response =
