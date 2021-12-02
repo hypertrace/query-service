@@ -41,6 +41,8 @@ public class PrometheusMetricQueryResponseParser {
         queryResponseBuilder.status(reader.nextString());
       } else if ("data".equals(propertyName)) {
         parseDataBlock(reader, queryResponseBuilder);
+      } else {
+        handleErrorBlock(reader, propertyName);
       }
     }
     reader.endObject();
@@ -137,6 +139,19 @@ public class PrometheusMetricQueryResponseParser {
       metricResultBuilder.value(
           new PrometheusMetricValue(convertTimestamp(reader.nextDouble()), reader.nextDouble()));
       reader.endArray();
+    }
+    reader.endArray();
+  }
+
+  private static void handleErrorBlock(JsonReader reader, String propertyName) throws IOException {
+    // handle the error case
+    if (!propertyName.equals("warnings")) {
+      reader.nextString();
+      return;
+    }
+    reader.beginArray();
+    while (reader.hasNext()) {
+      reader.nextString();
     }
     reader.endArray();
   }

@@ -85,4 +85,19 @@ public class PrometheusMetricQueryResponseParserTest {
 
     Assertions.assertTrue(response.getMetrics().contains(secondMetricResult));
   }
+
+  @Test
+  public void testErrorResponse() throws IOException {
+    URL fileUrl =
+        PrometheusMetricQueryResponseParserTest.class
+            .getClassLoader()
+            .getResource("promql_storage_vector_failure.json");
+    String content = new String(Files.readAllBytes(Paths.get(fileUrl.getFile())));
+
+    PrometheusMetricQueryResponse response = PrometheusMetricQueryResponseParser.parse(content);
+
+    Assertions.assertEquals("error", response.getStatus());
+    Assertions.assertNull(response.getResultType());
+    Assertions.assertEquals(0, response.getMetrics().size());
+  }
 }

@@ -1,0 +1,6 @@
+{
+  "status" : "error",
+  "errorType": "no metric",
+  "error": "metric not found",
+  "warnings" : ["w1", "w2"]
+}
