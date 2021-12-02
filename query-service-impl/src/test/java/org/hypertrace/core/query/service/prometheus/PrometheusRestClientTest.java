@@ -9,8 +9,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -45,7 +47,8 @@ public class PrometheusRestClientTest {
             .isInstantRequest(true)
             .build();
 
-    List<PrometheusMetricQueryResponse> metricQueryResponses = prometheusRestClient.execute(query);
+    List<ImmutablePair<Request, PrometheusMetricQueryResponse>> metricQueryResponses =
+        prometheusRestClient.execute(query);
 
     Assertions.assertEquals(1, metricQueryResponses.size());
   }
@@ -63,7 +66,8 @@ public class PrometheusRestClientTest {
             .step(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
-    List<PrometheusMetricQueryResponse> metricQueryResponses = prometheusRestClient.execute(query);
+    List<ImmutablePair<Request, PrometheusMetricQueryResponse>> metricQueryResponses =
+        prometheusRestClient.execute(query);
 
     Assertions.assertEquals(1, metricQueryResponses.size());
   }
@@ -81,7 +85,8 @@ public class PrometheusRestClientTest {
             .isInstantRequest(true)
             .build();
 
-    List<PrometheusMetricQueryResponse> metricQueryResponses = prometheusRestClient.execute(query);
+    List<ImmutablePair<Request, PrometheusMetricQueryResponse>> metricQueryResponses =
+        prometheusRestClient.execute(query);
 
     Assertions.assertEquals(2, metricQueryResponses.size());
   }
@@ -101,7 +106,8 @@ public class PrometheusRestClientTest {
             .step(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
-    List<PrometheusMetricQueryResponse> metricQueryResponses = prometheusRestClient.execute(query);
+    List<ImmutablePair<Request, PrometheusMetricQueryResponse>> metricQueryResponses =
+        prometheusRestClient.execute(query);
 
     Assertions.assertEquals(2, metricQueryResponses.size());
   }

@@ -1,7 +1,6 @@
 package org.hypertrace.core.query.service.prometheus;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -12,6 +11,7 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 public class PrometheusRestClient {
   private static final String INSTANT_QUERY = "api/v1/query";
@@ -27,31 +27,34 @@ public class PrometheusRestClient {
     this.port = port;
   }
 
-  @SuppressWarnings("unchecked")
-  public List<PrometheusMetricQueryResponse> execute(PromQLQuery query) {
+  public List<ImmutablePair<Request, PrometheusMetricQueryResponse>> execute(PromQLQuery query) {
     List<Request> requests =
         query.isInstantRequest() ? getInstantQueryRequests(query) : getRangeQueryRequests(query);
 
-    CompletableFuture<Response>[] completableFutures =
+    List<OkHttpResponseCallback> okHttpResponseCallbacks =
         requests.stream()
             .map(
                 request -> {
                   Call call = okHttpClient.newCall(request);
-                  OkHttpResponseCallback callback = new OkHttpResponseCallback();
+                  OkHttpResponseCallback callback = new OkHttpResponseCallback(request);
                   call.enqueue(callback);
-                  return callback.future;
+                  return callback;
                 })
-            .toArray(CompletableFuture[]::new);
+            .collect(Collectors.toUnmodifiableList());
 
-    CompletableFuture.allOf(completableFutures).join();
+    CompletableFuture.allOf(
+            okHttpResponseCallbacks.stream()
+                .map(okHttpResponseCallback -> okHttpResponseCallback.future)
+                .toArray(CompletableFuture[]::new))
+        .join();
 
-    List<PrometheusMetricQueryResponse> responses =
-        Arrays.stream(completableFutures)
-            .map(CompletableFuture::join)
-            .map(response -> convertResponse(response))
-            .collect(Collectors.toList());
-
-    return responses;
+    return okHttpResponseCallbacks.stream()
+        .map(
+            okHttpResponseCallback ->
+                ImmutablePair.of(
+                    okHttpResponseCallback.request,
+                    convertResponse(okHttpResponseCallback.future.join())))
+        .collect(Collectors.toList());
   }
 
   private PrometheusMetricQueryResponse convertResponse(Response response) {
@@ -100,6 +103,11 @@ public class PrometheusRestClient {
   @NoArgsConstructor
   private static class OkHttpResponseCallback implements Callback {
     private final CompletableFuture<Response> future = new CompletableFuture<>();
+    private Request request;
+
+    public OkHttpResponseCallback(Request request) {
+      this.request = request;
+    }
 
     @Override
     public void onResponse(Call call, Response response) throws IOException {
