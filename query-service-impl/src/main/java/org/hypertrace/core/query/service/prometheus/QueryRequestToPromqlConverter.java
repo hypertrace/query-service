@@ -88,7 +88,7 @@ class QueryRequestToPromqlConverter {
         if (QueryRequestUtil.isDateTimeFunction(expression)) {
           continue;
         }
-        groupByList.add(convertColumnIdentifierExpression2String(expression));
+        groupByList.add(convertColumnAttribute2String(expression));
       }
     }
     return String.join(", ", groupByList);
@@ -133,17 +133,21 @@ class QueryRequestToPromqlConverter {
 
   private MetricConfig getMetricConfigForFunction(Expression functionSelection) {
     return prometheusViewDefinition.getMetricConfig(
-        functionSelection
-            .getFunction()
-            .getArgumentsList()
-            .get(0)
-            .getColumnIdentifier()
-            .getColumnName());
+        getLogicalColumnName(functionSelection.getFunction().getArgumentsList().get(0)));
   }
 
-  private String convertColumnIdentifierExpression2String(Expression expression) {
-    String logicalColumnName = expression.getColumnIdentifier().getColumnName();
-    return prometheusViewDefinition.getPhysicalColumnName(logicalColumnName);
+  private String convertColumnAttribute2String(Expression expression) {
+    return prometheusViewDefinition.getPhysicalColumnName(getLogicalColumnName(expression));
+  }
+
+  private String getLogicalColumnName(Expression expression) {
+    String logicalColumnName;
+    if (expression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+      logicalColumnName = expression.getColumnIdentifier().getColumnName();
+    } else {
+      logicalColumnName = expression.getAttributeExpression().getAttributeId();
+    }
+    return logicalColumnName;
   }
 
   /**
@@ -157,12 +161,12 @@ class QueryRequestToPromqlConverter {
         convertFilter2String(childFilter, filterList);
       }
     } else {
-      if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER
-          && QueryRequestUtil.isTimeColumn(filter.getLhs().getColumnIdentifier().getColumnName())) {
+      if (QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())
+          && QueryRequestUtil.isTimeColumn(getLogicalColumnName(filter.getLhs()))) {
         return;
       }
       StringBuilder builder = new StringBuilder();
-      builder.append(convertColumnIdentifierExpression2String(filter.getLhs()));
+      builder.append(convertColumnAttribute2String(filter.getLhs()));
       switch (filter.getOperator()) {
         case IN:
         case EQ:

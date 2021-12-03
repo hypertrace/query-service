@@ -1,5 +1,7 @@
 package org.hypertrace.core.query.service;
 
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
+
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
@@ -77,5 +79,15 @@ public class QueryRequestUtil {
 
   public static boolean isTimeColumn(String columnName) {
     return columnName.contains("startTime") || columnName.contains("endTime");
+  }
+
+  public static boolean isComplexAttribute(Expression expression) {
+    return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
+        && expression.getAttributeExpression().hasSubpath();
+  }
+
+  public static boolean isSimpleColumnExpression(Expression expression) {
+    return expression.getValueCase() == ValueCase.COLUMNIDENTIFIER
+        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression));
   }
 }

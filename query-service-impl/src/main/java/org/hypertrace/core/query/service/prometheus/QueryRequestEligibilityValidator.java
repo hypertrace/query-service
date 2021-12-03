@@ -68,10 +68,10 @@ class QueryRequestEligibilityValidator {
       List<Expression> selectionList, List<Expression> groupByList) {
     Set<String> selections = Sets.newHashSet();
     for (Expression expression : selectionList) {
-      if (expression.getValueCase() != ValueCase.COLUMNIDENTIFIER) {
+      if (!QueryRequestUtil.isSimpleColumnExpression(expression)) {
         return false;
       }
-      selections.add(expression.getColumnIdentifier().getColumnName());
+      selections.add(getLogicalColumnName(expression));
     }
 
     for (Expression expression : groupByList) {
@@ -79,14 +79,24 @@ class QueryRequestEligibilityValidator {
       if (QueryRequestUtil.isDateTimeFunction(expression)) {
         continue;
       }
-      if (expression.getValueCase() != ValueCase.COLUMNIDENTIFIER) {
+      if (!QueryRequestUtil.isSimpleColumnExpression(expression)) {
         return false;
       }
-      if (!selections.remove(expression.getColumnIdentifier().getColumnName())) {
+      if (!selections.remove(getLogicalColumnName(expression))) {
         return false;
       }
     }
     return selections.isEmpty();
+  }
+
+  private String getLogicalColumnName(Expression expression) {
+    String logicalColumnName;
+    if (expression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+      logicalColumnName = expression.getColumnIdentifier().getColumnName();
+    } else {
+      logicalColumnName = expression.getAttributeExpression().getAttributeId();
+    }
+    return logicalColumnName;
   }
 
   private boolean analyseAggregationColumns(List<Expression> aggregationList) {
@@ -99,12 +109,15 @@ class QueryRequestEligibilityValidator {
       if (function.getArgumentsCount() > 1) {
         return false;
       }
-      if (function.getArgumentsList().get(0).getValueCase() != ValueCase.COLUMNIDENTIFIER) {
+      Expression functionExpression = function.getArgumentsList().get(0);
+      if (!QueryRequestUtil.isSimpleColumnExpression(functionExpression)) {
         return false;
       }
-      if (prometheusViewDefinition.getMetricConfig(
-              function.getArgumentsList().get(0).getColumnIdentifier().getColumnName())
-          == null) {
+      String attributeName =
+          (functionExpression.getValueCase() == ValueCase.COLUMNIDENTIFIER)
+              ? functionExpression.getColumnIdentifier().getColumnName()
+              : functionExpression.getAttributeExpression().getAttributeId();
+      if (prometheusViewDefinition.getMetricConfig(attributeName) == null) {
         return false;
       }
       // todo check if the function is supported or not
@@ -130,8 +143,8 @@ class QueryRequestEligibilityValidator {
       return false;
     }
 
-    // filter lhs should be column
-    if (filter.getLhs().getValueCase() != ValueCase.COLUMNIDENTIFIER) {
+    // filter lhs should be column or simple attribute
+    if (!QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())) {
       return false;
     }
 
