@@ -9,9 +9,6 @@ import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
-import org.hypertrace.core.query.service.pinot.PinotBasedRequestHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class PrometheusBasedRequestHandler implements RequestHandler {
 
