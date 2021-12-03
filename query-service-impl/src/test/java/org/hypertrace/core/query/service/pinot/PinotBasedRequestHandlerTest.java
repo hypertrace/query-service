@@ -1201,7 +1201,7 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testWithMockPinotClient() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      if (!isPinotConfig(config)) {
+      if (!config.getString("name").equals("trace-view-handler")) {
         continue;
       }
 
