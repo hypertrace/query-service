@@ -188,10 +188,29 @@ class QueryRequestToPinotSQLConverter {
       }
       builder.append(")");
     } else {
-      builder.append(
-          isAttributeExpressionMapAttribute(filter.getLhs())
-              ? handleFilterForMapAttribute(filter, paramsBuilder)
-              : handleFilterForAttribute(filter, paramsBuilder, operator, executionContext));
+      if (isAttributeExpressionMapAttribute(filter.getLhs())) {
+        LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
+        String keyCol =
+            convertExpressionToMapKeyColumn(
+                filter.getLhs(), this::isAttributeExpressionMapAttribute);
+        String valCol =
+            convertExpressionToMapValueColumn(
+                filter.getLhs(), this::isAttributeExpressionMapAttribute);
+
+        builder.append(
+            String.format(
+                "%s = %s AND %s(%s,%s,%s) %s %s",
+                keyCol,
+                convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder),
+                MAP_VALUE,
+                keyCol,
+                convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder),
+                valCol,
+                convertOperatorToString(filter.getOperator()),
+                convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder)));
+      } else {
+        builder.append(handleFilterForAttribute(filter, paramsBuilder, operator, executionContext));
+      }
     }
     return builder.toString();
   }
@@ -289,31 +308,6 @@ class QueryRequestToPinotSQLConverter {
         builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
     }
     return builder.toString();
-  }
-
-  private String handleFilterForMapAttribute(Filter filter, Builder paramsBuilder) {
-    LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
-    String keyCol =
-        convertExpressionToMapKeyColumn(filter.getLhs(), this::isAttributeExpressionMapAttribute);
-    String valCol =
-        convertExpressionToMapValueColumn(filter.getLhs(), this::isAttributeExpressionMapAttribute);
-
-    return keyCol
-        + " = "
-        + convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder)
-        + " AND "
-        + MAP_VALUE
-        + "("
-        + keyCol
-        + ","
-        + convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder)
-        + ","
-        + valCol
-        + ")"
-        + " "
-        + convertOperatorToString(filter.getOperator())
-        + " "
-        + convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder);
   }
 
   /**
