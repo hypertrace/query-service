@@ -51,10 +51,14 @@ class QueryRequestToPromqlConverter {
             .getQueryTimeRange()
             .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
 
-    // iterate over all the functions in the query except for date time function (which is handled separately and not a part of the query string)
+    // iterate over all the functions in the query except for date time function (which is handled
+    // separately and not a part of the query string)
     List<String> queries =
         allSelections.stream()
-            .filter(expression -> expression.getValueCase().equals(ValueCase.FUNCTION) && !QueryRequestUtil.isDateTimeFunction(expression))
+            .filter(
+                expression ->
+                    expression.getValueCase().equals(ValueCase.FUNCTION)
+                        && !QueryRequestUtil.isDateTimeFunction(expression))
             .map(
                 functionExpression -> {
                   String functionName = getFunctionName(functionExpression);

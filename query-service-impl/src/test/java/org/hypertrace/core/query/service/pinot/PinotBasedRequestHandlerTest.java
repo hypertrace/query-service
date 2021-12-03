@@ -75,6 +75,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testInit() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       new PinotBasedRequestHandler(
           config.getString("name"), config.getConfig("requestHandlerInfo"));
     }
@@ -95,6 +99,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testCanHandle() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
@@ -123,6 +131,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testCanHandleNegativeCase() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
@@ -147,6 +159,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testCanHandleWithInViewFilter() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
@@ -244,6 +260,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testCanHandleWithEqViewFilter() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
@@ -447,6 +467,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testCanHandleWithMultipleViewFilters() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
@@ -702,6 +726,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testCanHandleWithMultipleViewFiltersAndRepeatedQueryFilters() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
@@ -896,6 +924,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   void testCanHandle_costShouldBeLessThanHalf() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
@@ -928,6 +960,9 @@ public class PinotBasedRequestHandlerTest {
   @Test
   void testCanHandle_costShouldBeMoreThanHalf() {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
       PinotBasedRequestHandler handler =
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
@@ -1166,7 +1201,7 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testWithMockPinotClient() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      if (!config.getString("name").equals("trace-view-handler")) {
+      if (!isPinotConfig(config)) {
         continue;
       }
 
@@ -1211,14 +1246,15 @@ public class PinotBasedRequestHandlerTest {
                   QueryRequestBuilderUtils.createColumnExpression("Trace.duration_millis"))
               .build();
       ExecutionContext context = new ExecutionContext("__default", request);
-      verifyResponseRows(handler.handleRequest(request, context), resultTable);
+      Observable<Row> rows = handler.handleRequest(request, context);
+      verifyResponseRows(rows, resultTable);
     }
   }
 
   @Test
   public void testViewColumnFilterRemoval() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      if (!config.getString("name").equals("span-event-view-handler")) {
+      if (!isPinotConfig(config)) {
         continue;
       }
 
@@ -1298,7 +1334,7 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testViewColumnFilterRemovalComplexCase() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
-      if (!config.getString("name").equals("error-entry-span-view-handler")) {
+      if (!isPinotConfig(config)) {
         continue;
       }
 
@@ -1457,5 +1493,9 @@ public class PinotBasedRequestHandlerTest {
 
   private String stringify(Object obj) throws JsonProcessingException {
     return objectMapper.writeValueAsString(obj);
+  }
+
+  private boolean isPinotConfig(Config config) {
+    return config.getString("type").equals("pinot");
   }
 }

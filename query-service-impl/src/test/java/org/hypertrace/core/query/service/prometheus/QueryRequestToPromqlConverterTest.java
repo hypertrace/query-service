@@ -68,8 +68,10 @@ public class QueryRequestToPromqlConverterTest {
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
 
     // time filter is removed from the query
-    String query1 = "count by (service_name, api_name) (count_over_time(error_count{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
-    String query2 = "avg by (service_name, api_name) (avg_over_time(num_calls{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
+    String query1 =
+        "count by (service_name, api_name) (count_over_time(error_count{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
+    String query2 =
+        "avg by (service_name, api_name) (avg_over_time(num_calls{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
 
     Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
     Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
@@ -77,7 +79,8 @@ public class QueryRequestToPromqlConverterTest {
 
   @Test
   public void testTimeSeriesQueryWithGroupByWithMultipleAggregatesWithMultipleFilters() {
-    QueryRequest orderByQueryRequest = buildMultipleGroupByMultipleAggQueryWithMultipleFiltersAndDateTime();
+    QueryRequest orderByQueryRequest =
+        buildMultipleGroupByMultipleAggQueryWithMultipleFiltersAndDateTime();
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
     builder.setLimit(20);
     PrometheusViewDefinition prometheusViewDefinition = getDefaultPrometheusViewDefinition();
@@ -92,8 +95,10 @@ public class QueryRequestToPromqlConverterTest {
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
 
     // time filter is removed from the query
-    String query1 = "count by (service_name, api_name) (count_over_time(error_count{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
-    String query2 = "avg by (service_name, api_name) (avg_over_time(num_calls{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
+    String query1 =
+        "count by (service_name, api_name) (count_over_time(error_count{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
+    String query2 =
+        "avg by (service_name, api_name) (avg_over_time(num_calls{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
 
     Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
     Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
