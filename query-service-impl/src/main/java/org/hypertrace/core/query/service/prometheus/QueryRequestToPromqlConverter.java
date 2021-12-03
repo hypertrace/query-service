@@ -37,10 +37,6 @@ class QueryRequestToPromqlConverter {
     this.prometheusViewDefinition = prometheusViewDefinition;
   }
 
-  /**
-   * 1. selection should be equal to group by list 2. number of function selection is equal to
-   * number of query fired 3. count(*) type of query can't be served
-   */
   PromqlQuery toPromql(
       ExecutionContext executionContext,
       QueryRequest request,
@@ -55,9 +51,10 @@ class QueryRequestToPromqlConverter {
             .getQueryTimeRange()
             .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
 
+    // iterate over all the functions in the query except for date time function (which is handled separately and not a part of the query string)
     List<String> queries =
         allSelections.stream()
-            .filter(expression -> expression.getValueCase().equals(ValueCase.FUNCTION))
+            .filter(expression -> expression.getValueCase().equals(ValueCase.FUNCTION) && !QueryRequestUtil.isDateTimeFunction(expression))
             .map(
                 functionExpression -> {
                   String functionName = getFunctionName(functionExpression);
@@ -83,6 +80,10 @@ class QueryRequestToPromqlConverter {
     List<String> groupByList = Lists.newArrayList();
     if (queryRequest.getGroupByCount() > 0) {
       for (Expression expression : queryRequest.getGroupByList()) {
+        // skip datetime function in group-by
+        if (QueryRequestUtil.isDateTimeFunction(expression)) {
+          continue;
+        }
         groupByList.add(convertColumnIdentifierExpression2String(expression));
       }
     }
@@ -204,28 +205,28 @@ class QueryRequestToPromqlConverter {
         ret = builder.toString();
         break;
       case STRING:
-        ret = value.getString();
+        ret = "\"" + value.getString() + "\"";
         break;
       case LONG:
-        ret = String.valueOf(value.getLong());
+        ret = "\"" + value.getLong() + "\"";
         break;
       case INT:
-        ret = String.valueOf(value.getInt());
+        ret = "\"" + value.getInt() + "\"";
         break;
       case FLOAT:
-        ret = String.valueOf(value.getFloat());
+        ret = "\"" + value.getFloat() + "\"";
         break;
       case DOUBLE:
-        ret = String.valueOf(value.getDouble());
+        ret = "\"" + value.getDouble() + "\"";
         break;
       case BYTES:
-        ret = Hex.encodeHexString(value.getBytes().toByteArray());
+        ret = "\"" + Hex.encodeHexString(value.getBytes().toByteArray()) + "\"";
         break;
       case BOOL:
-        ret = String.valueOf(value.getBoolean());
+        ret = "\"" + value.getBoolean() + "\"";
         break;
       case TIMESTAMP:
-        ret = String.valueOf(value.getTimestamp());
+        ret = "\"" + value.getTimestamp() + "\"";
         break;
       case NULL_NUMBER:
         ret = "0";

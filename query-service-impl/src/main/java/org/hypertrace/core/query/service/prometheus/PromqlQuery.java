@@ -26,4 +26,8 @@ public class PromqlQuery {
   public List<String> getQueries() {
     return queries;
   }
+
+  public long getStepMs() {
+    return stepMs;
+  }
 }
