@@ -1,12 +1,14 @@
 package org.hypertrace.core.query.service.prometheus;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigUtil;
 import com.typesafe.config.ConfigValue;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 /** Prometheus metric & attribute mapping for a pinot view */
 public class PrometheusViewDefinition {
@@ -45,11 +47,16 @@ public class PrometheusViewDefinition {
 
     final Map<String, MetricConfig> metricMap = Maps.newHashMap();
     Config metricMapConfig = config.getConfig(METRIC_MAP_CONFIG_KEY);
+    Set<String> metricLogicalNames = Sets.newHashSet();
     for (Entry<String, ConfigValue> element : metricMapConfig.entrySet()) {
       List<String> keys = ConfigUtil.splitPath(element.getKey());
-      Config metricDef = metricMapConfig.getConfig(element.getKey());
+      metricLogicalNames.add(keys.get(0) + "." + keys.get(1));
+    }
+
+    for (String metricLogicalName : metricLogicalNames) {
+      Config metricDef = metricMapConfig.getConfig(metricLogicalName);
       metricMap.put(
-          keys.get(0),
+          metricLogicalName,
           new MetricConfig(
               metricDef.getString(METRIC_NAME_CONFIG_KEY),
               MetricType.valueOf(metricDef.getString(METRIC_TYPE_CONFIG_KEY))));

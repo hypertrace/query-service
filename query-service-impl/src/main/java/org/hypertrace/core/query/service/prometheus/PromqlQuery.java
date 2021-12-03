@@ -4,11 +4,11 @@ import java.util.List;
 
 public class PromqlQuery {
 
-  private List<String> queries;
-  private boolean isInstantRequest;
-  private long startTimeMs;
-  private long endTimeMs;
-  private long stepMs;
+  private final List<String> queries;
+  private final boolean isInstantRequest;
+  private final long startTimeMs;
+  private final long endTimeMs;
+  private final long stepMs;
 
   public PromqlQuery(
       List<String> queries,
@@ -21,5 +21,9 @@ public class PromqlQuery {
     this.startTimeMs = startTimeMs;
     this.endTimeMs = endTimeMs;
     this.stepMs = stepMs;
+  }
+
+  public List<String> getQueries() {
+    return queries;
   }
 }

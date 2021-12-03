@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.prometheus;
 
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_MAX;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_MIN;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_SUM;
@@ -8,11 +9,13 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Hex;
 import org.hypertrace.core.query.service.ExecutionContext;
+import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTimeRange;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
@@ -44,8 +47,8 @@ class QueryRequestToPromqlConverter {
       LinkedHashSet<Expression> allSelections) {
     String groupByList = getGroupByList(request);
 
-    StringBuilder filter = new StringBuilder();
-    convertFilter2String(request.getFilter(), filter);
+    List<String> filterList = new ArrayList<>();
+    convertFilter2String(request.getFilter(), filterList);
 
     QueryTimeRange queryTimeRange =
         executionContext
@@ -63,7 +66,7 @@ class QueryRequestToPromqlConverter {
                       metricConfig.getName(),
                       functionName,
                       groupByList,
-                      filter.toString(),
+                      String.join(", ", filterList),
                       queryTimeRange.getDuration().toMillis());
                 })
             .collect(Collectors.toUnmodifiableList());
@@ -83,7 +86,7 @@ class QueryRequestToPromqlConverter {
         groupByList.add(convertColumnIdentifierExpression2String(expression));
       }
     }
-    return String.join(",", groupByList);
+    return String.join(", ", groupByList);
   }
 
   private long getStep(ExecutionContext executionContext) {
@@ -116,6 +119,8 @@ class QueryRequestToPromqlConverter {
         return "min";
       case QUERY_FUNCTION_AVG:
         return "avg";
+      case QUERY_FUNCTION_COUNT:
+        return "count";
       default:
         throw new RuntimeException("");
     }
@@ -123,7 +128,7 @@ class QueryRequestToPromqlConverter {
 
   private MetricConfig getMetricConfigForFunction(Expression functionSelection) {
     return prometheusViewDefinition.getMetricConfig(
-        functionSelection.getColumnIdentifier().getColumnName());
+        functionSelection.getFunction().getArgumentsList().get(0).getColumnIdentifier().getColumnName());
   }
 
   private String convertColumnIdentifierExpression2String(Expression expression) {
@@ -136,15 +141,17 @@ class QueryRequestToPromqlConverter {
    *
    * <p>rhs of leaf filter should be literal
    */
-  private void convertFilter2String(Filter filter, StringBuilder builder) {
+  private void convertFilter2String(Filter filter, List<String> filterList) {
     if (filter.getChildFilterCount() > 0) {
-      String delim = ",";
       for (Filter childFilter : filter.getChildFilterList()) {
-        builder.append(delim);
-        convertFilter2String(childFilter, builder);
-        builder.append(" ");
+        convertFilter2String(childFilter, filterList);
       }
     } else {
+      if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER &&
+          QueryRequestUtil.isTimeColumn(filter.getLhs().getColumnIdentifier().getColumnName())) {
+        return;
+      }
+      StringBuilder builder = new StringBuilder();
       builder.append(convertColumnIdentifierExpression2String(filter.getLhs()));
       switch (filter.getOperator()) {
         case IN:
@@ -161,6 +168,7 @@ class QueryRequestToPromqlConverter {
           // throw exception
       }
       builder.append(convertLiteralToString(filter.getRhs().getLiteral()));
+      filterList.add(builder.toString());
     }
   }
 

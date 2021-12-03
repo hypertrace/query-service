@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
+import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
@@ -39,7 +40,8 @@ class QueryRequestEligibilityValidator {
     Preconditions.checkArgument(!referencedColumns.isEmpty());
     // all the columns in the request should have a mapping in the config
     for (String referencedColumn : referencedColumns) {
-      if (prometheusViewDefinition.getPhysicalColumnName(referencedColumn) == null
+      if (!QueryRequestUtil.isTimeColumn(referencedColumn) &&
+          prometheusViewDefinition.getPhysicalColumnName(referencedColumn) == null
           && prometheusViewDefinition.getMetricConfig(referencedColumn) == null) {
         return QueryCost.UNSUPPORTED;
       }
@@ -73,6 +75,10 @@ class QueryRequestEligibilityValidator {
     }
 
     for (Expression expression : groupByList) {
+      // skip datetime convert group by
+      if (QueryRequestUtil.isDateTimeFunction(expression)) {
+        continue;
+      }
       if (expression.getValueCase() != ValueCase.COLUMNIDENTIFIER) {
         return false;
       }
@@ -86,6 +92,10 @@ class QueryRequestEligibilityValidator {
   private boolean analyseAggregationColumns(List<Expression> aggregationList) {
     for (Expression expression : aggregationList) {
       Function function = expression.getFunction();
+      // skip dateTimeConvert function as it is part of the prometheus api call
+      if (QueryRequestUtil.isDateTimeFunction(expression)) {
+        continue;
+      }
       if (function.getArgumentsCount() > 1) {
         return false;
       }
@@ -128,4 +138,6 @@ class QueryRequestEligibilityValidator {
     // todo check for valid operators here
     return true;
   }
+
+
 }

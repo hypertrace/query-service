@@ -65,7 +65,7 @@ public class ExecutionContext {
   private Optional<Duration> calculateTimeSeriesPeriod(QueryRequest request) {
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
-        if (isDateTimeFunction(expression)) {
+        if (QueryRequestUtil.isDateTimeFunction(expression)) {
           String timeSeriesPeriod =
               expression
                   .getFunction()
@@ -218,7 +218,7 @@ public class ExecutionContext {
             .findFirst();
 
     if (timeRangeStart.isPresent() && timeRangeEnd.isPresent()) {
-      return Optional.of(new QueryTimeRange(timeRangeStart.get(), timeRangeEnd.get()));
+      return Optional.of(new QueryTimeRange(timeRangeEnd.get(), timeRangeStart.get()));
     }
 
     return filter.getChildFilterList().stream()
@@ -238,11 +238,6 @@ public class ExecutionContext {
     long amount = Long.parseLong(splitPeriodString[0]);
     ChronoUnit unit = TimeUnit.valueOf(splitPeriodString[1]).toChronoUnit();
     return Duration.of(amount, unit);
-  }
-
-  private boolean isDateTimeFunction(Expression expression) {
-    return expression.getValueCase() == ValueCase.FUNCTION
-        && expression.getFunction().getFunctionName().equals("dateTimeConvert");
   }
 
   public void setTimeFilterColumn(String timeFilterColumn) {

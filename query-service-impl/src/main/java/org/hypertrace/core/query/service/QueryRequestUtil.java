@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service;
 
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
@@ -67,5 +68,15 @@ public class QueryRequestUtil {
             LiteralConstant.newBuilder()
                 .setValue(Value.newBuilder().setValueType(ValueType.NULL_NUMBER)))
         .build();
+  }
+
+  public static boolean isDateTimeFunction(Expression expression) {
+    return expression.getValueCase() == ValueCase.FUNCTION
+        && expression.getFunction().getFunctionName().equals("dateTimeConvert");
+  }
+
+  public static boolean isTimeColumn(String columnName) {
+    return columnName.contains("startTime") ||
+        columnName.contains("endTime");
   }
 }
