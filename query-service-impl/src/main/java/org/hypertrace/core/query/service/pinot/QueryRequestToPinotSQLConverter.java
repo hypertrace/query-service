@@ -413,19 +413,19 @@ class QueryRequestToPinotSQLConverter {
 
   private LiteralConstant[] convertExpressionToMapLiterals(Expression rhs, Expression lhs) {
     LiteralConstant[] literals = new LiteralConstant[2];
-    String[] literalArguments = new String[] {"", ""};
+    List<String> literalArguments = new java.util.ArrayList<>(List.of("", ""));
 
     if (rhs.getValueCase() == LITERAL) {
       LiteralConstant value = rhs.getLiteral();
       // backward compatibility
       if (value.getValue().getValueType() == ValueType.STRING_ARRAY) {
-        literalArguments[0] = value.getValue().getStringArray(0);
+        literalArguments.set(0, value.getValue().getStringArray(0));
         if (value.getValue().getStringArrayCount() > 1) {
-          literalArguments[1] = value.getValue().getStringArray(1);
+          literalArguments.set(1, value.getValue().getStringArray(1));
         }
       } else if (value.getValue().getValueType() == ValueType.STRING) {
-        literalArguments[0] = lhs.getAttributeExpression().getSubpath();
-        literalArguments[1] = value.getValue().getString();
+        literalArguments.set(0, lhs.getAttributeExpression().getSubpath());
+        literalArguments.set(1, value.getValue().getString());
       } else {
         throw new IllegalArgumentException(
             "operator CONTAINS_KEYVALUE supports "
@@ -439,7 +439,7 @@ class QueryRequestToPinotSQLConverter {
     for (int i = 0; i < 2; i++) {
       literals[i] =
           LiteralConstant.newBuilder()
-              .setValue(Value.newBuilder().setString(literalArguments[i]).build())
+              .setValue(Value.newBuilder().setString(literalArguments.get(i)).build())
               .build();
     }
     return literals;
