@@ -27,7 +27,7 @@ public class PrometheusRestClient {
     this.port = port;
   }
 
-  public List<ImmutablePair<Request, PrometheusMetricQueryResponse>> execute(PromQLQuery query) {
+  public List<ImmutablePair<Request, PromQLMetricResponse>> execute(PromQLQuery query) {
     List<Request> requests =
         query.isInstantRequest() ? getInstantQueryRequests(query) : getRangeQueryRequests(query);
 
@@ -57,10 +57,10 @@ public class PrometheusRestClient {
         .collect(Collectors.toList());
   }
 
-  private PrometheusMetricQueryResponse convertResponse(Response response) {
+  private PromQLMetricResponse convertResponse(Response response) {
     try {
       if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-      return PrometheusMetricQueryResponseParser.parse(response.body().string());
+      return PromQLMetricResponse.fromJson(response.body().string());
     } catch (IOException ioException) {
       throw new RuntimeException(ioException);
     }

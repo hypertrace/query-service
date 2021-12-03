@@ -47,7 +47,7 @@ public class PrometheusRestClientTest {
             .isInstantRequest(true)
             .build();
 
-    List<ImmutablePair<Request, PrometheusMetricQueryResponse>> metricQueryResponses =
+    List<ImmutablePair<Request, PromQLMetricResponse>> metricQueryResponses =
         prometheusRestClient.execute(query);
 
     Assertions.assertEquals(1, metricQueryResponses.size());
@@ -66,7 +66,7 @@ public class PrometheusRestClientTest {
             .step(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
-    List<ImmutablePair<Request, PrometheusMetricQueryResponse>> metricQueryResponses =
+    List<ImmutablePair<Request, PromQLMetricResponse>> metricQueryResponses =
         prometheusRestClient.execute(query);
 
     Assertions.assertEquals(1, metricQueryResponses.size());
@@ -85,7 +85,7 @@ public class PrometheusRestClientTest {
             .isInstantRequest(true)
             .build();
 
-    List<ImmutablePair<Request, PrometheusMetricQueryResponse>> metricQueryResponses =
+    List<ImmutablePair<Request, PromQLMetricResponse>> metricQueryResponses =
         prometheusRestClient.execute(query);
 
     Assertions.assertEquals(2, metricQueryResponses.size());
@@ -106,7 +106,7 @@ public class PrometheusRestClientTest {
             .step(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
-    List<ImmutablePair<Request, PrometheusMetricQueryResponse>> metricQueryResponses =
+    List<ImmutablePair<Request, PromQLMetricResponse>> metricQueryResponses =
         prometheusRestClient.execute(query);
 
     Assertions.assertEquals(2, metricQueryResponses.size());
