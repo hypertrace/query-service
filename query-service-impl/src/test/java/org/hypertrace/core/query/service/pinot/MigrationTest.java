@@ -310,7 +310,7 @@ public class MigrationTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'",
+            + "AND tags__keys = 'flags' and mapvalue(tags__keys,'flags',tags__values) = '0'",
         viewDefinition,
         executionContext);
   }
@@ -340,7 +340,7 @@ public class MigrationTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags__keys = 'span.kind' and tags__values > 'client' and mapvalue(tags__keys,'span.kind',tags__values) > 'client'",
+            + "AND tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) > 'client'",
         viewDefinition,
         executionContext);
   }
@@ -371,7 +371,7 @@ public class MigrationTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags__keys = 'span.kind' and tags__values >= 'client' and mapvalue(tags__keys,'span.kind',tags__values) >= 'client' "
+            + "AND tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) >= 'client' "
             + "order by mapvalue(tags__KEYS,'span.kind',tags__VALUES) "
             + "DESC ",
         viewDefinition,
@@ -392,7 +392,7 @@ public class MigrationTest {
             + TENANT_ID
             + "' "
             + "AND ( start_time_millis > 1570658506605 AND start_time_millis < 1570744906673 "
-            + "AND tags__keys = 'span.kind' and tags__values != '' "
+            + "AND tags__keys = 'span.kind' "
             + "AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' ) "
             + "group by mapValue(tags__KEYS,'span.kind',tags__VALUES)",
         viewDefinition,

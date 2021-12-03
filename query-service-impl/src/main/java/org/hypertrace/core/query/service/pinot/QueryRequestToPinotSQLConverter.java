@@ -88,9 +88,7 @@ class QueryRequestToPinotSQLConverter {
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
         pqlBuilder.append(
-            isAttributeExpressionMapAttribute(groupByExpression)
-                ? convertExpressionToStringForMapAttribute(groupByExpression, paramsBuilder)
-                : convertExpressionToString(groupByExpression, paramsBuilder, executionContext));
+            convertExpressionToString(groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
     }
@@ -99,13 +97,9 @@ class QueryRequestToPinotSQLConverter {
       delim = "";
       for (OrderByExpression orderByExpression : request.getOrderByList()) {
         pqlBuilder.append(delim);
-        String orderBy =
-            isAttributeExpressionMapAttribute(orderByExpression.getExpression())
-                ? convertExpressionToStringForMapAttribute(
-                    orderByExpression.getExpression(), paramsBuilder)
-                : convertExpressionToString(
-                    orderByExpression.getExpression(), paramsBuilder, executionContext);
-        pqlBuilder.append(orderBy);
+        pqlBuilder.append(
+            convertExpressionToString(
+                orderByExpression.getExpression(), paramsBuilder, executionContext));
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
           pqlBuilder.append(" desc ");
         }
@@ -140,7 +134,23 @@ class QueryRequestToPinotSQLConverter {
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
         if (isAttributeExpressionMapAttribute(expression)) {
-          return convertExpressionToStringForMapAttribute(expression, paramsBuilder);
+          String keyCol =
+              convertExpressionToMapKeyColumn(expression, this::isAttributeExpressionMapAttribute);
+          String valCol =
+              convertExpressionToMapValueColumn(
+                  expression, this::isAttributeExpressionMapAttribute);
+          String pathExpression = expression.getAttributeExpression().getSubpath();
+          LiteralConstant pathExpressionLiteral =
+              LiteralConstant.newBuilder()
+                  .setValue(Value.newBuilder().setString(pathExpression).build())
+                  .build();
+
+          return String.format(
+              "%s(%s,%s,%s)",
+              MAP_VALUE,
+              keyCol,
+              convertLiteralToString(pathExpressionLiteral, paramsBuilder),
+              valCol);
         } else {
           // this takes care of the Map Type where it's split into 2 columns
           columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
@@ -161,28 +171,6 @@ class QueryRequestToPinotSQLConverter {
         break;
     }
     return "";
-  }
-
-  private String convertExpressionToStringForMapAttribute(
-      Expression expression, Builder paramsBuilder) {
-    String keyCol =
-        convertExpressionToMapKeyColumn(expression, this::isAttributeExpressionMapAttribute);
-    String valCol =
-        convertExpressionToMapValueColumn(expression, this::isAttributeExpressionMapAttribute);
-    String pathExpression = expression.getAttributeExpression().getSubpath();
-    LiteralConstant pathExpressionLiteral =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setString(pathExpression).build())
-            .build();
-
-    return MAP_VALUE
-        + "("
-        + keyCol
-        + ","
-        + convertLiteralToString(pathExpressionLiteral, paramsBuilder)
-        + ","
-        + valCol
-        + ")";
   }
 
   private String convertFilterToString(
@@ -313,12 +301,6 @@ class QueryRequestToPinotSQLConverter {
     return keyCol
         + " = "
         + convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder)
-        + " AND "
-        + valCol
-        + " "
-        + convertOperatorToString(filter.getOperator())
-        + " "
-        + convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder)
         + " AND "
         + MAP_VALUE
         + "("
