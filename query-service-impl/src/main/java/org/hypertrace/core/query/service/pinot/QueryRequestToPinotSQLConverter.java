@@ -37,10 +37,6 @@ class QueryRequestToPinotSQLConverter {
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 
-  /** TODO:Add support for like operator */
-  private static final List<Operator> SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES_WITH_SUBPATH =
-      List.of(Operator.EQ, Operator.NEQ, Operator.GT, Operator.GE, Operator.LT, Operator.LE);
-
   private final ViewDefinition viewDefinition;
   private final PinotFunctionConverter functionConverter;
   private final Joiner joiner = Joiner.on(", ").skipNulls();
@@ -308,12 +304,6 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String handleFilterForMapAttribute(Filter filter, Builder paramsBuilder) {
-
-    if (!SUPPORTED_OPERATORS_FOR_MAP_ATTRIBUTES_WITH_SUBPATH.contains(filter.getOperator())) {
-      throw new UnsupportedOperationException(
-          "Unknown operator for map attributes:" + filter.getOperator());
-    }
-
     LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
     String keyCol =
         convertExpressionToMapKeyColumn(filter.getLhs(), this::isAttributeExpressionMapAttribute);
