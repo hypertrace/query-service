@@ -34,9 +34,10 @@ public class QueryRequestToPromqlConverterTest {
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
-    PromqlQuery promqlQuery = new QueryRequestToPromqlConverter(prometheusViewDefinition)
-        .toPromql(executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
-
+    PromqlQuery promqlQuery =
+        new QueryRequestToPromqlConverter(prometheusViewDefinition)
+            .toPromql(
+                executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
 
     String query1 = "count by (service_name, api_name) (count_over_time(error_count{}[100ms]))";
     String query2 = "avg by (service_name, api_name) (avg_over_time(num_calls{}[100ms]))";
@@ -47,13 +48,13 @@ public class QueryRequestToPromqlConverterTest {
 
   private QueryRequest buildMultipleGroupByMultipleAggQuery() {
     Builder builder = QueryRequest.newBuilder();
-    builder.addAggregation(createFunctionExpression("Count", createColumnExpression("SERVICE.errorCount").build()));
+    builder.addAggregation(
+        createFunctionExpression("Count", createColumnExpression("SERVICE.errorCount").build()));
     Expression avg =
         createFunctionExpression("AVG", createColumnExpression("SERVICE.numCalls").build());
     builder.addAggregation(avg);
 
-    Filter startTimeFilter =
-        createTimeFilter("SERVICE.startTime", Operator.GT, 100L);
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GT, 100L);
     Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 200L);
 
     Filter andFilter =
@@ -68,7 +69,6 @@ public class QueryRequestToPromqlConverterTest {
     builder.addGroupBy(createColumnExpression("API.name"));
     return builder.build();
   }
-
 
   private PrometheusViewDefinition getDefaultPrometheusViewDefinition() {
     Config fileConfig =

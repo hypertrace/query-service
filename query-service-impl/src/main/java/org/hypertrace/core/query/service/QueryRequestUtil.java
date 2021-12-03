@@ -76,7 +76,6 @@ public class QueryRequestUtil {
   }
 
   public static boolean isTimeColumn(String columnName) {
-    return columnName.contains("startTime") ||
-        columnName.contains("endTime");
+    return columnName.contains("startTime") || columnName.contains("endTime");
   }
 }

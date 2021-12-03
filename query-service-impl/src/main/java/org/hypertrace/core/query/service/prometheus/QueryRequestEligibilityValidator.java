@@ -40,8 +40,8 @@ class QueryRequestEligibilityValidator {
     Preconditions.checkArgument(!referencedColumns.isEmpty());
     // all the columns in the request should have a mapping in the config
     for (String referencedColumn : referencedColumns) {
-      if (!QueryRequestUtil.isTimeColumn(referencedColumn) &&
-          prometheusViewDefinition.getPhysicalColumnName(referencedColumn) == null
+      if (!QueryRequestUtil.isTimeColumn(referencedColumn)
+          && prometheusViewDefinition.getPhysicalColumnName(referencedColumn) == null
           && prometheusViewDefinition.getMetricConfig(referencedColumn) == null) {
         return QueryCost.UNSUPPORTED;
       }
@@ -138,6 +138,4 @@ class QueryRequestEligibilityValidator {
     // todo check for valid operators here
     return true;
   }
-
-
 }

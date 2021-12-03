@@ -128,7 +128,12 @@ class QueryRequestToPromqlConverter {
 
   private MetricConfig getMetricConfigForFunction(Expression functionSelection) {
     return prometheusViewDefinition.getMetricConfig(
-        functionSelection.getFunction().getArgumentsList().get(0).getColumnIdentifier().getColumnName());
+        functionSelection
+            .getFunction()
+            .getArgumentsList()
+            .get(0)
+            .getColumnIdentifier()
+            .getColumnName());
   }
 
   private String convertColumnIdentifierExpression2String(Expression expression) {
@@ -147,8 +152,8 @@ class QueryRequestToPromqlConverter {
         convertFilter2String(childFilter, filterList);
       }
     } else {
-      if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER &&
-          QueryRequestUtil.isTimeColumn(filter.getLhs().getColumnIdentifier().getColumnName())) {
+      if (filter.getLhs().getValueCase() == ValueCase.COLUMNIDENTIFIER
+          && QueryRequestUtil.isTimeColumn(filter.getLhs().getColumnIdentifier().getColumnName())) {
         return;
       }
       StringBuilder builder = new StringBuilder();
