@@ -47,7 +47,6 @@ dependencies {
   implementation("com.google.guava:guava:30.1.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.9.1")
-  implementation("com.google.code.gson:gson:2.8.9")
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
   implementation("org.apache.commons:commons-lang3:3.10")
