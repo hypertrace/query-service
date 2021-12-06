@@ -28,10 +28,17 @@ public class PrometheusRestClient {
     this.port = port;
   }
 
-  public Map<Request, PromQLMetricResponse> execute(PromQLQuery query) {
-    List<Request> requests =
-        query.isInstantRequest() ? getInstantQueryRequests(query) : getRangeQueryRequests(query);
+  public Map<Request, PromQLMetricResponse> executeInstantQuery(PromQLInstantQuery instantQuery) {
+    List<Request> requests = getInstantQueryRequests(instantQuery);
+    return execute(requests);
+  }
 
+  public Map<Request, PromQLMetricResponse> executeRangeQuery(PromQLRangeQuery rangeQuery) {
+    List<Request> requests = getRangeQueryRequests(rangeQuery);
+    return execute(requests);
+  }
+
+  private Map<Request, PromQLMetricResponse> execute(List<Request> requests) {
     List<OkHttpResponseCallback> okHttpResponseCallbacks =
         requests.stream()
             .map(
@@ -67,20 +74,20 @@ public class PrometheusRestClient {
     }
   }
 
-  private List<Request> getInstantQueryRequests(PromQLQuery promQLQuery) {
+  private List<Request> getInstantQueryRequests(PromQLInstantQuery promQLQuery) {
     return promQLQuery.getQueries().stream()
         .map(
             query -> {
               HttpUrl.Builder urlBuilder = HttpUrl.parse(getRequestUrl(INSTANT_QUERY)).newBuilder();
               urlBuilder.addQueryParameter("query", query);
               urlBuilder.addQueryParameter(
-                  "time", String.valueOf(promQLQuery.getEndTime().getEpochSecond()));
+                  "time", String.valueOf(promQLQuery.getEvalTime().getEpochSecond()));
               return new Request.Builder().url(urlBuilder.build().toString()).build();
             })
         .collect(Collectors.toList());
   }
 
-  private List<Request> getRangeQueryRequests(PromQLQuery promQLQuery) {
+  private List<Request> getRangeQueryRequests(PromQLRangeQuery promQLQuery) {
     return promQLQuery.getQueries().stream()
         .map(
             query -> {

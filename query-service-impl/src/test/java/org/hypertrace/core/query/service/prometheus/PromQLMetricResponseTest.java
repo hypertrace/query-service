@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Instant;
 import org.hypertrace.core.query.service.prometheus.PromQLMetricResponse.PromQLMetricResult;
 import org.hypertrace.core.query.service.prometheus.PromQLMetricResponse.PromQLMetricValue;
 import org.junit.jupiter.api.Assertions;
@@ -31,7 +32,7 @@ public class PromQLMetricResponseTest {
             .metricAttribute("__name__", "errorCount")
             .metricAttribute("job", "prometheus")
             .metricAttribute("instance", "localhost:9090")
-            .value(new PromQLMetricValue(1435781451000L, 1.0))
+            .value(new PromQLMetricValue(Instant.ofEpochMilli(1435781451000L), 1.0))
             .build();
 
     Assertions.assertTrue(response.getData().getResult().contains(firstMetricResult));
@@ -42,7 +43,7 @@ public class PromQLMetricResponseTest {
             .metricAttribute("__name__", "errorCount")
             .metricAttribute("job", "node")
             .metricAttribute("instance", "localhost:9100")
-            .value(new PromQLMetricValue(1435781451000L, 0.0))
+            .value(new PromQLMetricValue(Instant.ofEpochMilli(1435781451000L), 0.0))
             .build();
 
     Assertions.assertTrue(response.getData().getResult().contains(secondMetricResult));
@@ -68,9 +69,9 @@ public class PromQLMetricResponseTest {
             .metricAttribute("__name__", "errorCount")
             .metricAttribute("job", "prometheus")
             .metricAttribute("instance", "localhost:9090")
-            .value(new PromQLMetricValue(1435781430000L, 1.0))
-            .value(new PromQLMetricValue(1435781445000L, 2.0))
-            .value(new PromQLMetricValue(1435781460000L, 3.0))
+            .value(new PromQLMetricValue(Instant.ofEpochMilli(1435781430000L), 1.0))
+            .value(new PromQLMetricValue(Instant.ofEpochMilli(1435781445000L), 2.0))
+            .value(new PromQLMetricValue(Instant.ofEpochMilli(1435781460000L), 3.0))
             .build();
 
     Assertions.assertTrue(response.getData().getResult().contains(firstMetricResult));
@@ -81,9 +82,9 @@ public class PromQLMetricResponseTest {
             .metricAttribute("__name__", "errorCount")
             .metricAttribute("job", "node")
             .metricAttribute("instance", "localhost:9091")
-            .value(new PromQLMetricValue(1435781430000L, 0.0))
-            .value(new PromQLMetricValue(1435781445000L, 0.0))
-            .value(new PromQLMetricValue(1435781460000L, 1.0))
+            .value(new PromQLMetricValue(Instant.ofEpochMilli(1435781430000L), 0.0))
+            .value(new PromQLMetricValue(Instant.ofEpochMilli(1435781445000L), 0.0))
+            .value(new PromQLMetricValue(Instant.ofEpochMilli(1435781460000L), 1.0))
             .build();
 
     Assertions.assertTrue(response.getData().getResult().contains(secondMetricResult));

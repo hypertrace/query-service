@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,20 +21,18 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
+import lombok.Value;
 
-@Getter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Value
 class PromQLMetricResponse {
   private static final ObjectMapper OBJECT_MAPPER =
       new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   @JsonProperty("status")
-  private String status;
+  private String status = null;
 
   @JsonProperty("data")
-  private PromQLData data;
+  private PromQLData data = null;
 
   @Getter
   static class PromQLData {
@@ -46,8 +45,8 @@ class PromQLMetricResponse {
 
   @Getter
   @Builder
-  @NoArgsConstructor
   @AllArgsConstructor
+  @NoArgsConstructor
   @EqualsAndHashCode
   static class PromQLMetricResult {
     @JsonProperty("metric")
@@ -60,11 +59,9 @@ class PromQLMetricResponse {
     private List<PromQLMetricValue> values;
   }
 
-  @AllArgsConstructor
-  @Getter
-  @EqualsAndHashCode
+  @Value
   static class PromQLMetricValue {
-    private long timeStamp;
+    private Instant timeStamp;
     private double value;
   }
 
@@ -84,7 +81,7 @@ class PromQLMetricResponse {
     }
 
     private PromQLMetricValue parseValue(ArrayNode arrayNode) {
-      long timestamp = (long) arrayNode.get(0).asDouble() * 1000L;
+      Instant timestamp = Instant.ofEpochMilli((long) arrayNode.get(0).asDouble() * 1000L);
       double value = arrayNode.get(1).asDouble();
       return new PromQLMetricValue(timestamp, value);
     }

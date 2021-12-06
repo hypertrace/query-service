@@ -39,14 +39,14 @@ public class PrometheusRestClientTest {
   public void testSingleInstantQuery() throws IOException {
     mockWebServer.enqueue(getSuccessMockResponse("promql_error_count_vector.json"));
 
-    PromQLQuery query =
-        PromQLQuery.builder()
+    PromQLInstantQuery query =
+        PromQLInstantQuery.builder()
             .query("errorCount")
-            .endTime(Instant.ofEpochMilli(1435781451000L))
-            .isInstantRequest(true)
+            .evalTime(Instant.ofEpochMilli(1435781451000L))
             .build();
 
-    Map<Request, PromQLMetricResponse> metricQueryResponses = prometheusRestClient.execute(query);
+    Map<Request, PromQLMetricResponse> metricQueryResponses =
+        prometheusRestClient.executeInstantQuery(query);
 
     Assertions.assertEquals(1, metricQueryResponses.size());
   }
@@ -55,16 +55,16 @@ public class PrometheusRestClientTest {
   public void testSingleRangeQuery() throws IOException {
     mockWebServer.enqueue(getSuccessMockResponse("promql_error_count_matrix.json"));
 
-    PromQLQuery query =
-        PromQLQuery.builder()
+    PromQLRangeQuery query =
+        PromQLRangeQuery.builder()
             .query("errorCount")
             .startTime(Instant.ofEpochMilli(1435781430000L))
             .endTime(Instant.ofEpochMilli(1435781460000L))
-            .isInstantRequest(false)
             .step(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
-    Map<Request, PromQLMetricResponse> metricQueryResponses = prometheusRestClient.execute(query);
+    Map<Request, PromQLMetricResponse> metricQueryResponses =
+        prometheusRestClient.executeRangeQuery(query);
 
     Assertions.assertEquals(1, metricQueryResponses.size());
   }
@@ -74,15 +74,15 @@ public class PrometheusRestClientTest {
     List<String> files = List.of("promql_error_count_vector.json", "promql_num_call_vector.json");
     files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
 
-    PromQLQuery query =
-        PromQLQuery.builder()
+    PromQLInstantQuery query =
+        PromQLInstantQuery.builder()
             .query("errorCount")
             .query("numCall")
-            .endTime(Instant.ofEpochMilli(1435781451000L))
-            .isInstantRequest(true)
+            .evalTime(Instant.ofEpochMilli(1435781451000L))
             .build();
 
-    Map<Request, PromQLMetricResponse> metricQueryResponses = prometheusRestClient.execute(query);
+    Map<Request, PromQLMetricResponse> metricQueryResponses =
+        prometheusRestClient.executeInstantQuery(query);
 
     Assertions.assertEquals(2, metricQueryResponses.size());
   }
@@ -92,17 +92,17 @@ public class PrometheusRestClientTest {
     List<String> files = List.of("promql_error_count_matrix.json", "promql_num_call_matrix.json");
     files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
 
-    PromQLQuery query =
-        PromQLQuery.builder()
+    PromQLRangeQuery query =
+        PromQLRangeQuery.builder()
             .query("errorCount")
             .query("numCall")
             .startTime(Instant.ofEpochMilli(1435781430000L))
             .endTime(Instant.ofEpochMilli(1435781460000L))
-            .isInstantRequest(false)
             .step(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
-    Map<Request, PromQLMetricResponse> metricQueryResponses = prometheusRestClient.execute(query);
+    Map<Request, PromQLMetricResponse> metricQueryResponses =
+        prometheusRestClient.executeRangeQuery(query);
 
     Assertions.assertEquals(2, metricQueryResponses.size());
   }
@@ -113,15 +113,15 @@ public class PrometheusRestClientTest {
     files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
     mockWebServer.enqueue(getFailMockResponse("promql_num_call_vector.json"));
 
-    PromQLQuery query =
-        PromQLQuery.builder()
+    PromQLInstantQuery query =
+        PromQLInstantQuery.builder()
             .query("errorCount")
             .query("numCall")
-            .endTime(Instant.ofEpochMilli(1435781451000L))
-            .isInstantRequest(true)
+            .evalTime(Instant.ofEpochMilli(1435781451000L))
             .build();
 
-    Assertions.assertThrows(RuntimeException.class, () -> prometheusRestClient.execute(query));
+    Assertions.assertThrows(
+        RuntimeException.class, () -> prometheusRestClient.executeInstantQuery(query));
   }
 
   private MockResponse getSuccessMockResponse(String fileName) {
