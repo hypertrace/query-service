@@ -13,7 +13,7 @@ import lombok.Singular;
 @Getter
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class PromQLRangeQuery {
+class PromQLRangeQuery {
   @NonNull @Singular private List<String> queries;
 
   @NonNull private Instant startTime;

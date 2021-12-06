@@ -12,7 +12,7 @@ import lombok.Singular;
 @Getter
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class PromQLInstantQuery {
+class PromQLInstantQuery {
   @NonNull @Singular private List<String> queries;
 
   @NonNull private Instant evalTime;
