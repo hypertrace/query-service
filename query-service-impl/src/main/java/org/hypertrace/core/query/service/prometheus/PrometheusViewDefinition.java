@@ -14,10 +14,11 @@ import java.util.Set;
 public class PrometheusViewDefinition {
 
   private static final String VIEW_NAME_CONFIG_KEY = "viewName";
-  private static final String FIELD_MAP_CONFIG_KEY = "fieldMap";
+  private static final String ATTRIBUTE_MAP_CONFIG_KEY = "attributeMap";
   private static final String METRIC_MAP_CONFIG_KEY = "metricMap";
   private static final String METRIC_NAME_CONFIG_KEY = "metricName";
   private static final String METRIC_TYPE_CONFIG_KEY = "metricType";
+  private static final String METRIC_SCOPE_CONFIG_KEY = "metricScope";
 
   private final String viewName;
   private final String tenantColumnName;
@@ -39,7 +40,7 @@ public class PrometheusViewDefinition {
     String viewName = config.getString(VIEW_NAME_CONFIG_KEY);
 
     final Map<String, String> fieldMap = Maps.newHashMap();
-    Config fieldMapConfig = config.getConfig(FIELD_MAP_CONFIG_KEY);
+    Config fieldMapConfig = config.getConfig(ATTRIBUTE_MAP_CONFIG_KEY);
     for (Entry<String, ConfigValue> element : fieldMapConfig.entrySet()) {
       List<String> keys = ConfigUtil.splitPath(element.getKey());
       fieldMap.put(keys.get(0), fieldMapConfig.getString(element.getKey()));
@@ -47,16 +48,18 @@ public class PrometheusViewDefinition {
 
     final Map<String, MetricConfig> metricMap = Maps.newHashMap();
     Config metricMapConfig = config.getConfig(METRIC_MAP_CONFIG_KEY);
-    Set<String> metricLogicalNames = Sets.newHashSet();
+
+    Set<String> metricNames = Sets.newHashSet();
     for (Entry<String, ConfigValue> element : metricMapConfig.entrySet()) {
       List<String> keys = ConfigUtil.splitPath(element.getKey());
-      metricLogicalNames.add(keys.get(0) + "." + keys.get(1));
+      metricNames.add(keys.get(0));
     }
 
-    for (String metricLogicalName : metricLogicalNames) {
-      Config metricDef = metricMapConfig.getConfig(metricLogicalName);
+    String metricScope = config.getString(METRIC_SCOPE_CONFIG_KEY);
+    for (String metricName : metricNames) {
+      Config metricDef = metricMapConfig.getConfig(metricName);
       metricMap.put(
-          metricLogicalName,
+          metricScope + "." + metricName,
           new MetricConfig(
               metricDef.getString(METRIC_NAME_CONFIG_KEY),
               MetricType.valueOf(metricDef.getString(METRIC_TYPE_CONFIG_KEY))));
