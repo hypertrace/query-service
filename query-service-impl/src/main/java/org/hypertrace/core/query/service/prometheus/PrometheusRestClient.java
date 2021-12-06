@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.prometheus;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import lombok.NoArgsConstructor;
@@ -21,13 +22,13 @@ public class PrometheusRestClient {
   private int port;
   private OkHttpClient okHttpClient;
 
-  public PrometheusRestClient(String host, int port, OkHttpClient okHttpClient) {
-    this.okHttpClient = okHttpClient;
+  public PrometheusRestClient(String host, int port) {
+    this.okHttpClient = new OkHttpClient();
     this.host = host;
     this.port = port;
   }
 
-  public List<ImmutablePair<Request, PromQLMetricResponse>> execute(PromQLQuery query) {
+  public Map<Request, PromQLMetricResponse> execute(PromQLQuery query) {
     List<Request> requests =
         query.isInstantRequest() ? getInstantQueryRequests(query) : getRangeQueryRequests(query);
 
@@ -54,7 +55,7 @@ public class PrometheusRestClient {
                 ImmutablePair.of(
                     okHttpResponseCallback.request,
                     convertResponse(okHttpResponseCallback.future.join())))
-        .collect(Collectors.toList());
+        .collect(Collectors.toMap(pair -> pair.getLeft(), pair -> pair.getRight()));
   }
 
   private PromQLMetricResponse convertResponse(Response response) {

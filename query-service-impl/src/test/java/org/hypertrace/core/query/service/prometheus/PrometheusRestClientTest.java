@@ -8,11 +8,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -22,8 +22,7 @@ public class PrometheusRestClientTest {
 
   private static MockWebServer mockWebServer;
   private OkHttpClient okHttpClient = new OkHttpClient();
-  private PrometheusRestClient prometheusRestClient =
-      new PrometheusRestClient("localhost", 9090, okHttpClient);
+  private PrometheusRestClient prometheusRestClient = new PrometheusRestClient("localhost", 9090);
 
   @BeforeAll
   public static void setUp() throws IOException {
@@ -47,8 +46,7 @@ public class PrometheusRestClientTest {
             .isInstantRequest(true)
             .build();
 
-    List<ImmutablePair<Request, PromQLMetricResponse>> metricQueryResponses =
-        prometheusRestClient.execute(query);
+    Map<Request, PromQLMetricResponse> metricQueryResponses = prometheusRestClient.execute(query);
 
     Assertions.assertEquals(1, metricQueryResponses.size());
   }
@@ -66,8 +64,7 @@ public class PrometheusRestClientTest {
             .step(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
-    List<ImmutablePair<Request, PromQLMetricResponse>> metricQueryResponses =
-        prometheusRestClient.execute(query);
+    Map<Request, PromQLMetricResponse> metricQueryResponses = prometheusRestClient.execute(query);
 
     Assertions.assertEquals(1, metricQueryResponses.size());
   }
@@ -85,8 +82,7 @@ public class PrometheusRestClientTest {
             .isInstantRequest(true)
             .build();
 
-    List<ImmutablePair<Request, PromQLMetricResponse>> metricQueryResponses =
-        prometheusRestClient.execute(query);
+    Map<Request, PromQLMetricResponse> metricQueryResponses = prometheusRestClient.execute(query);
 
     Assertions.assertEquals(2, metricQueryResponses.size());
   }
@@ -106,8 +102,7 @@ public class PrometheusRestClientTest {
             .step(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
-    List<ImmutablePair<Request, PromQLMetricResponse>> metricQueryResponses =
-        prometheusRestClient.execute(query);
+    Map<Request, PromQLMetricResponse> metricQueryResponses = prometheusRestClient.execute(query);
 
     Assertions.assertEquals(2, metricQueryResponses.size());
   }

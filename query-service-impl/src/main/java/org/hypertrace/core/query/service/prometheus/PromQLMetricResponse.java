@@ -25,7 +25,7 @@ import lombok.Singular;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PromQLMetricResponse {
+class PromQLMetricResponse {
   private static final ObjectMapper OBJECT_MAPPER =
       new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -36,7 +36,7 @@ public class PromQLMetricResponse {
   private PromQLData data;
 
   @Getter
-  public static class PromQLData {
+  static class PromQLData {
     @JsonProperty("resultType")
     private String resultType;
 
@@ -49,7 +49,7 @@ public class PromQLMetricResponse {
   @NoArgsConstructor
   @AllArgsConstructor
   @EqualsAndHashCode
-  public static class PromQLMetricResult {
+  static class PromQLMetricResult {
     @JsonProperty("metric")
     @Singular
     private Map<String, String> metricAttributes;
@@ -63,13 +63,12 @@ public class PromQLMetricResponse {
   @AllArgsConstructor
   @Getter
   @EqualsAndHashCode
-  public static class PromQLMetricValue {
+  static class PromQLMetricValue {
     private long timeStamp;
     private double value;
   }
 
-  private static class PromQLMetricValuesDeserializer
-      extends JsonDeserializer<List<PromQLMetricValue>> {
+  static class PromQLMetricValuesDeserializer extends JsonDeserializer<List<PromQLMetricValue>> {
 
     @Override
     public List<PromQLMetricValue> deserialize(JsonParser parser, DeserializationContext context)
@@ -91,7 +90,7 @@ public class PromQLMetricResponse {
     }
   }
 
-  public static PromQLMetricResponse fromJson(String json) throws IOException {
+  static PromQLMetricResponse fromJson(String json) throws IOException {
     return OBJECT_MAPPER.readValue(json, PromQLMetricResponse.class);
   }
 }
