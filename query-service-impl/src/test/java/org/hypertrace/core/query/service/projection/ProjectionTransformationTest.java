@@ -13,6 +13,7 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
@@ -39,6 +40,7 @@ import org.hypertrace.core.attribute.service.v1.Projection;
 import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
 import org.hypertrace.core.query.service.QueryTransformation.QueryTransformationContext;
+import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
@@ -71,6 +73,45 @@ class ProjectionTransformationTest {
 
     this.projectionTransformation =
         new ProjectionTransformation(this.mockAttributeClient, new AttributeProjectionRegistry());
+  }
+
+  @Test
+  void transformAttributeExpressionQuery() {
+    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+
+    Filter childFilter =
+        Filter.newBuilder()
+            .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("server"))
+            .build();
+
+    Filter andFilter =
+        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(childFilter).build();
+
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(andFilter).build();
+
+    Filter expectedFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.EQ)
+            .setLhs(createColumnExpression("tags__KEYS"))
+            .setRhs(createColumnExpression("span.kind"))
+            .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addAllChildFilter(List.of(andFilter, expectedFilter))
+                    .build())
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
   }
 
   @Test

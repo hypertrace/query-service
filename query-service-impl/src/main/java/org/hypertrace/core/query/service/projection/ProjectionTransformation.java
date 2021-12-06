@@ -12,8 +12,12 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLit
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 import org.hypertrace.core.attribute.service.projection.AttributeProjection;
@@ -26,10 +30,13 @@ import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
 import org.hypertrace.core.query.service.QueryTransformation;
+import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.slf4j.Logger;
@@ -59,7 +66,7 @@ final class ProjectionTransformation implements QueryTransformation {
             this.transformExpressionList(queryRequest.getGroupByList()),
             this.transformOrderByList(queryRequest.getOrderByList()),
             (selections, aggregations, filter, groupBys, orderBys) ->
-                this.rebuildRequestOmittingDefaults(
+                this.rebuildRequest(
                     queryRequest, selections, aggregations, filter, groupBys, orderBys))
         .doOnSuccess(transformed -> this.debugLogIfRequestTransformed(queryRequest, transformed));
   }
@@ -313,6 +320,82 @@ final class ProjectionTransformation implements QueryTransformation {
     }
 
     return builder.clearChildFilter().addAllChildFilter(childFilters).build();
+  }
+
+  private QueryRequest rebuildRequest(
+      QueryRequest original,
+      List<Expression> selections,
+      List<Expression> aggregations,
+      Filter filter,
+      List<Expression> groupBys,
+      List<OrderByExpression> orderBys) {
+
+    Set<AttributeExpression> attributeExpressionSet =
+        Stream.concat(
+                findAttributeExpressionFromOrderBy(orderBys).stream(),
+                findAttributeExpressionFromFilter(filter).stream())
+            .collect(Collectors.toSet());
+
+    return rebuildRequestOmittingDefaults(
+        original,
+        selections,
+        aggregations,
+        updateFilterForAttributeExpression(attributeExpressionSet, filter),
+        groupBys,
+        orderBys);
+  }
+
+  private List<AttributeExpression> findAttributeExpressionFromOrderBy(
+      List<OrderByExpression> orderByExpressionList) {
+    List<AttributeExpression> attributeExpressionList = new ArrayList<>();
+    for (OrderByExpression orderByExpression : orderByExpressionList) {
+      if (orderByExpression.getExpression().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
+          && orderByExpression.getExpression().getAttributeExpression().hasSubpath()) {
+        attributeExpressionList.add(orderByExpression.getExpression().getAttributeExpression());
+      }
+    }
+    return attributeExpressionList;
+  }
+
+  private List<AttributeExpression> findAttributeExpressionFromFilter(Filter filter) {
+    List<AttributeExpression> attributeExpressionList = new ArrayList<>();
+    findAttributeExpressionFromFilter(filter, attributeExpressionList);
+    return attributeExpressionList;
+  }
+
+  private void findAttributeExpressionFromFilter(
+      Filter filter, List<AttributeExpression> attributeExpressionList) {
+
+    for (Filter childFilter : filter.getChildFilterList()) {
+      findAttributeExpressionFromFilter(childFilter, attributeExpressionList);
+    }
+
+    if (filter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
+        && filter.getLhs().getAttributeExpression().hasSubpath()) {
+      attributeExpressionList.add(filter.getLhs().getAttributeExpression());
+    }
+  }
+
+  private Filter updateFilterForAttributeExpression(
+      Set<AttributeExpression> attributeExpressionSet, Filter filter) {
+
+    if (attributeExpressionSet.isEmpty()) {
+      return filter;
+    }
+
+    List<Filter> childFilterList = new ArrayList<>();
+    childFilterList.add(filter);
+
+    attributeExpressionSet.forEach(
+        attributeExpression ->
+            childFilterList.add(
+                Filter.newBuilder()
+                    .setOperator(Operator.EQ)
+                    .setLhs(createColumnExpression("tags__KEYS"))
+                    .setRhs(createColumnExpression(attributeExpression.getSubpath()))
+                    .build()));
+
+    return Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(childFilterList).build();
   }
 
   private QueryRequest rebuildRequestOmittingDefaults(
