@@ -78,6 +78,14 @@ public class PrometheusViewDefinition {
     return metricMap.get(logicalMetricName);
   }
 
+  public String getViewName() {
+    return viewName;
+  }
+
+  public String getTenantColumnName() {
+    return tenantColumnName;
+  }
+
   public static class MetricConfig {
     private final String name;
     private final MetricType metricType;

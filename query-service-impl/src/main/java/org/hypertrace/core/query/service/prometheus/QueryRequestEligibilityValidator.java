@@ -1,5 +1,7 @@
 package org.hypertrace.core.query.service.prometheus;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import java.util.List;
@@ -24,54 +26,57 @@ class QueryRequestEligibilityValidator {
   }
 
   QueryCost isEligible(QueryRequest queryRequest, ExecutionContext executionContext) {
-    // orderBy to be supported later
-    if (queryRequest.getOrderByCount() > 0) {
-      return QueryCost.UNSUPPORTED;
-    }
-
-    // only aggregation queries are supported
-    if (queryRequest.getAggregationCount() == 0
-        || queryRequest.getGroupByCount() == 0
-        || queryRequest.getDistinctSelections()) {
-      return QueryCost.UNSUPPORTED;
-    }
-
-    Set<String> referencedColumns = executionContext.getReferencedColumns();
-    Preconditions.checkArgument(!referencedColumns.isEmpty());
-    // all the columns in the request should have a mapping in the config
-    for (String referencedColumn : referencedColumns) {
-      if (!QueryRequestUtil.isTimeColumn(referencedColumn)
-          && prometheusViewDefinition.getPhysicalColumnName(referencedColumn) == null
-          && prometheusViewDefinition.getMetricConfig(referencedColumn) == null) {
+    try {
+      // orderBy to be supported later
+      if (queryRequest.getOrderByCount() > 0) {
         return QueryCost.UNSUPPORTED;
       }
-    }
 
-    if (!analyseAggregationColumns(queryRequest.getAggregationList())) {
+      // only aggregation queries are supported
+      if (queryRequest.getAggregationCount() == 0
+          || queryRequest.getGroupByCount() == 0
+          || queryRequest.getDistinctSelections()) {
+        return QueryCost.UNSUPPORTED;
+      }
+
+      Set<String> referencedColumns = executionContext.getReferencedColumns();
+      Preconditions.checkArgument(!referencedColumns.isEmpty());
+      // all the columns in the request should have a mapping in the config
+      for (String referencedColumn : referencedColumns) {
+        if (!QueryRequestUtil.isTimeColumn(referencedColumn)
+            && prometheusViewDefinition.getPhysicalColumnName(referencedColumn) == null
+            && prometheusViewDefinition.getMetricConfig(referencedColumn) == null) {
+          return QueryCost.UNSUPPORTED;
+        }
+      }
+
+      if (!analyseAggregationColumns(queryRequest.getAggregationList())) {
+        return QueryCost.UNSUPPORTED;
+      }
+
+      if (!analyseSelectionAndGroupBy(
+          queryRequest.getSelectionList(), queryRequest.getGroupByList())) {
+        return QueryCost.UNSUPPORTED;
+      }
+
+      if (!analyseFilter(queryRequest.getFilter())) {
+        return QueryCost.UNSUPPORTED;
+      }
+    } catch (Exception e) {
       return QueryCost.UNSUPPORTED;
     }
-
-    if (!selectionAndGroupByOnSameColumn(
-        queryRequest.getSelectionList(), queryRequest.getGroupByList())) {
-      return QueryCost.UNSUPPORTED;
-    }
-
-    if (!analyseFilter(queryRequest.getFilter())) {
-      return QueryCost.UNSUPPORTED;
-    }
-
     // value 1.0 so that prometheus is preferred over others
     return new QueryCost(1.0);
   }
 
-  private boolean selectionAndGroupByOnSameColumn(
+  private boolean analyseSelectionAndGroupBy(
       List<Expression> selectionList, List<Expression> groupByList) {
     Set<String> selections = Sets.newHashSet();
     for (Expression expression : selectionList) {
       if (!QueryRequestUtil.isSimpleColumnExpression(expression)) {
         return false;
       }
-      selections.add(getLogicalColumnName(expression));
+      selections.add(getLogicalColumnNameForSimpleColumnExpression(expression));
     }
 
     for (Expression expression : groupByList) {
@@ -82,21 +87,12 @@ class QueryRequestEligibilityValidator {
       if (!QueryRequestUtil.isSimpleColumnExpression(expression)) {
         return false;
       }
-      if (!selections.remove(getLogicalColumnName(expression))) {
+      if (!selections.remove(getLogicalColumnNameForSimpleColumnExpression(expression))) {
         return false;
       }
     }
+    // all selection and group by should be on same column
     return selections.isEmpty();
-  }
-
-  private String getLogicalColumnName(Expression expression) {
-    String logicalColumnName;
-    if (expression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
-      logicalColumnName = expression.getColumnIdentifier().getColumnName();
-    } else {
-      logicalColumnName = expression.getAttributeExpression().getAttributeId();
-    }
-    return logicalColumnName;
   }
 
   private boolean analyseAggregationColumns(List<Expression> aggregationList) {
@@ -109,14 +105,11 @@ class QueryRequestEligibilityValidator {
       if (function.getArgumentsCount() > 1) {
         return false;
       }
-      Expression functionExpression = function.getArgumentsList().get(0);
-      if (!QueryRequestUtil.isSimpleColumnExpression(functionExpression)) {
+      Expression functionArgument = function.getArgumentsList().get(0);
+      if (!QueryRequestUtil.isSimpleColumnExpression(functionArgument)) {
         return false;
       }
-      String attributeName =
-          (functionExpression.getValueCase() == ValueCase.COLUMNIDENTIFIER)
-              ? functionExpression.getColumnIdentifier().getColumnName()
-              : functionExpression.getAttributeExpression().getAttributeId();
+      String attributeName = getLogicalColumnNameForSimpleColumnExpression(functionArgument);
       if (prometheusViewDefinition.getMetricConfig(attributeName) == null) {
         return false;
       }

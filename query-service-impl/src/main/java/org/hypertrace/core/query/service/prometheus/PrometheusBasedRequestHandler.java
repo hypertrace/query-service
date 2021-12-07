@@ -76,9 +76,7 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
     Preconditions.checkNotNull(executionContext);
     Preconditions.checkNotNull(executionContext.getTenantId());
 
-    PromqlQuery promqlQuery =
-        requestToPromqlConverter.toPromql(
-            executionContext, originalRequest, executionContext.getAllSelections());
+    // todo call convert and execute request using client here
 
     return null;
   }

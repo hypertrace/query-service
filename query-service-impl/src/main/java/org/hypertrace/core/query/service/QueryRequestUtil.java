@@ -90,4 +90,15 @@ public class QueryRequestUtil {
     return expression.getValueCase() == ValueCase.COLUMNIDENTIFIER
         || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression));
   }
+
+  public static String getLogicalColumnNameForSimpleColumnExpression(Expression expression) {
+    if (!isSimpleColumnExpression(expression)) {
+      throw new RuntimeException("Expecting expression of type COLUMN or ATTRIBUTE");
+    }
+    if (expression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+      return expression.getColumnIdentifier().getColumnName();
+    } else {
+      return expression.getAttributeExpression().getAttributeId();
+    }
+  }
 }

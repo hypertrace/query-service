@@ -38,9 +38,9 @@ public class QueryRequestToPromqlConverterTest {
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
-    PromqlQuery promqlQuery =
+    PromQLInstantQuery promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
-            .toPromql(
+            .convertToPromqlInstantQuery(
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
 
     // time filter is removed from the query
@@ -62,9 +62,9 @@ public class QueryRequestToPromqlConverterTest {
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
-    PromqlQuery promqlQuery =
+    PromQLInstantQuery promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
-            .toPromql(
+            .convertToPromqlInstantQuery(
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
 
     // time filter is removed from the query
@@ -89,9 +89,9 @@ public class QueryRequestToPromqlConverterTest {
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
-    PromqlQuery promqlQuery =
+    PromQLRangeQuery promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
-            .toPromql(
+            .convertToPromqlRangeQuery(
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
 
     // time filter is removed from the query
@@ -102,7 +102,7 @@ public class QueryRequestToPromqlConverterTest {
 
     Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
     Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
-    Assertions.assertEquals(15000, promqlQuery.getStepMs());
+    Assertions.assertEquals(15000, promqlQuery.getStep().toMillis());
   }
 
   private QueryRequest buildMultipleGroupByMultipleAggQuery() {

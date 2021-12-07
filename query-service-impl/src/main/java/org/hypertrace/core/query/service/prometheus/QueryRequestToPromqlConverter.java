@@ -5,6 +5,7 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_MAX;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_MIN;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_SUM;
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression;
 
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
@@ -21,15 +22,12 @@ import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.prometheus.PrometheusViewDefinition.MetricConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class QueryRequestToPromqlConverter {
-
-  private static final Logger LOG = LoggerFactory.getLogger(QueryRequestToPromqlConverter.class);
 
   private final PrometheusViewDefinition prometheusViewDefinition;
 
@@ -37,50 +35,75 @@ class QueryRequestToPromqlConverter {
     this.prometheusViewDefinition = prometheusViewDefinition;
   }
 
-  PromqlQuery toPromql(
+  PromQLInstantQuery convertToPromqlInstantQuery(
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
-    String groupByList = getGroupByList(request);
-
-    List<String> filterList = new ArrayList<>();
-    convertFilter2String(request.getFilter(), filterList);
 
     QueryTimeRange queryTimeRange =
         executionContext
             .getQueryTimeRange()
             .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
 
-    // iterate over all the functions in the query except for date time function (which is handled
-    // separately and not a part of the query string)
-    List<String> queries =
-        allSelections.stream()
-            .filter(
-                expression ->
-                    expression.getValueCase().equals(ValueCase.FUNCTION)
-                        && !QueryRequestUtil.isDateTimeFunction(expression))
-            .map(
-                functionExpression -> {
-                  String functionName = getFunctionName(functionExpression);
-                  MetricConfig metricConfig = getMetricConfigForFunction(functionExpression);
-                  return buildQuery(
-                      metricConfig.getName(),
-                      functionName,
-                      groupByList,
-                      String.join(", ", filterList),
-                      queryTimeRange.getDuration().toMillis());
-                })
-            .collect(Collectors.toUnmodifiableList());
-
-    return new PromqlQuery(
-        queries,
-        executionContext.getTimeSeriesPeriod().isEmpty(),
-        queryTimeRange.getStartTime(),
-        queryTimeRange.getEndTime(),
-        getStep(executionContext));
+    return new PromQLInstantQuery(
+        buildPromqlQueries(request, allSelections, queryTimeRange), queryTimeRange.getEndTime());
   }
 
-  private String getGroupByList(QueryRequest queryRequest) {
+  PromQLRangeQuery convertToPromqlRangeQuery(
+      ExecutionContext executionContext,
+      QueryRequest request,
+      LinkedHashSet<Expression> allSelections) {
+
+    QueryTimeRange queryTimeRange =
+        executionContext
+            .getQueryTimeRange()
+            .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
+
+    return new PromQLRangeQuery(
+        buildPromqlQueries(request, allSelections, queryTimeRange),
+        queryTimeRange.getStartTime(),
+        queryTimeRange.getEndTime(),
+        getTimeSeriesPeriod(executionContext));
+  }
+
+  private List<String> buildPromqlQueries(
+      QueryRequest request,
+      LinkedHashSet<Expression> allSelections,
+      QueryTimeRange queryTimeRange) {
+    List<String> groupByList = getGroupByList(request);
+
+    List<String> filterList = new ArrayList<>();
+    convertFilterToString(request.getFilter(), filterList);
+
+    // iterate over all the functions in the query except for date time function (which is handled
+    // separately and not a part of the query string)
+    return allSelections.stream()
+        .filter(
+            expression ->
+                expression.getValueCase().equals(ValueCase.FUNCTION)
+                    && !QueryRequestUtil.isDateTimeFunction(expression))
+        .map(
+            functionExpression ->
+                mapToPromqlQuery(functionExpression, groupByList, filterList, queryTimeRange))
+        .collect(Collectors.toUnmodifiableList());
+  }
+
+  private String mapToPromqlQuery(
+      Expression functionExpression,
+      List<String> groupByList,
+      List<String> filterList,
+      QueryTimeRange queryTimeRange) {
+    String functionName = getFunctionName(functionExpression);
+    MetricConfig metricConfig = getMetricConfigForFunction(functionExpression);
+    return buildQuery(
+        metricConfig.getName(),
+        functionName,
+        String.join(", ", groupByList),
+        String.join(", ", filterList),
+        queryTimeRange.getDuration().toMillis());
+  }
+
+  private List<String> getGroupByList(QueryRequest queryRequest) {
     List<String> groupByList = Lists.newArrayList();
     if (queryRequest.getGroupByCount() > 0) {
       for (Expression expression : queryRequest.getGroupByList()) {
@@ -88,14 +111,14 @@ class QueryRequestToPromqlConverter {
         if (QueryRequestUtil.isDateTimeFunction(expression)) {
           continue;
         }
-        groupByList.add(convertColumnAttribute2String(expression));
+        groupByList.add(convertColumnAttributeToString(expression));
       }
     }
-    return String.join(", ", groupByList);
+    return groupByList;
   }
 
-  private long getStep(ExecutionContext executionContext) {
-    return executionContext.getTimeSeriesPeriod().map(Duration::toMillis).orElse(-1L);
+  private Duration getTimeSeriesPeriod(ExecutionContext executionContext) {
+    return executionContext.getTimeSeriesPeriod().get();
   }
 
   private String buildQuery(
@@ -133,21 +156,13 @@ class QueryRequestToPromqlConverter {
 
   private MetricConfig getMetricConfigForFunction(Expression functionSelection) {
     return prometheusViewDefinition.getMetricConfig(
-        getLogicalColumnName(functionSelection.getFunction().getArgumentsList().get(0)));
+        getLogicalColumnNameForSimpleColumnExpression(
+            functionSelection.getFunction().getArgumentsList().get(0)));
   }
 
-  private String convertColumnAttribute2String(Expression expression) {
-    return prometheusViewDefinition.getPhysicalColumnName(getLogicalColumnName(expression));
-  }
-
-  private String getLogicalColumnName(Expression expression) {
-    String logicalColumnName;
-    if (expression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
-      logicalColumnName = expression.getColumnIdentifier().getColumnName();
-    } else {
-      logicalColumnName = expression.getAttributeExpression().getAttributeId();
-    }
-    return logicalColumnName;
+  private String convertColumnAttributeToString(Expression expression) {
+    return prometheusViewDefinition.getPhysicalColumnName(
+        getLogicalColumnNameForSimpleColumnExpression(expression));
   }
 
   /**
@@ -155,34 +170,37 @@ class QueryRequestToPromqlConverter {
    *
    * <p>rhs of leaf filter should be literal
    */
-  private void convertFilter2String(Filter filter, List<String> filterList) {
+  private void convertFilterToString(Filter filter, List<String> filterList) {
     if (filter.getChildFilterCount() > 0) {
       for (Filter childFilter : filter.getChildFilterList()) {
-        convertFilter2String(childFilter, filterList);
+        convertFilterToString(childFilter, filterList);
       }
     } else {
       if (QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())
-          && QueryRequestUtil.isTimeColumn(getLogicalColumnName(filter.getLhs()))) {
+          && QueryRequestUtil.isTimeColumn(
+              getLogicalColumnNameForSimpleColumnExpression(filter.getLhs()))) {
         return;
       }
       StringBuilder builder = new StringBuilder();
-      builder.append(convertColumnAttribute2String(filter.getLhs()));
-      switch (filter.getOperator()) {
-        case IN:
-        case EQ:
-          builder.append("=");
-          break;
-        case NEQ:
-          builder.append("!=");
-          break;
-        case LIKE:
-          builder.append("=~");
-          break;
-        default:
-          // throw exception
-      }
+      builder.append(convertColumnAttributeToString(filter.getLhs()));
+      builder.append(convertOperatorToString(filter.getOperator()));
       builder.append(convertLiteralToString(filter.getRhs().getLiteral()));
       filterList.add(builder.toString());
+    }
+  }
+
+  private String convertOperatorToString(Operator operator) {
+    switch (operator) {
+      case IN:
+      case EQ:
+        return "=";
+      case NEQ:
+        return "!=";
+      case LIKE:
+        return "=~";
+      default:
+        throw new RuntimeException(
+            String.format("Equivalent operator %s not supported in promql", operator));
     }
   }
 

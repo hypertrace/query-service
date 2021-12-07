@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -218,7 +219,11 @@ public class ExecutionContext {
             .findFirst();
 
     if (timeRangeStart.isPresent() && timeRangeEnd.isPresent()) {
-      return Optional.of(new QueryTimeRange(timeRangeEnd.get(), timeRangeStart.get()));
+      return Optional.of(
+          new QueryTimeRange(
+              Instant.ofEpochMilli(timeRangeStart.get()),
+              Instant.ofEpochMilli(timeRangeEnd.get()),
+              Duration.ofMillis(timeRangeEnd.get() - timeRangeStart.get())));
     }
 
     return filter.getChildFilterList().stream()
