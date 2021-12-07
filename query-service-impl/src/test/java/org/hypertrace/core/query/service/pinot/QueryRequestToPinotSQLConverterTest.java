@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.pinot;
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
@@ -546,13 +547,8 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithContainsKeyOperator() {
     Builder builder = QueryRequest.newBuilder();
-    Expression spanTag = createColumnExpression("Span.tags").build();
-    builder.addSelection(spanTag);
-
-    Expression tag = createStringArrayLiteralValueExpression(List.of("FLAGS", "0"));
-    Filter likeFilter =
-        Filter.newBuilder().setOperator(Operator.CONTAINS_KEY).setLhs(spanTag).setRhs(tag).build();
-    builder.setFilter(likeFilter);
+    builder.addSelection(createColumnExpression("Span.tags"));
+    builder.setFilter(createContainsKeyFilter("Span.tags", List.of("FLAGS")));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();

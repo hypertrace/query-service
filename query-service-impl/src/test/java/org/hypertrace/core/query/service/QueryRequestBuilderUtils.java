@@ -101,6 +101,11 @@ public class QueryRequestBuilderUtils {
     return Filter.newBuilder().setOperator(operator).addAllChildFilter(Arrays.asList(childFilters));
   }
 
+  public static Filter createContainsKeyFilter(String column, List<String> values) {
+    return createFilter(
+        column, Operator.CONTAINS_KEY, createStringArrayLiteralValueExpression(values));
+  }
+
   public static Filter createInFilter(String column, List<String> values) {
     return createFilter(column, Operator.IN, createStringArrayLiteralValueExpression(values));
   }

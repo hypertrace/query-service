@@ -15,6 +15,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createA
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
@@ -81,31 +82,21 @@ class ProjectionTransformationTest {
   void transQueryWithComplexAttributeExpressionFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
 
-    Filter childFilter =
+    Filter filter =
         Filter.newBuilder()
             .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
             .setOperator(Operator.EQ)
             .setRhs(createColumnExpression("server"))
             .build();
-
-    Filter andFilter =
-        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(childFilter).build();
-
-    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(andFilter).build();
-
-    Filter expectedFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEY)
-            .setLhs(createColumnExpression("Span.tags"))
-            .setRhs(createColumnExpression("span.kind"))
-            .build();
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
 
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .setFilter(
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
-                    .addAllChildFilter(List.of(andFilter, expectedFilter))
+                    .addAllChildFilter(
+                        List.of(filter, createContainsKeyFilter("Span.tags", List.of("span.kind"))))
                     .build())
             .build();
 
@@ -121,47 +112,36 @@ class ProjectionTransformationTest {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
     this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
 
-    Filter subChildFilter =
+    Filter childFilter1 =
         Filter.newBuilder()
             .setLhs(createComplexAttributeExpression("Span.tags", "FLAGS"))
             .setOperator(Operator.EQ)
             .setRhs(createColumnExpression("0"))
             .build();
-
-    Filter childFilter =
+    Filter childFilter2 =
         Filter.newBuilder()
             .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
             .setOperator(Operator.EQ)
             .setRhs(createColumnExpression("server"))
-            .addChildFilter(subChildFilter)
             .build();
-
-    Filter andFilter =
-        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(childFilter).build();
-
-    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(andFilter).build();
-
-    Filter expectedFilter1 =
-        Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEY)
-            .setLhs(createColumnExpression("Span.tags"))
-            .setRhs(createColumnExpression("span.kind"))
-            .build();
-
-    Filter expectedFilter2 =
-        Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEY)
-            .setLhs(createColumnExpression("Span.tags"))
-            .setRhs(createColumnExpression("FLAGS"))
-            .build();
+    Filter.Builder filter = createCompositeFilter(Operator.AND, childFilter1, childFilter2);
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
 
     QueryRequest expectedTransform =
         this.projectionTransformation
             .transform(originalRequest, mockTransformationContext)
             .blockingGet();
 
-    assertTrue(expectedTransform.getFilter().getChildFilterList().contains(expectedFilter1));
-    assertTrue(expectedTransform.getFilter().getChildFilterList().contains(expectedFilter2));
+    assertTrue(
+        expectedTransform
+            .getFilter()
+            .getChildFilterList()
+            .contains(createContainsKeyFilter("Span.tags", List.of("FLAGS"))));
+    assertTrue(
+        expectedTransform
+            .getFilter()
+            .getChildFilterList()
+            .contains(createContainsKeyFilter("Span.tags", List.of("span.kind"))));
   }
 
   @Test
@@ -169,27 +149,17 @@ class ProjectionTransformationTest {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
     Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
 
-    Filter childFilter =
+    Filter filter =
         Filter.newBuilder()
-            .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
+            .setLhs(spanTag)
             .setOperator(Operator.EQ)
             .setRhs(createColumnExpression("server"))
             .build();
 
-    Filter andFilter =
-        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(childFilter).build();
-
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .setFilter(andFilter)
+            .setFilter(filter)
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
-            .build();
-
-    Filter expectedFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEY)
-            .setLhs(createColumnExpression("Span.tags"))
-            .setRhs(createColumnExpression("span.kind"))
             .build();
 
     QueryRequest expectedTransform =
@@ -197,7 +167,8 @@ class ProjectionTransformationTest {
             .setFilter(
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
-                    .addAllChildFilter(List.of(andFilter, expectedFilter))
+                    .addAllChildFilter(
+                        List.of(filter, createContainsKeyFilter("Span.tags", List.of("span.kind"))))
                     .build())
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
             .build();
@@ -217,19 +188,12 @@ class ProjectionTransformationTest {
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
             .build();
 
-    Filter expectedFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEY)
-            .setLhs(createColumnExpression("Span.tags"))
-            .setRhs(createColumnExpression("span.kind"))
-            .build();
-
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .setFilter(
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
-                    .addChildFilter(expectedFilter)
+                    .addChildFilter(createContainsKeyFilter("Span.tags", List.of("span.kind")))
                     .build())
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
             .build();

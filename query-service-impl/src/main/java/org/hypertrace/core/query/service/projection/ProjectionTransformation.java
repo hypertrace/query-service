@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.projection;
 import static io.reactivex.rxjava3.core.Single.zip;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createBooleanLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createDoubleLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createLongLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
@@ -386,11 +387,9 @@ final class ProjectionTransformation implements QueryTransformation {
     attributeExpressionSet.forEach(
         attributeExpression ->
             childFilterList.add(
-                Filter.newBuilder()
-                    .setOperator(Operator.CONTAINS_KEY)
-                    .setLhs(createColumnExpression(attributeExpression.getAttributeId()))
-                    .setRhs(createColumnExpression(attributeExpression.getSubpath()))
-                    .build()));
+                createContainsKeyFilter(
+                    attributeExpression.getAttributeId(),
+                    List.of(attributeExpression.getSubpath()))));
 
     return Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(childFilterList).build();
   }
