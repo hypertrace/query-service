@@ -11,7 +11,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 /** Prometheus metric & attribute mapping for a pinot view */
-public class PrometheusViewDefinition {
+class PrometheusViewDefinition {
 
   private static final String VIEW_NAME_CONFIG_KEY = "viewName";
   private static final String ATTRIBUTE_MAP_CONFIG_KEY = "attributeMap";
