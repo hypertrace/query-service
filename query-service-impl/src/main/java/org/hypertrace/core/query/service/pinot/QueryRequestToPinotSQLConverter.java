@@ -146,9 +146,7 @@ class QueryRequestToPinotSQLConverter {
 
         builder.append(
             String.format(
-                "%s = %s AND %s(%s,%s,%s) %s %s",
-                keyCol,
-                convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder),
+                "%s(%s,%s,%s) %s %s",
                 MAP_VALUE,
                 keyCol,
                 convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder),

@@ -2,11 +2,13 @@ package org.hypertrace.core.query.service.pinot;
 
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpressionWithSimpleAttribute;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelectionWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createSimpleAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilterWithSimpleAttribute;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,6 +18,7 @@ import static org.mockito.Mockito.when;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
@@ -291,13 +294,28 @@ public class MigrationTest {
     Expression spanTag = createComplexAttributeExpression("Span.tags", "FLAGS").build();
     builder.addSelection(spanTag);
 
+    Filter containsKeyFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEY)
+            .setLhs(createColumnExpression("Span.tags"))
+            .setRhs(createStringArrayLiteralValueExpression(List.of("FLAGS", "0")))
+            .build();
+
     Filter equalFilter =
         Filter.newBuilder()
             .setOperator(Operator.EQ)
             .setLhs(spanTag)
             .setRhs(createStringLiteralValueExpression("0"))
             .build();
-    builder.setFilter(equalFilter);
+
+    Filter filter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(containsKeyFilter)
+            .addChildFilter(equalFilter)
+            .build();
+
+    builder.setFilter(filter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
@@ -310,7 +328,7 @@ public class MigrationTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags__keys = 'flags' and mapvalue(tags__keys,'flags',tags__values) = '0'",
+            + "AND ( tags__keys = 'flags' and mapvalue(tags__keys,'flags',tags__values) = '0' )",
         viewDefinition,
         executionContext);
   }
@@ -321,13 +339,28 @@ public class MigrationTest {
     Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
     builder.addSelection(spanKind);
 
+    Filter containsKeyFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEY)
+            .setLhs(createColumnExpression("Span.tags"))
+            .setRhs(createStringArrayLiteralValueExpression(List.of("span.kind", "server")))
+            .build();
+
     Filter greaterThanFilter =
         Filter.newBuilder()
             .setOperator(Operator.GT)
             .setLhs(spanKind)
             .setRhs(createStringLiteralValueExpression("client"))
             .build();
-    builder.setFilter(greaterThanFilter);
+
+    Filter filter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(containsKeyFilter)
+            .addChildFilter(greaterThanFilter)
+            .build();
+
+    builder.setFilter(filter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
@@ -340,7 +373,7 @@ public class MigrationTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) > 'client'",
+            + "AND ( tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) > 'client' )",
         viewDefinition,
         executionContext);
   }
@@ -351,13 +384,28 @@ public class MigrationTest {
     Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
     builder.addSelection(spanKind);
 
+    Filter containsKeyFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEY)
+            .setLhs(createColumnExpression("Span.tags"))
+            .setRhs(createStringArrayLiteralValueExpression(List.of("span.kind", "server")))
+            .build();
+
     Filter greaterThanOrEqualToFilter =
         Filter.newBuilder()
             .setOperator(Operator.GE)
             .setLhs(spanKind)
             .setRhs(createStringLiteralValueExpression("client"))
             .build();
-    builder.setFilter(greaterThanOrEqualToFilter);
+
+    Filter filter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(containsKeyFilter)
+            .addChildFilter(greaterThanOrEqualToFilter)
+            .build();
+
+    builder.setFilter(filter);
     builder.addOrderBy(createOrderByExpression(spanKind.toBuilder(), SortOrder.DESC));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
@@ -371,7 +419,7 @@ public class MigrationTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) >= 'client' "
+            + "AND ( tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) >= 'client' ) "
             + "order by mapvalue(tags__KEYS,'span.kind',tags__VALUES) "
             + "DESC ",
         viewDefinition,
@@ -412,12 +460,19 @@ public class MigrationTest {
             .setOperator(Operator.NEQ)
             .setRhs(createStringLiteralValueExpression(""))
             .build();
+    Filter containsKeyFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEY)
+            .setLhs(createColumnExpression("Span.tags"))
+            .setRhs(createStringArrayLiteralValueExpression(List.of("span.kind", "server")))
+            .build();
 
     Filter andFilter =
         Filter.newBuilder()
             .setOperator(Operator.AND)
             .addChildFilter(startTimeFilter)
             .addChildFilter(endTimeFilter)
+            .addChildFilter(containsKeyFilter)
             .addChildFilter(neqFilter)
             .build();
     builder.setFilter(andFilter);
