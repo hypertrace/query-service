@@ -25,6 +25,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createS
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import io.reactivex.rxjava3.core.Single;
@@ -106,6 +107,99 @@ class ProjectionTransformationTest {
                     .setOperator(Operator.AND)
                     .addAllChildFilter(List.of(andFilter, expectedFilter))
                     .build())
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void transQueryWithMultipleComplexAttributeExpressionFilter() {
+    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
+
+    Filter subChildFilter =
+        Filter.newBuilder()
+            .setLhs(createComplexAttributeExpression("Span.tags", "FLAGS"))
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("0"))
+            .build();
+
+    Filter childFilter =
+        Filter.newBuilder()
+            .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("server"))
+            .addChildFilter(subChildFilter)
+            .build();
+
+    Filter andFilter =
+        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(childFilter).build();
+
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(andFilter).build();
+
+    Filter expectedFilter1 =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEY)
+            .setLhs(createColumnExpression("Span.tags"))
+            .setRhs(createColumnExpression("span.kind"))
+            .build();
+
+    Filter expectedFilter2 =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEY)
+            .setLhs(createColumnExpression("Span.tags"))
+            .setRhs(createColumnExpression("FLAGS"))
+            .build();
+
+    QueryRequest expectedTransform =
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet();
+
+    assertTrue(expectedTransform.getFilter().getChildFilterList().contains(expectedFilter1));
+    assertTrue(expectedTransform.getFilter().getChildFilterList().contains(expectedFilter2));
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpressionOrderByAndFilter() {
+    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+    Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
+
+    Filter childFilter =
+        Filter.newBuilder()
+            .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("server"))
+            .build();
+
+    Filter andFilter =
+        Filter.newBuilder().setOperator(Operator.AND).addChildFilter(childFilter).build();
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .setFilter(andFilter)
+            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
+            .build();
+
+    Filter expectedFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEY)
+            .setLhs(createColumnExpression("Span.tags"))
+            .setRhs(createColumnExpression("span.kind"))
+            .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addAllChildFilter(List.of(andFilter, expectedFilter))
+                    .build())
+            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
             .build();
 
     assertEquals(
