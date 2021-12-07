@@ -77,10 +77,6 @@ public class QueryRequestUtil {
         && expression.getFunction().getFunctionName().equals("dateTimeConvert");
   }
 
-  public static boolean isTimeColumn(String columnName) {
-    return columnName.contains("startTime") || columnName.contains("endTime");
-  }
-
   public static boolean isComplexAttribute(Expression expression) {
     return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
         && expression.getAttributeExpression().hasSubpath();

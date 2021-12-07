@@ -280,4 +280,8 @@ public class ExecutionContext {
   public Optional<QueryTimeRange> getQueryTimeRange() {
     return queryTimeRangeSupplier.get();
   }
+
+  public String getTimeFilterColumn() {
+    return timeFilterColumn;
+  }
 }

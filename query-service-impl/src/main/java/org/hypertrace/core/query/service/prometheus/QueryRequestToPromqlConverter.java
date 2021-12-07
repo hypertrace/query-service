@@ -43,7 +43,9 @@ class QueryRequestToPromqlConverter {
             .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
 
     return new PromQLInstantQuery(
-        buildPromqlQueries(request, allSelections, queryTimeRange), queryTimeRange.getEndTime());
+        buildPromqlQueries(
+            request, allSelections, queryTimeRange, executionContext.getTimeFilterColumn()),
+        queryTimeRange.getEndTime());
   }
 
   PromQLRangeQuery convertToPromqlRangeQuery(
@@ -57,7 +59,8 @@ class QueryRequestToPromqlConverter {
             .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
 
     return new PromQLRangeQuery(
-        buildPromqlQueries(request, allSelections, queryTimeRange),
+        buildPromqlQueries(
+            request, allSelections, queryTimeRange, executionContext.getTimeFilterColumn()),
         queryTimeRange.getStartTime(),
         queryTimeRange.getEndTime(),
         getTimeSeriesPeriod(executionContext));
@@ -66,11 +69,12 @@ class QueryRequestToPromqlConverter {
   private List<String> buildPromqlQueries(
       QueryRequest request,
       LinkedHashSet<Expression> allSelections,
-      QueryTimeRange queryTimeRange) {
+      QueryTimeRange queryTimeRange,
+      String timeFilterColumn) {
     List<String> groupByList = getGroupByList(request);
 
     List<String> filterList = new ArrayList<>();
-    convertFilterToString(request.getFilter(), filterList);
+    convertFilterToString(request.getFilter(), filterList, timeFilterColumn);
 
     // iterate over all the functions in the query except for date time function (which is handled
     // separately and not a part of the query string)
@@ -151,14 +155,15 @@ class QueryRequestToPromqlConverter {
    *
    * <p>rhs of leaf filter should be literal
    */
-  private void convertFilterToString(Filter filter, List<String> filterList) {
+  private void convertFilterToString(
+      Filter filter, List<String> filterList, String timeFilterColumn) {
     if (filter.getChildFilterCount() > 0) {
       for (Filter childFilter : filter.getChildFilterList()) {
-        convertFilterToString(childFilter, filterList);
+        convertFilterToString(childFilter, filterList, timeFilterColumn);
       }
     } else {
       if (QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())
-          && QueryRequestUtil.isTimeColumn(
+          && timeFilterColumn.equals(
               getLogicalColumnNameForSimpleColumnExpression(filter.getLhs()))) {
         return;
       }

@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 /** Prometheus metric & attribute mapping for a pinot view */
 class PrometheusViewDefinition {
@@ -86,22 +88,11 @@ class PrometheusViewDefinition {
     return tenantColumnName;
   }
 
+  @Getter
+  @AllArgsConstructor
   public static class MetricConfig {
     private final String name;
     private final MetricType metricType;
-
-    public MetricConfig(String name, MetricType metricType) {
-      this.name = name;
-      this.metricType = metricType;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public MetricType getMetricType() {
-      return metricType;
-    }
   }
 
   public enum MetricType {

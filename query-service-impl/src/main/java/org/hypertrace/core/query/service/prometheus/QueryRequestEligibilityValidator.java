@@ -41,9 +41,10 @@ class QueryRequestEligibilityValidator {
 
       Set<String> referencedColumns = executionContext.getReferencedColumns();
       Preconditions.checkArgument(!referencedColumns.isEmpty());
+      String timeFilterColumn = executionContext.getTimeFilterColumn();
       // all the columns in the request should have a mapping in the config
       for (String referencedColumn : referencedColumns) {
-        if (!QueryRequestUtil.isTimeColumn(referencedColumn)
+        if (!timeFilterColumn.equals(referencedColumn)
             && prometheusViewDefinition.getPhysicalColumnName(referencedColumn) == null
             && prometheusViewDefinition.getMetricConfig(referencedColumn) == null) {
           return QueryCost.UNSUPPORTED;
