@@ -379,7 +379,9 @@ final class ProjectionTransformation implements QueryTransformation {
     }
 
     List<Filter> childFilterList = new ArrayList<>();
-    childFilterList.add(filter);
+    if (!filter.equals(Filter.getDefaultInstance())) {
+      childFilterList.add(filter);
+    }
 
     attributeExpressionSet.forEach(
         attributeExpression ->
