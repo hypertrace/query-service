@@ -359,21 +359,16 @@ final class ProjectionTransformation implements QueryTransformation {
 
   private Stream<AttributeExpression> findComplexAttributeExpressionFromFilter(Filter filter) {
     Stream.Builder<AttributeExpression> builder = Stream.builder();
-    findComplexAttributeExpressionFromFilter(filter, builder);
-    return builder.build();
-  }
-
-  private void findComplexAttributeExpressionFromFilter(
-      Filter filter, Stream.Builder<AttributeExpression> builder) {
 
     for (Filter childFilter : filter.getChildFilterList()) {
-      findComplexAttributeExpressionFromFilter(childFilter, builder);
+      findComplexAttributeExpressionFromFilter(childFilter).forEach(builder::add);
     }
 
     if (filter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
         && filter.getLhs().getAttributeExpression().hasSubpath()) {
       builder.add(filter.getLhs().getAttributeExpression());
     }
+    return builder.build();
   }
 
   private Filter createFilterForComplexAttributeExpression(
