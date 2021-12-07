@@ -332,51 +332,51 @@ final class ProjectionTransformation implements QueryTransformation {
 
     Set<AttributeExpression> attributeExpressionSet =
         Stream.concat(
-                findAttributeExpressionFromOrderBy(orderBys).stream(),
-                findAttributeExpressionFromFilter(filter).stream())
+                findComplexAttributeExpressionFromOrderBy(orderBys),
+                findComplexAttributeExpressionFromFilter(filter))
             .collect(Collectors.toSet());
 
     return rebuildRequestOmittingDefaults(
         original,
         selections,
         aggregations,
-        updateFilterForAttributeExpression(attributeExpressionSet, filter),
+        createFilterForComplexAttributeExpression(attributeExpressionSet, filter),
         groupBys,
         orderBys);
   }
 
-  private List<AttributeExpression> findAttributeExpressionFromOrderBy(
+  private Stream<AttributeExpression> findComplexAttributeExpressionFromOrderBy(
       List<OrderByExpression> orderByExpressionList) {
-    List<AttributeExpression> attributeExpressionList = new ArrayList<>();
+    Stream.Builder<AttributeExpression> builder = Stream.builder();
     for (OrderByExpression orderByExpression : orderByExpressionList) {
       if (orderByExpression.getExpression().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
           && orderByExpression.getExpression().getAttributeExpression().hasSubpath()) {
-        attributeExpressionList.add(orderByExpression.getExpression().getAttributeExpression());
+        builder.add(orderByExpression.getExpression().getAttributeExpression());
       }
     }
-    return attributeExpressionList;
+    return builder.build();
   }
 
-  private List<AttributeExpression> findAttributeExpressionFromFilter(Filter filter) {
-    List<AttributeExpression> attributeExpressionList = new ArrayList<>();
-    findAttributeExpressionFromFilter(filter, attributeExpressionList);
-    return attributeExpressionList;
+  private Stream<AttributeExpression> findComplexAttributeExpressionFromFilter(Filter filter) {
+    Stream.Builder<AttributeExpression> builder = Stream.builder();
+    findComplexAttributeExpressionFromFilter(filter, builder);
+    return builder.build();
   }
 
-  private void findAttributeExpressionFromFilter(
-      Filter filter, List<AttributeExpression> attributeExpressionList) {
+  private void findComplexAttributeExpressionFromFilter(
+      Filter filter, Stream.Builder<AttributeExpression> builder) {
 
     for (Filter childFilter : filter.getChildFilterList()) {
-      findAttributeExpressionFromFilter(childFilter, attributeExpressionList);
+      findComplexAttributeExpressionFromFilter(childFilter, builder);
     }
 
     if (filter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
         && filter.getLhs().getAttributeExpression().hasSubpath()) {
-      attributeExpressionList.add(filter.getLhs().getAttributeExpression());
+      builder.add(filter.getLhs().getAttributeExpression());
     }
   }
 
-  private Filter updateFilterForAttributeExpression(
+  private Filter createFilterForComplexAttributeExpression(
       Set<AttributeExpression> attributeExpressionSet, Filter filter) {
 
     if (attributeExpressionSet.isEmpty()) {
@@ -390,8 +390,8 @@ final class ProjectionTransformation implements QueryTransformation {
         attributeExpression ->
             childFilterList.add(
                 Filter.newBuilder()
-                    .setOperator(Operator.EQ)
-                    .setLhs(createColumnExpression("tags__KEYS"))
+                    .setOperator(Operator.CONTAINS_KEY)
+                    .setLhs(createColumnExpression(attributeExpression.getAttributeId()))
                     .setRhs(createColumnExpression(attributeExpression.getSubpath()))
                     .build()));
 

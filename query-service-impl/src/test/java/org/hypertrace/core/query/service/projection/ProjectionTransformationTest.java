@@ -93,8 +93,8 @@ class ProjectionTransformationTest {
 
     Filter expectedFilter =
         Filter.newBuilder()
-            .setOperator(Operator.EQ)
-            .setLhs(createColumnExpression("tags__KEYS"))
+            .setOperator(Operator.CONTAINS_KEY)
+            .setLhs(createColumnExpression("Span.tags"))
             .setRhs(createColumnExpression("span.kind"))
             .build();
 
