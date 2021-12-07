@@ -153,13 +153,13 @@ class QueryRequestToPinotSQLConverter {
           builder.append(")");
           break;
         case CONTAINS_KEY:
-          LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
+          LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs());
           builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
           builder.append(" = ");
           builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
           break;
         case CONTAINS_KEYVALUE:
-          kvp = convertExpressionToMapLiterals(filter.getRhs(), filter.getLhs());
+          kvp = convertExpressionToMapLiterals(filter.getRhs());
           String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
           String valCol = convertExpressionToMapValueColumn(filter.getLhs());
           builder.append(keyCol);
@@ -341,37 +341,33 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
-  private LiteralConstant[] convertExpressionToMapLiterals(Expression rhs, Expression lhs) {
+  private LiteralConstant[] convertExpressionToMapLiterals(Expression expression) {
     LiteralConstant[] literals = new LiteralConstant[2];
-    List<String> literalArguments = new java.util.ArrayList<>(List.of("", ""));
-
-    if (rhs.getValueCase() == LITERAL) {
-      LiteralConstant value = rhs.getLiteral();
-      // backward compatibility
+    if (expression.getValueCase() == LITERAL) {
+      LiteralConstant value = expression.getLiteral();
       if (value.getValue().getValueType() == ValueType.STRING_ARRAY) {
-        literalArguments.set(0, value.getValue().getStringArray(0));
-        if (value.getValue().getStringArrayCount() > 1) {
-          literalArguments.set(1, value.getValue().getStringArray(1));
+        for (int i = 0; i < 2 && i < value.getValue().getStringArrayCount(); i++) {
+          literals[i] =
+              LiteralConstant.newBuilder()
+                  .setValue(
+                      Value.newBuilder().setString(value.getValue().getStringArray(i)).build())
+                  .build();
         }
-      } else if (value.getValue().getValueType() == ValueType.STRING) {
-        literalArguments.set(0, lhs.getAttributeExpression().getSubpath());
-        literalArguments.set(1, value.getValue().getString());
       } else {
         throw new IllegalArgumentException(
             "operator CONTAINS_KEYVALUE supports "
                 + ValueType.STRING_ARRAY.name()
-                + " and "
-                + ValueType.STRING.name()
                 + " value type only");
       }
     }
 
-    for (int i = 0; i < 2; i++) {
-      literals[i] =
-          LiteralConstant.newBuilder()
-              .setValue(Value.newBuilder().setString(literalArguments.get(i)).build())
-              .build();
+    for (int i = 0; i < literals.length; i++) {
+      if (literals[i] == null) {
+        literals[i] =
+            LiteralConstant.newBuilder().setValue(Value.newBuilder().setString("").build()).build();
+      }
     }
+
     return literals;
   }
 
