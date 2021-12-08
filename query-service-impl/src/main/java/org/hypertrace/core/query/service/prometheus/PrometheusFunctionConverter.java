@@ -35,7 +35,7 @@ class PrometheusFunctionConverter {
       default:
         throw new RuntimeException(
             String.format(
-                "Couldn't map query function %s to prometheus function", queryFunctionName));
+                "Couldn't map query function [%s] to prometheus function", queryFunctionName));
     }
   }
 }

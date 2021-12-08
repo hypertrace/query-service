@@ -179,7 +179,7 @@ class QueryRequestToPromqlConverter {
         return "=~";
       default:
         throw new RuntimeException(
-            String.format("Equivalent operator %s not supported in promql", operator));
+            String.format("Equivalent %s operator not supported in promql", operator));
     }
   }
 
