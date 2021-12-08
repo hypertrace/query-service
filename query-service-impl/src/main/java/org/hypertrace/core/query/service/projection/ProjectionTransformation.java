@@ -13,12 +13,9 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLit
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 import org.hypertrace.core.attribute.service.projection.AttributeProjection;
@@ -31,7 +28,6 @@ import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
 import org.hypertrace.core.query.service.QueryTransformation;
-import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
@@ -331,77 +327,8 @@ final class ProjectionTransformation implements QueryTransformation {
       List<Expression> groupBys,
       List<OrderByExpression> orderBys) {
 
-    Set<AttributeExpression> attributeExpressionSet =
-        Stream.concat(
-                findComplexAttributeExpressionFromOrderBy(orderBys),
-                findComplexAttributeExpressionFromFilter(filter))
-            .collect(Collectors.toSet());
-
-    return rebuildRequestOmittingDefaults(
-        original,
-        selections,
-        aggregations,
-        createFilterForComplexAttributeExpression(attributeExpressionSet, filter),
-        groupBys,
-        orderBys);
-  }
-
-  private Stream<AttributeExpression> findComplexAttributeExpressionFromOrderBy(
-      List<OrderByExpression> orderByExpressionList) {
-    Stream.Builder<AttributeExpression> builder = Stream.builder();
-    for (OrderByExpression orderByExpression : orderByExpressionList) {
-      if (orderByExpression.getExpression().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
-          && orderByExpression.getExpression().getAttributeExpression().hasSubpath()) {
-        builder.add(orderByExpression.getExpression().getAttributeExpression());
-      }
-    }
-    return builder.build();
-  }
-
-  private Stream<AttributeExpression> findComplexAttributeExpressionFromFilter(Filter filter) {
-    Stream.Builder<AttributeExpression> builder = Stream.builder();
-
-    for (Filter childFilter : filter.getChildFilterList()) {
-      findComplexAttributeExpressionFromFilter(childFilter).forEach(builder::add);
-    }
-
-    if (filter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
-        && filter.getLhs().getAttributeExpression().hasSubpath()) {
-      builder.add(filter.getLhs().getAttributeExpression());
-    }
-    return builder.build();
-  }
-
-  private Filter createFilterForComplexAttributeExpression(
-      Set<AttributeExpression> attributeExpressionSet, Filter filter) {
-
-    if (attributeExpressionSet.isEmpty()) {
-      return filter;
-    }
-
-    List<Filter> childFilterList = new ArrayList<>();
-    if (!filter.equals(Filter.getDefaultInstance())) {
-      childFilterList.add(filter);
-    }
-
-    attributeExpressionSet.forEach(
-        attributeExpression ->
-            childFilterList.add(
-                createContainsKeyFilter(
-                    attributeExpression.getAttributeId(),
-                    List.of(attributeExpression.getSubpath()))));
-
-    return Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(childFilterList).build();
-  }
-
-  private QueryRequest rebuildRequestOmittingDefaults(
-      QueryRequest original,
-      List<Expression> selections,
-      List<Expression> aggregations,
-      Filter filter,
-      List<Expression> groupBys,
-      List<OrderByExpression> orderBys) {
     QueryRequest.Builder builder = original.toBuilder();
+    filter = updateFilterForComplexAttributeExpression(filter, orderBys);
 
     if (Filter.getDefaultInstance().equals(filter)) {
       builder.clearFilter();
@@ -419,5 +346,82 @@ final class ProjectionTransformation implements QueryTransformation {
         .clearOrderBy()
         .addAllOrderBy(orderBys)
         .build();
+  }
+
+  // We need the CONTAINS_KEY filter in all filters and order bys dealing with complex
+  // attribute expressions as Pinot gives error if particular key is absent. Rest all work fine.
+  private Filter updateFilterForComplexAttributeExpression(
+      Filter filter, List<OrderByExpression> orderBys) {
+
+    Filter filterFromOrderBys = createFilterForComplexAttributeExpressionFromOrderBy(orderBys);
+    filter = updateFilterForComplexAttributeExpressionFromFilter(filter, filterFromOrderBys);
+
+    if (!filter.equals(Filter.getDefaultInstance())
+        && !filterFromOrderBys.equals(Filter.getDefaultInstance())) {
+      return Filter.newBuilder()
+          .setOperator(Operator.AND)
+          .addChildFilter(filter)
+          .addChildFilter(filterFromOrderBys)
+          .build();
+    } else if (!filterFromOrderBys.equals(Filter.getDefaultInstance())) {
+      return filterFromOrderBys;
+    } else {
+      return filter;
+    }
+  }
+
+  private Filter createFilterForComplexAttributeExpressionFromOrderBy(
+      List<OrderByExpression> orderByExpressionList) {
+
+    List<Filter> childFilterList =
+        orderByExpressionList.stream()
+            .filter(
+                orderByExpression ->
+                    orderByExpression.getExpression().getValueCase()
+                            == ValueCase.ATTRIBUTE_EXPRESSION
+                        && orderByExpression.getExpression().getAttributeExpression().hasSubpath())
+            .map(orderByExpression -> orderByExpression.getExpression().getAttributeExpression())
+            .map(
+                attributeExpression ->
+                    createContainsKeyFilter(
+                        attributeExpression.getAttributeId(),
+                        List.of(attributeExpression.getSubpath())))
+            .collect(Collectors.toList());
+
+    return childFilterList.isEmpty()
+        ? Filter.getDefaultInstance()
+        : Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(childFilterList).build();
+  }
+
+  private Filter updateFilterForComplexAttributeExpressionFromFilter(
+      Filter filter, Filter filterFromOrderBys) {
+
+    for (int i = 0; i < filter.getChildFilterCount(); i++) {
+      Filter childFilter =
+          updateFilterForComplexAttributeExpressionFromFilter(
+              filter.getChildFilterList().get(i), filterFromOrderBys);
+      filter.getChildFilterList().set(i, childFilter);
+    }
+
+    if (filter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
+        && filter.getLhs().getAttributeExpression().hasSubpath()) {
+
+      Filter childFilter =
+          createContainsKeyFilter(
+              filter.getLhs().getAttributeExpression().getAttributeId(),
+              List.of(filter.getLhs().getAttributeExpression().getSubpath()));
+
+      if (filterFromOrderBys.getChildFilterCount() > 0
+          && filterFromOrderBys.getChildFilterList().contains(childFilter)) {
+        return filter;
+      }
+
+      return Filter.newBuilder()
+          .setOperator(Operator.AND)
+          .addChildFilter(filter)
+          .addChildFilter(childFilter)
+          .build();
+    }
+    return filter;
   }
 }
