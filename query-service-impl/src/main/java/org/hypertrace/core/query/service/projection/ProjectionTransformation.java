@@ -396,12 +396,17 @@ final class ProjectionTransformation implements QueryTransformation {
   private Filter updateFilterForComplexAttributeExpressionFromFilter(
       Filter filter, Filter filterFromOrderBys) {
 
+    Filter.Builder builder = filter.toBuilder();
+    builder.clearChildFilter();
+
     for (int i = 0; i < filter.getChildFilterCount(); i++) {
       Filter childFilter =
           updateFilterForComplexAttributeExpressionFromFilter(
               filter.getChildFilterList().get(i), filterFromOrderBys);
-      filter.getChildFilterList().set(i, childFilter);
+      builder.addChildFilter(childFilter);
     }
+
+    filter = builder.build();
 
     if (filter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
         && filter.getLhs().getAttributeExpression().hasSubpath()) {

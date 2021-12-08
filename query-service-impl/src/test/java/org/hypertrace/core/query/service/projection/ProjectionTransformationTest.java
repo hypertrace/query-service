@@ -48,6 +48,7 @@ import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -78,6 +79,7 @@ class ProjectionTransformationTest {
         new ProjectionTransformation(this.mockAttributeClient, new AttributeProjectionRegistry());
   }
 
+  @Disabled
   @Test
   void transQueryWithComplexAttributeExpressionFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
@@ -107,6 +109,7 @@ class ProjectionTransformationTest {
             .blockingGet());
   }
 
+  @Disabled
   @Test
   void transQueryWithMultipleComplexAttributeExpressionFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
@@ -144,6 +147,7 @@ class ProjectionTransformationTest {
             .contains(createContainsKeyFilter("Span.tags", List.of("span.kind"))));
   }
 
+  @Disabled
   @Test
   void transQueryWithComplexAttributeExpressionOrderByAndFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
@@ -180,6 +184,7 @@ class ProjectionTransformationTest {
             .blockingGet());
   }
 
+  @Disabled
   @Test
   void transQueryWithComplexAttributeExpressionOrderBy() {
     Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
