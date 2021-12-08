@@ -8,7 +8,6 @@ import lombok.Value;
 @Value
 @AllArgsConstructor
 public class QueryTimeRange {
-
   Instant startTime;
   Instant endTime;
   Duration duration;
