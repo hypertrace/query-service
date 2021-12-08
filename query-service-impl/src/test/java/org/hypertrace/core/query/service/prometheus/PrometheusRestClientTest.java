@@ -39,8 +39,8 @@ public class PrometheusRestClientTest {
   public void testSingleInstantQuery() throws IOException {
     mockWebServer.enqueue(getSuccessMockResponse("promql_error_count_vector.json"));
 
-    PromQLInstantQuery query =
-        PromQLInstantQuery.builder()
+    PromQLInstantQueries query =
+        PromQLInstantQueries.builder()
             .query("errorCount")
             .evalTime(Instant.ofEpochMilli(1435781451000L))
             .build();
@@ -55,12 +55,12 @@ public class PrometheusRestClientTest {
   public void testSingleRangeQuery() throws IOException {
     mockWebServer.enqueue(getSuccessMockResponse("promql_error_count_matrix.json"));
 
-    PromQLRangeQuery query =
-        PromQLRangeQuery.builder()
+    PromQLRangeQueries query =
+        PromQLRangeQueries.builder()
             .query("errorCount")
             .startTime(Instant.ofEpochMilli(1435781430000L))
             .endTime(Instant.ofEpochMilli(1435781460000L))
-            .step(Duration.of(15000, ChronoUnit.MILLIS))
+            .period(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
     Map<Request, PromQLMetricResponse> metricQueryResponses =
@@ -74,8 +74,8 @@ public class PrometheusRestClientTest {
     List<String> files = List.of("promql_error_count_vector.json", "promql_num_call_vector.json");
     files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
 
-    PromQLInstantQuery query =
-        PromQLInstantQuery.builder()
+    PromQLInstantQueries query =
+        PromQLInstantQueries.builder()
             .query("errorCount")
             .query("numCall")
             .evalTime(Instant.ofEpochMilli(1435781451000L))
@@ -92,13 +92,13 @@ public class PrometheusRestClientTest {
     List<String> files = List.of("promql_error_count_matrix.json", "promql_num_call_matrix.json");
     files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
 
-    PromQLRangeQuery query =
-        PromQLRangeQuery.builder()
+    PromQLRangeQueries query =
+        PromQLRangeQueries.builder()
             .query("errorCount")
             .query("numCall")
             .startTime(Instant.ofEpochMilli(1435781430000L))
             .endTime(Instant.ofEpochMilli(1435781460000L))
-            .step(Duration.of(15000, ChronoUnit.MILLIS))
+            .period(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
 
     Map<Request, PromQLMetricResponse> metricQueryResponses =
@@ -113,8 +113,8 @@ public class PrometheusRestClientTest {
     files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
     mockWebServer.enqueue(getFailMockResponse("promql_num_call_vector.json"));
 
-    PromQLInstantQuery query =
-        PromQLInstantQuery.builder()
+    PromQLInstantQueries query =
+        PromQLInstantQueries.builder()
             .query("errorCount")
             .query("numCall")
             .evalTime(Instant.ofEpochMilli(1435781451000L))

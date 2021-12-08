@@ -28,12 +28,12 @@ public class PrometheusRestClient {
     this.port = port;
   }
 
-  public Map<Request, PromQLMetricResponse> executeInstantQuery(PromQLInstantQuery instantQuery) {
+  public Map<Request, PromQLMetricResponse> executeInstantQuery(PromQLInstantQueries instantQuery) {
     List<Request> requests = getInstantQueryRequests(instantQuery);
     return execute(requests);
   }
 
-  public Map<Request, PromQLMetricResponse> executeRangeQuery(PromQLRangeQuery rangeQuery) {
+  public Map<Request, PromQLMetricResponse> executeRangeQuery(PromQLRangeQueries rangeQuery) {
     List<Request> requests = getRangeQueryRequests(rangeQuery);
     return execute(requests);
   }
@@ -74,7 +74,7 @@ public class PrometheusRestClient {
     }
   }
 
-  private List<Request> getInstantQueryRequests(PromQLInstantQuery promQLQuery) {
+  private List<Request> getInstantQueryRequests(PromQLInstantQueries promQLQuery) {
     return promQLQuery.getQueries().stream()
         .map(
             query -> {
@@ -87,7 +87,7 @@ public class PrometheusRestClient {
         .collect(Collectors.toList());
   }
 
-  private List<Request> getRangeQueryRequests(PromQLRangeQuery promQLQuery) {
+  private List<Request> getRangeQueryRequests(PromQLRangeQueries promQLQuery) {
     return promQLQuery.getQueries().stream()
         .map(
             query -> {
@@ -98,7 +98,7 @@ public class PrometheusRestClient {
               urlBuilder.addQueryParameter(
                   "end", String.valueOf(promQLQuery.getEndTime().getEpochSecond()));
               urlBuilder.addQueryParameter(
-                  "step", String.valueOf(promQLQuery.getStep().getSeconds()));
+                  "step", String.valueOf(promQLQuery.getPeriod().getSeconds()));
               return new Request.Builder().url(urlBuilder.build().toString()).build();
             })
         .collect(Collectors.toList());

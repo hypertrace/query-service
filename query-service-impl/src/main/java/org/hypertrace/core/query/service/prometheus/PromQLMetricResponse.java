@@ -17,52 +17,54 @@ import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.Value;
+import lombok.extern.jackson.Jacksonized;
 
 @Value
+@Jacksonized
+@Builder
 class PromQLMetricResponse {
   private static final ObjectMapper OBJECT_MAPPER =
       new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   @JsonProperty("status")
-  private String status = null;
+  String status;
 
   @JsonProperty("data")
-  private PromQLData data = null;
+  PromQLData data;
 
-  @Getter
+  @Value
+  @Jacksonized
+  @Builder
   static class PromQLData {
     @JsonProperty("resultType")
-    private String resultType;
+    String resultType;
 
     @JsonProperty("result")
-    private List<PromQLMetricResult> result;
+    List<PromQLMetricResult> result;
   }
 
-  @Getter
+  @Value
   @Builder
+  @NoArgsConstructor(force = true)
   @AllArgsConstructor
-  @NoArgsConstructor
-  @EqualsAndHashCode
   static class PromQLMetricResult {
     @JsonProperty("metric")
     @Singular
-    private Map<String, String> metricAttributes;
+    Map<String, String> metricAttributes;
 
     @JsonAlias({"value", "values"})
     @JsonDeserialize(using = PromQLMetricValuesDeserializer.class)
     @Singular
-    private List<PromQLMetricValue> values;
+    List<PromQLMetricValue> values;
   }
 
   @Value
   static class PromQLMetricValue {
-    private Instant timeStamp;
-    private double value;
+    Instant timeStamp;
+    double value;
   }
 
   static class PromQLMetricValuesDeserializer extends JsonDeserializer<List<PromQLMetricValue>> {

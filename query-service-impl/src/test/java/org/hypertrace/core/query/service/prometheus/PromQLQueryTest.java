@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 public class PromQLQueryTest {
   @Test
   public void testPromQLInstantQuery() {
-    PromQLInstantQuery promQLQuery =
-        PromQLInstantQuery.builder()
+    PromQLInstantQueries promQLQuery =
+        PromQLInstantQueries.builder()
             .query("num_calls{tenantId=\"tenant1\"}")
             .evalTime(Instant.ofEpochMilli(1637756020000L))
             .build();
@@ -21,17 +21,17 @@ public class PromQLQueryTest {
 
   @Test
   public void testPromQLRangeQuery() {
-    PromQLRangeQuery promQLQuery =
-        PromQLRangeQuery.builder()
+    PromQLRangeQueries promQLQuery =
+        PromQLRangeQueries.builder()
             .query("num_calls{tenantId=\"tenant1\"}")
             .startTime(Instant.ofEpochMilli(1637756010000L))
             .endTime(Instant.ofEpochMilli(1637756020000L))
-            .step(Duration.of(15000, ChronoUnit.MILLIS))
+            .period(Duration.of(15000, ChronoUnit.MILLIS))
             .build();
     Assertions.assertEquals(1, promQLQuery.getQueries().size());
     Assertions.assertEquals(1637756010L, promQLQuery.getStartTime().getEpochSecond());
     Assertions.assertEquals(1637756020L, promQLQuery.getEndTime().getEpochSecond());
-    Assertions.assertEquals(15L, promQLQuery.getStep().getSeconds());
+    Assertions.assertEquals(15L, promQLQuery.getPeriod().getSeconds());
     Assertions.assertEquals("num_calls{tenantId=\"tenant1\"}", promQLQuery.getQueries().get(0));
   }
 
@@ -40,8 +40,8 @@ public class PromQLQueryTest {
     Assertions.assertThrows(
         NullPointerException.class,
         () -> {
-          PromQLInstantQuery promQLQuery =
-              PromQLInstantQuery.builder().query("num_calls{tenantId=\"tenant1\"}").build();
+          PromQLInstantQueries promQLQuery =
+              PromQLInstantQueries.builder().query("num_calls{tenantId=\"tenant1\"}").build();
         });
   }
 
@@ -50,10 +50,10 @@ public class PromQLQueryTest {
     Assertions.assertThrows(
         NullPointerException.class,
         () -> {
-          PromQLRangeQuery promQLQuery =
-              PromQLRangeQuery.builder()
+          PromQLRangeQueries promQLQuery =
+              PromQLRangeQueries.builder()
                   .startTime(Instant.ofEpochMilli(1637756010000L))
-                  .step(Duration.of(15000, ChronoUnit.MILLIS))
+                  .period(Duration.of(15000, ChronoUnit.MILLIS))
                   .build();
         });
   }
