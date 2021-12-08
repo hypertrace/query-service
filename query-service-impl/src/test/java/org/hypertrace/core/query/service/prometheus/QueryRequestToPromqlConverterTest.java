@@ -21,16 +21,16 @@ import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class QueryRequestToPromqlConverterTest {
+class QueryRequestToPromqlConverterTest {
 
   private static final String TENANT_COLUMN_NAME = "tenant_id";
 
   private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "prometheus_request_handler.conf";
 
   @Test
-  public void testInstantQueryWithGroupByWithMultipleAggregates() {
-    QueryRequest orderByQueryRequest = buildMultipleGroupByMultipleAggQuery();
-    Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
+  void testInstantQueryWithGroupByWithMultipleAggregates() {
+    QueryRequest query = buildMultipleGroupByMultipleAggQuery();
+    Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
     PrometheusViewDefinition prometheusViewDefinition = getDefaultPrometheusViewDefinition();
 
@@ -52,9 +52,9 @@ public class QueryRequestToPromqlConverterTest {
   }
 
   @Test
-  public void testInstantQueryWithGroupByWithMultipleAggregatesWithMultipleFilters() {
-    QueryRequest orderByQueryRequest = buildMultipleGroupByMultipleAggQueryWithMultipleFilters();
-    Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
+  void testInstantQueryWithGroupByWithMultipleAggregatesWithMultipleFilters() {
+    QueryRequest query = buildMultipleGroupByMultipleAggQueryWithMultipleFilters();
+    Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
     PrometheusViewDefinition prometheusViewDefinition = getDefaultPrometheusViewDefinition();
 
@@ -78,10 +78,9 @@ public class QueryRequestToPromqlConverterTest {
   }
 
   @Test
-  public void testTimeSeriesQueryWithGroupByWithMultipleAggregatesWithMultipleFilters() {
-    QueryRequest orderByQueryRequest =
-        buildMultipleGroupByMultipleAggQueryWithMultipleFiltersAndDateTime();
-    Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
+  void testTimeSeriesQueryWithGroupByWithMultipleAggregatesWithMultipleFilters() {
+    QueryRequest query = buildMultipleGroupByMultipleAggQueryWithMultipleFiltersAndDateTime();
+    Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
     PrometheusViewDefinition prometheusViewDefinition = getDefaultPrometheusViewDefinition();
 

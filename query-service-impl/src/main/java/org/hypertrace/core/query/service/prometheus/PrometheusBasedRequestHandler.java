@@ -65,7 +65,7 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
    */
   @Override
   public QueryCost canHandle(QueryRequest request, ExecutionContext executionContext) {
-    return queryRequestEligibilityValidator.isEligible(request, executionContext);
+    return queryRequestEligibilityValidator.calculateCost(request, executionContext);
   }
 
   @Override

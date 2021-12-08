@@ -6,9 +6,18 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_MIN;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_SUM;
 
+import java.util.List;
 import org.hypertrace.core.query.service.api.Expression;
 
 class PrometheusFunctionConverter {
+
+  static final List<String> supportedFunctions =
+      List.of(
+          QUERY_FUNCTION_SUM,
+          QUERY_FUNCTION_MAX,
+          QUERY_FUNCTION_MIN,
+          QUERY_FUNCTION_AVG,
+          QUERY_FUNCTION_COUNT);
 
   String mapToPrometheusFunctionName(Expression functionSelection) {
     String queryFunctionName = functionSelection.getFunction().getFunctionName().toUpperCase();
@@ -26,7 +35,7 @@ class PrometheusFunctionConverter {
       default:
         throw new RuntimeException(
             String.format(
-                "Couldn't map query function {} to prometheus function", queryFunctionName));
+                "Couldn't map query function %s to prometheus function", queryFunctionName));
     }
   }
 }
