@@ -38,7 +38,7 @@ class QueryRequestToPromqlConverterTest {
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
-    PromQLInstantQuery promqlQuery =
+    PromQLInstantQueries promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
             .convertToPromqlInstantQuery(
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
@@ -62,7 +62,7 @@ class QueryRequestToPromqlConverterTest {
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
-    PromQLInstantQuery promqlQuery =
+    PromQLInstantQueries promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
             .convertToPromqlInstantQuery(
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
@@ -88,7 +88,7 @@ class QueryRequestToPromqlConverterTest {
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
-    PromQLRangeQuery promqlQuery =
+    PromQLRangeQueries promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
             .convertToPromqlRangeQuery(
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
@@ -101,7 +101,7 @@ class QueryRequestToPromqlConverterTest {
 
     Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
     Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
-    Assertions.assertEquals(15000, promqlQuery.getStep().toMillis());
+    Assertions.assertEquals(15000, promqlQuery.getPeriod().toMillis());
   }
 
   private QueryRequest buildMultipleGroupByMultipleAggQuery() {

@@ -28,7 +28,7 @@ class QueryRequestToPromqlConverter {
     this.filterToPromqlConverter = new FilterToPromqlConverter();
   }
 
-  PromQLInstantQuery convertToPromqlInstantQuery(
+  PromQLInstantQueries convertToPromqlInstantQuery(
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
@@ -38,13 +38,13 @@ class QueryRequestToPromqlConverter {
             .getQueryTimeRange()
             .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
 
-    return new PromQLInstantQuery(
+    return new PromQLInstantQueries(
         buildPromqlQueries(
             request, allSelections, queryTimeRange, executionContext.getTimeFilterColumn()),
         queryTimeRange.getEndTime());
   }
 
-  PromQLRangeQuery convertToPromqlRangeQuery(
+  PromQLRangeQueries convertToPromqlRangeQuery(
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
@@ -54,7 +54,7 @@ class QueryRequestToPromqlConverter {
             .getQueryTimeRange()
             .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
 
-    return new PromQLRangeQuery(
+    return new PromQLRangeQueries(
         buildPromqlQueries(
             request, allSelections, queryTimeRange, executionContext.getTimeFilterColumn()),
         queryTimeRange.getStartTime(),
