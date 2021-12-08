@@ -11,15 +11,15 @@ import lombok.Value;
 @Value
 @Builder
 class PromQLRangeQueries {
-  @NonNull @Singular private List<String> queries;
+  @NonNull @Singular List<String> queries;
 
-  @NonNull private Instant startTime;
+  @NonNull Instant startTime;
 
-  @NonNull private Instant endTime;
+  @NonNull Instant endTime;
 
   /*
    * It refers to the step query param argument of PromQL range query Rest API.
    * https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
    * */
-  @NonNull private Duration period;
+  @NonNull Duration period;
 }

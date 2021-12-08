@@ -10,7 +10,7 @@ import lombok.Value;
 @Value
 @Builder
 class PromQLInstantQueries {
-  @NonNull @Singular private List<String> queries;
+  @NonNull @Singular List<String> queries;
 
   /*
    * Eval Time is the time of instant when the metrics queries are evaluated.
@@ -21,5 +21,5 @@ class PromQLInstantQueries {
    * range of the time filter.
    * e.g start_time_millis >= lower AND start_time_millis < higher
    * */
-  @NonNull private Instant evalTime;
+  @NonNull Instant evalTime;
 }
