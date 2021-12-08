@@ -80,7 +80,7 @@ public class QueryRequestUtil {
         .build();
   }
 
-  private static Expression createStringArrayLiteralValueExpression(List<String> values) {
+  public static Expression createStringArrayLiteralValueExpression(List<String> values) {
     return Expression.newBuilder()
         .setLiteral(
             LiteralConstant.newBuilder()

@@ -1,5 +1,7 @@
 package org.hypertrace.core.query.service;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringArrayLiteralValueExpression;
+
 import java.util.Arrays;
 import java.util.List;
 import org.hypertrace.core.query.service.api.AttributeExpression;
@@ -178,17 +180,6 @@ public class QueryRequestBuilderUtils {
         .setLiteral(
             LiteralConstant.newBuilder()
                 .setValue(Value.newBuilder().setString(value).setValueType(ValueType.STRING)))
-        .build();
-  }
-
-  public static Expression createStringArrayLiteralValueExpression(List<String> values) {
-    return Expression.newBuilder()
-        .setLiteral(
-            LiteralConstant.newBuilder()
-                .setValue(
-                    Value.newBuilder()
-                        .addAllStringArray(values)
-                        .setValueType(ValueType.STRING_ARRAY)))
         .build();
   }
 

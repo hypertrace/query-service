@@ -14,10 +14,10 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createN
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimestampFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringArrayLiteralValueExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
