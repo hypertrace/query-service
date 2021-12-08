@@ -2,34 +2,30 @@ package org.hypertrace.core.query.service.prometheus;
 
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression;
 
-import com.google.protobuf.ByteString;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import org.apache.commons.codec.binary.Hex;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTimeRange;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
-import org.hypertrace.core.query.service.api.Filter;
-import org.hypertrace.core.query.service.api.LiteralConstant;
-import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
-import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.prometheus.PrometheusViewDefinition.MetricConfig;
 
 class QueryRequestToPromqlConverter {
 
   private final PrometheusViewDefinition prometheusViewDefinition;
   private final PrometheusFunctionConverter prometheusFunctionConverter;
+  private final FilterToPromqlConverter filterToPromqlConverter;
 
   QueryRequestToPromqlConverter(PrometheusViewDefinition prometheusViewDefinition) {
     this.prometheusViewDefinition = prometheusViewDefinition;
     this.prometheusFunctionConverter = new PrometheusFunctionConverter();
+    this.filterToPromqlConverter = new FilterToPromqlConverter();
   }
 
   PromQLInstantQuery convertToPromqlInstantQuery(
@@ -74,7 +70,8 @@ class QueryRequestToPromqlConverter {
     List<String> groupByList = getGroupByList(request);
 
     List<String> filterList = new ArrayList<>();
-    convertFilterToString(request.getFilter(), filterList, timeFilterColumn);
+    filterToPromqlConverter.convertFilterToString(
+        request.getFilter(), filterList, timeFilterColumn, this::convertColumnAttributeToString);
 
     // iterate over all the functions in the query except for date time function (which is handled
     // separately and not a part of the query string)
@@ -141,112 +138,5 @@ class QueryRequestToPromqlConverter {
   private String convertColumnAttributeToString(Expression expression) {
     return prometheusViewDefinition.getPhysicalColumnNameForLogicalColumnName(
         getLogicalColumnNameForSimpleColumnExpression(expression));
-  }
-
-  /**
-   * only `AND` operator in filter is allowed
-   *
-   * <p>rhs of leaf filter should be literal
-   */
-  private void convertFilterToString(
-      Filter filter, List<String> filterList, String timeFilterColumn) {
-    if (filter.getChildFilterCount() > 0) {
-      for (Filter childFilter : filter.getChildFilterList()) {
-        convertFilterToString(childFilter, filterList, timeFilterColumn);
-      }
-    } else {
-      if (QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())
-          && timeFilterColumn.equals(
-              getLogicalColumnNameForSimpleColumnExpression(filter.getLhs()))) {
-        return;
-      }
-      StringBuilder builder = new StringBuilder();
-      builder.append(convertColumnAttributeToString(filter.getLhs()));
-      builder.append(convertOperatorToString(filter.getOperator()));
-      builder.append(convertLiteralToString(filter.getRhs().getLiteral()));
-      filterList.add(builder.toString());
-    }
-  }
-
-  private String convertOperatorToString(Operator operator) {
-    switch (operator) {
-      case IN:
-      case EQ:
-        return "=";
-      case NEQ:
-        return "!=";
-      case LIKE:
-        return "=~";
-      default:
-        throw new RuntimeException(
-            String.format("Equivalent %s operator not supported in promql", operator));
-    }
-  }
-
-  private String convertLiteralToString(LiteralConstant literal) {
-    Value value = literal.getValue();
-    String ret = null;
-    switch (value.getValueType()) {
-      case STRING_ARRAY:
-        StringBuilder builder = new StringBuilder("\"");
-        for (String item : value.getStringArrayList()) {
-          if (builder.length() > 1) {
-            builder.append("|");
-          }
-          builder.append(item);
-        }
-        builder.append("\"");
-        ret = builder.toString();
-        break;
-      case BYTES_ARRAY:
-        builder = new StringBuilder("\"");
-        for (ByteString item : value.getBytesArrayList()) {
-          if (builder.length() > 1) {
-            builder.append("|");
-          }
-          builder.append(Hex.encodeHexString(item.toByteArray()));
-        }
-        builder.append("\"");
-        ret = builder.toString();
-        break;
-      case STRING:
-        ret = "\"" + value.getString() + "\"";
-        break;
-      case LONG:
-        ret = "\"" + value.getLong() + "\"";
-        break;
-      case INT:
-        ret = "\"" + value.getInt() + "\"";
-        break;
-      case FLOAT:
-        ret = "\"" + value.getFloat() + "\"";
-        break;
-      case DOUBLE:
-        ret = "\"" + value.getDouble() + "\"";
-        break;
-      case BYTES:
-        ret = "\"" + Hex.encodeHexString(value.getBytes().toByteArray()) + "\"";
-        break;
-      case BOOL:
-        ret = "\"" + value.getBoolean() + "\"";
-        break;
-      case TIMESTAMP:
-        ret = "\"" + value.getTimestamp() + "\"";
-        break;
-      case NULL_NUMBER:
-        ret = "0";
-        break;
-      case NULL_STRING:
-        ret = "null";
-        break;
-      case LONG_ARRAY:
-      case INT_ARRAY:
-      case FLOAT_ARRAY:
-      case DOUBLE_ARRAY:
-      case BOOLEAN_ARRAY:
-      case UNRECOGNIZED:
-        break;
-    }
-    return ret;
   }
 }
