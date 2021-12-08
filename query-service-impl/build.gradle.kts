@@ -46,10 +46,15 @@ dependencies {
   implementation("com.google.protobuf:protobuf-java-util:3.15.6")
   implementation("com.google.guava:guava:30.1.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
+  implementation("com.squareup.okhttp3:okhttp:4.9.1")
+  annotationProcessor("org.projectlombok:lombok:1.18.20")
+  compileOnly("org.projectlombok:lombok:1.18.20")
+  implementation("org.apache.commons:commons-lang3:3.10")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
   testImplementation("org.mockito:mockito-core:3.8.0")
   testImplementation("org.mockito:mockito-junit-jupiter:3.8.0")
   testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.14.1")
+  testImplementation("com.squareup.okhttp3:mockwebserver:4.9.1")
 }
