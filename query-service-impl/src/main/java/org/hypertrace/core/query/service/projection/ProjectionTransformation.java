@@ -348,8 +348,12 @@ final class ProjectionTransformation implements QueryTransformation {
         .build();
   }
 
-  // We need the CONTAINS_KEY filter in all filters and order bys dealing with complex
-  // attribute expressions as Pinot gives error if particular key is absent. Rest all work fine.
+  /*
+   * We need the CONTAINS_KEY filter in all filters and order bys dealing with complex
+   * attribute expressions as Pinot gives error if particular key is absent. Rest all work fine.
+   * To handle order bys, we add the corresponding filter at the top and 'AND' it with the main filter.
+   * To handle filter, we modify each filter (say filter1) as : "CONTAINS_KEY AND filter1".
+   */
   private Filter updateFilterForComplexAttributeExpression(
       Filter filter, List<OrderByExpression> orderBys) {
 
