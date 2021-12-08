@@ -51,8 +51,10 @@ class QueryRequestEligibilityValidator {
       Preconditions.checkArgument(!referencedColumns.isEmpty());
       // all the columns in the request should have a mapping in the config
       for (String referencedColumn : referencedColumns) {
-        if (prometheusViewDefinition.getPhysicalColumnName(referencedColumn) == null
-            && prometheusViewDefinition.getMetricConfig(referencedColumn) == null) {
+        if (prometheusViewDefinition.getPhysicalColumnNameForLogicalColumnName(referencedColumn)
+                == null
+            && prometheusViewDefinition.getMetricConfigForLogicalMetricName(referencedColumn)
+                == null) {
           return QueryCost.UNSUPPORTED;
         }
       }
@@ -108,7 +110,8 @@ class QueryRequestEligibilityValidator {
                   function.getFunctionName())) {
                 return true;
               }
-              return prometheusViewDefinition.getMetricConfig(attributeId) == null;
+              return prometheusViewDefinition.getMetricConfigForLogicalMetricName(attributeId)
+                  == null;
             });
   }
 

@@ -72,11 +72,11 @@ class PrometheusViewDefinition {
         metricMap, fieldMap);
   }
 
-  public String getPhysicalColumnName(String logicalColumnName) {
+  public String getPhysicalColumnNameForLogicalColumnName(String logicalColumnName) {
     return columnMap.get(logicalColumnName);
   }
 
-  public MetricConfig getMetricConfig(String logicalMetricName) {
+  public MetricConfig getMetricConfigForLogicalMetricName(String logicalMetricName) {
     return metricMap.get(logicalMetricName);
   }
 

@@ -2,12 +2,12 @@ package org.hypertrace.core.query.service.prometheus;
 
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression;
 
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Hex;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -106,17 +106,10 @@ class QueryRequestToPromqlConverter {
   }
 
   private List<String> getGroupByList(QueryRequest queryRequest) {
-    List<String> groupByList = Lists.newArrayList();
-    if (queryRequest.getGroupByCount() > 0) {
-      for (Expression expression : queryRequest.getGroupByList()) {
-        // skip datetime function in group-by
-        if (QueryRequestUtil.isDateTimeFunction(expression)) {
-          continue;
-        }
-        groupByList.add(convertColumnAttributeToString(expression));
-      }
-    }
-    return groupByList;
+    return queryRequest.getGroupByList().stream()
+        .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
+        .map(this::convertColumnAttributeToString)
+        .collect(Collectors.toUnmodifiableList());
   }
 
   private Duration getTimeSeriesPeriod(ExecutionContext executionContext) {
@@ -140,13 +133,13 @@ class QueryRequestToPromqlConverter {
   }
 
   private MetricConfig getMetricConfigForFunction(Expression functionSelection) {
-    return prometheusViewDefinition.getMetricConfig(
+    return prometheusViewDefinition.getMetricConfigForLogicalMetricName(
         getLogicalColumnNameForSimpleColumnExpression(
             functionSelection.getFunction().getArgumentsList().get(0)));
   }
 
   private String convertColumnAttributeToString(Expression expression) {
-    return prometheusViewDefinition.getPhysicalColumnName(
+    return prometheusViewDefinition.getPhysicalColumnNameForLogicalColumnName(
         getLogicalColumnNameForSimpleColumnExpression(expression));
   }
 
