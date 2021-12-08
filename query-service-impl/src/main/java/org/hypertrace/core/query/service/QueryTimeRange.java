@@ -3,13 +3,13 @@ package org.hypertrace.core.query.service;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Value;
 
-@Getter
+@Value
 @AllArgsConstructor
 public class QueryTimeRange {
 
-  private final Instant startTime;
-  private final Instant endTime;
-  private final Duration duration;
+  Instant startTime;
+  Instant endTime;
+  Duration duration;
 }
