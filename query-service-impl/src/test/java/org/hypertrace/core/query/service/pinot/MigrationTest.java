@@ -4,13 +4,13 @@ import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpressionWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelectionWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilterWithSimpleAttribute;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -18,7 +18,6 @@ import static org.mockito.Mockito.when;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
@@ -302,7 +301,7 @@ public class MigrationTest {
             .build();
     builder.setFilter(
         createCompositeFilter(
-            Operator.AND, createContainsKeyFilter("Span.tags", List.of("FLAGS")), equalFilter));
+            Operator.AND, createContainsKeyFilter("Span.tags", "FLAGS"), equalFilter));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
@@ -334,9 +333,7 @@ public class MigrationTest {
             .build();
     builder.setFilter(
         createCompositeFilter(
-            Operator.AND,
-            createContainsKeyFilter("Span.tags", List.of("span.kind")),
-            greaterThanFilter));
+            Operator.AND, createContainsKeyFilter("Span.tags", "span.kind"), greaterThanFilter));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
@@ -369,7 +366,7 @@ public class MigrationTest {
     builder.setFilter(
         createCompositeFilter(
             Operator.AND,
-            createContainsKeyFilter("Span.tags", List.of("span.kind")),
+            createContainsKeyFilter("Span.tags", "span.kind"),
             greaterThanOrEqualToFilter));
     builder.addOrderBy(createOrderByExpression(spanKind.toBuilder(), SortOrder.DESC));
 
@@ -425,7 +422,7 @@ public class MigrationTest {
             .setOperator(Operator.NEQ)
             .setRhs(createStringLiteralValueExpression(""))
             .build();
-    Filter containsKeyFilter = createContainsKeyFilter("Span.tags", List.of("span.kind"));
+    Filter containsKeyFilter = createContainsKeyFilter("Span.tags", "span.kind");
 
     Filter andFilter =
         Filter.newBuilder()

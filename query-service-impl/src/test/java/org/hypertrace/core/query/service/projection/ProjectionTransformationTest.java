@@ -15,13 +15,13 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createA
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringArrayLiteralValueExpression;
@@ -98,7 +98,7 @@ class ProjectionTransformationTest {
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
                     .addAllChildFilter(
-                        List.of(filter, createContainsKeyFilter("Span.tags", List.of("span.kind"))))
+                        List.of(filter, createContainsKeyFilter("Span.tags", "span.kind")))
                     .build())
             .build();
 
@@ -139,12 +139,12 @@ class ProjectionTransformationTest {
         expectedTransform
             .getFilter()
             .getChildFilterList()
-            .contains(createContainsKeyFilter("Span.tags", List.of("FLAGS"))));
+            .contains(createContainsKeyFilter("Span.tags", "FLAGS")));
     assertTrue(
         expectedTransform
             .getFilter()
             .getChildFilterList()
-            .contains(createContainsKeyFilter("Span.tags", List.of("span.kind"))));
+            .contains(createContainsKeyFilter("Span.tags", "span.kind")));
   }
 
   @Disabled
@@ -172,7 +172,7 @@ class ProjectionTransformationTest {
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
                     .addAllChildFilter(
-                        List.of(filter, createContainsKeyFilter("Span.tags", List.of("span.kind"))))
+                        List.of(filter, createContainsKeyFilter("Span.tags", "span.kind")))
                     .build())
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
             .build();
@@ -198,7 +198,7 @@ class ProjectionTransformationTest {
             .setFilter(
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
-                    .addChildFilter(createContainsKeyFilter("Span.tags", List.of("span.kind")))
+                    .addChildFilter(createContainsKeyFilter("Span.tags", "span.kind"))
                     .build())
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
             .build();

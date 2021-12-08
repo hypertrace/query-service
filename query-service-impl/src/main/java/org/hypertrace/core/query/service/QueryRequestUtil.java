@@ -72,11 +72,11 @@ public class QueryRequestUtil {
         .build();
   }
 
-  public static Filter createContainsKeyFilter(String column, List<String> values) {
+  public static Filter createContainsKeyFilter(String column, String value) {
     return Filter.newBuilder()
         .setOperator(Operator.CONTAINS_KEY)
         .setLhs(createColumnExpression(column))
-        .setRhs(createStringArrayLiteralValueExpression(values))
+        .setRhs(createStringArrayLiteralValueExpression(List.of(value)))
         .build();
   }
 

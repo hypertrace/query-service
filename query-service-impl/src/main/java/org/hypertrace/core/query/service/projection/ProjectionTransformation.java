@@ -384,8 +384,7 @@ final class ProjectionTransformation implements QueryTransformation {
             .map(
                 attributeExpression ->
                     createContainsKeyFilter(
-                        attributeExpression.getAttributeId(),
-                        List.of(attributeExpression.getSubpath())))
+                        attributeExpression.getAttributeId(), attributeExpression.getSubpath()))
             .collect(Collectors.toList());
 
     return childFilterList.isEmpty()
@@ -414,7 +413,7 @@ final class ProjectionTransformation implements QueryTransformation {
       Filter childFilter =
           createContainsKeyFilter(
               filter.getLhs().getAttributeExpression().getAttributeId(),
-              List.of(filter.getLhs().getAttributeExpression().getSubpath()));
+              filter.getLhs().getAttributeExpression().getSubpath());
 
       if (filterFromOrderBys.getChildFilterCount() > 0
           && filterFromOrderBys.getChildFilterList().contains(childFilter)) {

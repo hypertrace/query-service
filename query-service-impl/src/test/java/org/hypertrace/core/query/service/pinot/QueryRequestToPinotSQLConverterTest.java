@@ -3,7 +3,6 @@ package org.hypertrace.core.query.service.pinot;
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
@@ -17,6 +16,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createO
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimestampFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringArrayLiteralValueExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -548,7 +548,7 @@ public class QueryRequestToPinotSQLConverterTest {
   public void testQueryWithContainsKeyOperator() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.tags"));
-    builder.setFilter(createContainsKeyFilter("Span.tags", List.of("FLAGS")));
+    builder.setFilter(createContainsKeyFilter("Span.tags", "FLAGS"));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
