@@ -393,25 +393,26 @@ final class ProjectionTransformation implements QueryTransformation {
 
   private Filter updateFilterForComplexAttributeExpressionFromFilter(Filter originalFilter) {
 
-    Filter.Builder builder = originalFilter.toBuilder();
-    builder.clearChildFilter();
-    originalFilter
-        .getChildFilterList()
-        .forEach(
-            childFilter ->
-                builder.addChildFilter(
-                    updateFilterForComplexAttributeExpressionFromFilter(childFilter)));
-    Filter updatedFilter = builder.build();
-
-    if (isComplexAttributeExpression(updatedFilter.getLhs())) {
-      Filter childFilter = createContainsKeyFilter(updatedFilter.getLhs().getAttributeExpression());
+    if (originalFilter.getChildFilterCount() > 0) {
+      Filter.Builder builder = originalFilter.toBuilder();
+      builder.clearChildFilter();
+      originalFilter
+          .getChildFilterList()
+          .forEach(
+              childFilter ->
+                  builder.addChildFilter(
+                      updateFilterForComplexAttributeExpressionFromFilter(childFilter)));
+      return builder.build();
+    } else if (isComplexAttributeExpression(originalFilter.getLhs())) {
+      Filter childFilter =
+          createContainsKeyFilter(originalFilter.getLhs().getAttributeExpression());
       return Filter.newBuilder()
           .setOperator(Operator.AND)
-          .addChildFilter(updatedFilter)
+          .addChildFilter(originalFilter)
           .addChildFilter(childFilter)
           .build();
+    } else {
+      return originalFilter;
     }
-
-    return updatedFilter;
   }
 }
