@@ -392,7 +392,10 @@ final class ProjectionTransformation implements QueryTransformation {
   }
 
   private Filter updateFilterForComplexAttributeExpressionFromFilter(Filter originalFilter) {
-
+    /*
+     * If childFilter is present, then the expected operators comprise the logical operators.
+     * If childFilter is absent, then the filter is a leaf filter which will have lhs and rhs.
+     */
     if (originalFilter.getChildFilterCount() > 0) {
       Filter.Builder builder = originalFilter.toBuilder();
       builder.clearChildFilter();
