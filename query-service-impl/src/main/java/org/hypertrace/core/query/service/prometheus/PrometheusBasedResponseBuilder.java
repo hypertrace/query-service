@@ -14,8 +14,10 @@ public class PrometheusBasedResponseBuilder {
   /*
    * PromQL response
    * Map<columnName, metrics_attribute> (SERVICE.id, service_id)
-   * Map<columnName, query_name> (SERVICE.numCalls, query)
-   * selectionList : list of all selected columns
+   * Map<columnName, query_name> (SERVICE.numCalls, query) -> merticMap
+   * selectionList : list of all selected columns request metatdata
+   * <SERVICE.startTime, SERVICE.id, SERVICE.numCall, Service.errorCount> // columnSet
+   * timeStampColumn : SERVICE.startTime
    * */
   public static void buildQSResponse(
       Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
@@ -38,7 +40,7 @@ public class PrometheusBasedResponseBuilder {
           selectionList,
           firstResponse);
     } else {
-
+        // todo of timeseries
     }
   }
 
