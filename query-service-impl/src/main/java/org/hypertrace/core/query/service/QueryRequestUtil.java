@@ -1,8 +1,10 @@
 package org.hypertrace.core.query.service;
 
 import java.util.List;
+import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
@@ -72,6 +74,11 @@ public class QueryRequestUtil {
         .build();
   }
 
+  public static Filter createContainsKeyFilter(AttributeExpression complexAttributeExpression) {
+    return createContainsKeyFilter(
+        complexAttributeExpression.getAttributeId(), complexAttributeExpression.getSubpath());
+  }
+
   public static Filter createContainsKeyFilter(String column, String value) {
     return Filter.newBuilder()
         .setOperator(Operator.CONTAINS_KEY)
@@ -89,5 +96,10 @@ public class QueryRequestUtil {
                         .addAllStringArray(values)
                         .setValueType(ValueType.STRING_ARRAY)))
         .build();
+  }
+
+  public static boolean isComplexAttributeExpression(Expression expression) {
+    return expression.getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
+        && expression.getAttributeExpression().hasSubpath();
   }
 }

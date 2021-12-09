@@ -9,6 +9,7 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.createLongLiter
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isComplexAttributeExpression;
 
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
@@ -27,10 +28,10 @@ import org.hypertrace.core.attribute.service.v1.Projection;
 import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
+import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTransformation;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
-import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.Operator;
@@ -379,16 +380,10 @@ final class ProjectionTransformation implements QueryTransformation {
 
     List<Filter> childFilterList =
         orderByExpressionList.stream()
-            .filter(
-                orderByExpression ->
-                    orderByExpression.getExpression().getValueCase()
-                            == ValueCase.ATTRIBUTE_EXPRESSION
-                        && orderByExpression.getExpression().getAttributeExpression().hasSubpath())
-            .map(orderByExpression -> orderByExpression.getExpression().getAttributeExpression())
-            .map(
-                attributeExpression ->
-                    createContainsKeyFilter(
-                        attributeExpression.getAttributeId(), attributeExpression.getSubpath()))
+            .map(OrderByExpression::getExpression)
+            .filter(QueryRequestUtil::isComplexAttributeExpression)
+            .map(Expression::getAttributeExpression)
+            .map(QueryRequestUtil::createContainsKeyFilter)
             .collect(Collectors.toList());
 
     return childFilterList.isEmpty()
@@ -400,30 +395,23 @@ final class ProjectionTransformation implements QueryTransformation {
 
     Filter.Builder builder = originalFilter.toBuilder();
     builder.clearChildFilter();
-
     originalFilter
         .getChildFilterList()
         .forEach(
             childFilter ->
                 builder.addChildFilter(
                     updateFilterForComplexAttributeExpressionFromFilter(childFilter)));
-
     Filter updatedFilter = builder.build();
 
-    if (updatedFilter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
-        && updatedFilter.getLhs().getAttributeExpression().hasSubpath()) {
-
-      Filter childFilter =
-          createContainsKeyFilter(
-              updatedFilter.getLhs().getAttributeExpression().getAttributeId(),
-              updatedFilter.getLhs().getAttributeExpression().getSubpath());
-
+    if (isComplexAttributeExpression(updatedFilter.getLhs())) {
+      Filter childFilter = createContainsKeyFilter(updatedFilter.getLhs().getAttributeExpression());
       return Filter.newBuilder()
           .setOperator(Operator.AND)
           .addChildFilter(updatedFilter)
           .addChildFilter(childFilter)
           .build();
     }
+
     return updatedFilter;
   }
 }
