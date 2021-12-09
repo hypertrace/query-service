@@ -397,8 +397,8 @@ final class ProjectionTransformation implements QueryTransformation {
      * If childFilter is absent, then the filter is a leaf filter which will have lhs and rhs.
      */
     if (originalFilter.getChildFilterCount() > 0) {
-      Filter.Builder builder = originalFilter.toBuilder();
-      builder.clearChildFilter();
+      Filter.Builder builder = Filter.newBuilder();
+      builder.setOperator(originalFilter.getOperator());
       originalFilter
           .getChildFilterList()
           .forEach(
