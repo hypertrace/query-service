@@ -358,41 +358,24 @@ final class ProjectionTransformation implements QueryTransformation {
   private Filter rebuildFilterForComplexAttributeExpression(
       Filter originalFilter, List<OrderByExpression> orderBys) {
 
-    Filter filterFromOrderBys = createFilterForComplexAttributeExpressionFromOrderBy(orderBys);
     Filter updatedFilter = updateFilterForComplexAttributeExpressionFromFilter(originalFilter);
+    List<Filter> childFilterList = createFilterForComplexAttributeExpressionFromOrderBy(orderBys);
 
-    if (!updatedFilter.equals(Filter.getDefaultInstance())
-        && !filterFromOrderBys.equals(Filter.getDefaultInstance())) {
-      return Filter.newBuilder()
-          .setOperator(Operator.AND)
-          .addChildFilter(updatedFilter)
-          .addChildFilter(filterFromOrderBys)
-          .build();
-    } else if (!filterFromOrderBys.equals(Filter.getDefaultInstance())) {
-      if (filterFromOrderBys.getChildFilterCount() == 1) {
-        return filterFromOrderBys.getChildFilter(0);
-      } else {
-        return filterFromOrderBys;
-      }
-    } else {
+    if (childFilterList.isEmpty()) {
       return updatedFilter;
+    } else {
+      if (!updatedFilter.equals(Filter.getDefaultInstance())) {
+        childFilterList.add(updatedFilter);
+      }
+      if (childFilterList.size() > 1) {
+        return Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addAllChildFilter(childFilterList)
+            .build();
+      } else {
+        return childFilterList.get(0);
+      }
     }
-  }
-
-  private Filter createFilterForComplexAttributeExpressionFromOrderBy(
-      List<OrderByExpression> orderByExpressionList) {
-
-    List<Filter> childFilterList =
-        orderByExpressionList.stream()
-            .map(OrderByExpression::getExpression)
-            .filter(QueryRequestUtil::isComplexAttributeExpression)
-            .map(Expression::getAttributeExpression)
-            .map(QueryRequestUtil::createContainsKeyFilter)
-            .collect(Collectors.toList());
-
-    return childFilterList.isEmpty()
-        ? Filter.getDefaultInstance()
-        : Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(childFilterList).build();
   }
 
   private Filter updateFilterForComplexAttributeExpressionFromFilter(Filter originalFilter) {
@@ -421,5 +404,15 @@ final class ProjectionTransformation implements QueryTransformation {
     } else {
       return originalFilter;
     }
+  }
+
+  private List<Filter> createFilterForComplexAttributeExpressionFromOrderBy(
+      List<OrderByExpression> orderByExpressionList) {
+    return orderByExpressionList.stream()
+        .map(OrderByExpression::getExpression)
+        .filter(QueryRequestUtil::isComplexAttributeExpression)
+        .map(Expression::getAttributeExpression)
+        .map(QueryRequestUtil::createContainsKeyFilter)
+        .collect(Collectors.toList());
   }
 }
