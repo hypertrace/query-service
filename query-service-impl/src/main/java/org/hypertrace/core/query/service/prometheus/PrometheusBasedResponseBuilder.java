@@ -14,11 +14,16 @@ import org.hypertrace.core.query.service.prometheus.PromQLMetricResponse.PromQLM
 public class PrometheusBasedResponseBuilder {
 
   /*
-   * PromQL response
-   * Map<columnName, metrics_attribute> (SERVICE.id, service_id)
-   * Map<columnName, query_name> (SERVICE.numCalls, query) -> merticMap
-   * columnSet : list of all selected columns request metatdata
-   * <SERVICE.startTime, SERVICE.id, SERVICE.numCall, Service.errorCount> // columnSet
+   * @param promQLMetricResponseMap map of prometheus query and its response
+   * @param columnNameToAttributeMap map of attribute id to prometheus metric attribute name
+   * @param columnNameToQueryMap map of attribute id of metric to corresponding promQL query
+   * @param columnSet set of all attribute ids of returned column meta data set
+   * @param timeStampColumn attribute id of time stamp column
+   *
+   * E.g
+   * columnNameToAttributeMap :  (SERVICE.id, service_id)
+   * columnNameToQueryMap (SERVICE.numCalls, sum by (service_id) (sum_over_time(num_calls{}[]))
+   * columnSet : [SERVICE.startTime, SERVICE.id, SERVICE.numCall]
    * timeStampColumn : SERVICE.startTime
    * */
   static List<Row> buildResponse(
@@ -30,8 +35,10 @@ public class PrometheusBasedResponseBuilder {
 
     // check if response is empty
     if (promQLMetricResponseMap.isEmpty()) {
-      return null;
+      return List.of();
     }
+
+    List<Builder> builderList = new ArrayList<>();
 
     // as multiple request only vary in metric value, and all other attributes
     // and number of rows are same, we can use one of the metric response for
@@ -39,7 +46,6 @@ public class PrometheusBasedResponseBuilder {
     PromQLMetricResponse firstResponse =
         promQLMetricResponseMap.values().stream().findFirst().get();
 
-    List<Builder> builderList;
     if (isInstantResponse(firstResponse)) {
       builderList =
           buildAggregateResponse(
@@ -48,7 +54,7 @@ public class PrometheusBasedResponseBuilder {
               columnNameToQueryMap,
               columnSet,
               firstResponse);
-    } else {
+    } else if (isRangeResponse(firstResponse)) {
       builderList =
           buildAggregateResponse(
               promQLMetricResponseMap,
@@ -165,6 +171,12 @@ public class PrometheusBasedResponseBuilder {
     return firstResponse.getData().getResult().size();
   }
 
+  private static Map<String, String> getWithoutMetricName(Map<String, String> metricAttributes) {
+    return metricAttributes.entrySet().stream()
+        .filter(entry -> !entry.getKey().equals("__name__"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
   private static String getMetricValue(
       String query,
       Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
@@ -180,9 +192,8 @@ public class PrometheusBasedResponseBuilder {
         matchedResponse.getData().getResult().stream()
             .filter(
                 metricResult ->
-                    metricResult
-                        .getMetricAttributes()
-                        .equals(promQLMetricResult.getMetricAttributes()))
+                    getWithoutMetricName(metricResult.getMetricAttributes())
+                        .equals(getWithoutMetricName(promQLMetricResult.getMetricAttributes())))
             .map(result -> result.getValues().get(0).getValue())
             .findFirst()
             .get());
@@ -209,9 +220,8 @@ public class PrometheusBasedResponseBuilder {
         matchedResponse.getData().getResult().stream()
             .filter(
                 metricResult ->
-                    metricResult
-                        .getMetricAttributes()
-                        .equals(promQLMetricResult.getMetricAttributes()))
+                    getWithoutMetricName(metricResult.getMetricAttributes())
+                        .equals(getWithoutMetricName(promQLMetricResult.getMetricAttributes())))
             .map(
                 matchedResult ->
                     matchedResult.getValues().stream()
