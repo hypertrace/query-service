@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,7 +49,7 @@ public class ExecutionContext {
   private final LinkedHashSet<Expression> allSelections;
   private final Optional<Duration> timeSeriesPeriod;
   private final Filter queryRequestFilter;
-  private final Supplier<Optional<Duration>> timeRangeDurationSupplier;
+  private final Supplier<Optional<QueryTimeRange>> queryTimeRangeSupplier;
 
   public ExecutionContext(String tenantId, QueryRequest request) {
     this.tenantId = tenantId;
@@ -56,16 +57,16 @@ public class ExecutionContext {
     this.allSelections = new LinkedHashSet<>();
     this.timeSeriesPeriod = calculateTimeSeriesPeriod(request);
     this.queryRequestFilter = request.getFilter();
-    timeRangeDurationSupplier =
+    queryTimeRangeSupplier =
         Suppliers.memoize(
-            () -> findTimeRangeDuration(this.queryRequestFilter, this.timeFilterColumn));
+            () -> buildQueryTimeRange(this.queryRequestFilter, this.timeFilterColumn));
     analyze(request);
   }
 
   private Optional<Duration> calculateTimeSeriesPeriod(QueryRequest request) {
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
-        if (isDateTimeFunction(expression)) {
+        if (QueryRequestUtil.isDateTimeFunction(expression)) {
           String timeSeriesPeriod =
               expression
                   .getFunction()
@@ -196,7 +197,7 @@ public class ExecutionContext {
     }
   }
 
-  private Optional<Duration> findTimeRangeDuration(Filter filter, String timeFilterColumn) {
+  private Optional<QueryTimeRange> buildQueryTimeRange(Filter filter, String timeFilterColumn) {
 
     // time filter will always be present with AND operator
     if (filter.getOperator() != Operator.AND) {
@@ -222,11 +223,15 @@ public class ExecutionContext {
             .findFirst();
 
     if (timeRangeStart.isPresent() && timeRangeEnd.isPresent()) {
-      return Optional.of(Duration.ofMillis(timeRangeEnd.get() - timeRangeStart.get()));
+      return Optional.of(
+          new QueryTimeRange(
+              Instant.ofEpochMilli(timeRangeStart.get()),
+              Instant.ofEpochMilli(timeRangeEnd.get()),
+              Duration.ofMillis(timeRangeEnd.get() - timeRangeStart.get())));
     }
 
     return filter.getChildFilterList().stream()
-        .map(childFilter -> this.findTimeRangeDuration(childFilter, timeFilterColumn))
+        .map(childFilter -> this.buildQueryTimeRange(childFilter, timeFilterColumn))
         .flatMap(Optional::stream)
         .findFirst();
   }
@@ -242,11 +247,6 @@ public class ExecutionContext {
     long amount = Long.parseLong(splitPeriodString[0]);
     ChronoUnit unit = TimeUnit.valueOf(splitPeriodString[1]).toChronoUnit();
     return Duration.of(amount, unit);
-  }
-
-  private boolean isDateTimeFunction(Expression expression) {
-    return expression.getValueCase() == ValueCase.FUNCTION
-        && expression.getFunction().getFunctionName().equals("dateTimeConvert");
   }
 
   public void setTimeFilterColumn(String timeFilterColumn) {
@@ -278,6 +278,14 @@ public class ExecutionContext {
   }
 
   public Optional<Duration> getTimeRangeDuration() {
-    return timeRangeDurationSupplier.get();
+    return queryTimeRangeSupplier.get().map(QueryTimeRange::getDuration);
+  }
+
+  public Optional<QueryTimeRange> getQueryTimeRange() {
+    return queryTimeRangeSupplier.get();
+  }
+
+  public String getTimeFilterColumn() {
+    return timeFilterColumn;
   }
 }

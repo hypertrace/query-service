@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.hypertrace.core.query.service.ExecutionContext;
+import org.hypertrace.core.query.service.QueryTimeRange;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -389,7 +390,7 @@ public class ExecutionContextTest {
             .build();
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     context.setTimeFilterColumn("SERVICE.startTime");
-    assertEquals(Optional.empty(), context.getTimeRangeDuration());
+    assertEquals(Optional.empty(), context.getQueryTimeRange());
   }
 
   @ParameterizedTest
@@ -397,7 +398,9 @@ public class ExecutionContextTest {
   public void testGetTimeRangeDuration(QueryRequest queryRequest) {
     ExecutionContext context = new ExecutionContext("test", queryRequest);
     context.setTimeFilterColumn("SERVICE.startTime");
-    assertEquals(Optional.of(Duration.ofMinutes(60)), context.getTimeRangeDuration());
+    assertEquals(
+        Optional.of(Duration.ofMinutes(60)),
+        context.getQueryTimeRange().map(QueryTimeRange::getDuration));
   }
 
   private static Stream<Arguments> provideQueryRequest() {
