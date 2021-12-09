@@ -71,10 +71,12 @@ public class PrometheusBasedResponseBuilder {
       String timeStampColumn) {
 
     List<Builder> rowBuilderList = new ArrayList<>();
-    for (int row = 0; row < calcNumberRows(firstResponse); row++) {
+    int numRows = (int) calcNumberRows(firstResponse);
+    for (int row = 0; row < numRows; row++) {
       PromQLMetricResult promQLMetricResult = firstResponse.getData().getResult().get(row);
       // now time loop
-      for (int timeRow = 0; timeRow < firstResponse.getData().getResult().size(); timeRow++) {
+      int numTimeRows = promQLMetricResult.getValues().size();
+      for (int timeRow = 0; timeRow < numTimeRows; timeRow++) {
         Builder rowBuilder = Row.newBuilder();
         Instant time = promQLMetricResult.getValues().get(timeRow).getTimeStamp();
         // column loop
@@ -216,8 +218,7 @@ public class PrometheusBasedResponseBuilder {
                         .filter(value -> value.getTimeStamp().equals(time))
                         .findFirst()
                         .get()
-                        .getTimeStamp()
-                        .toEpochMilli())
+                        .getValue())
             .findFirst()
             .get());
   }

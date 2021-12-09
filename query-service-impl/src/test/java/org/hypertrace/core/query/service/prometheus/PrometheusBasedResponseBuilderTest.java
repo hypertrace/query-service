@@ -23,7 +23,7 @@ public class PrometheusBasedResponseBuilderTest {
    * */
 
   @Test
-  public void testInstantQueryResponse() throws IOException {
+  public void testAggregationQueryResponse() throws IOException {
     Request request =
         new Request.Builder()
             .url(
@@ -53,5 +53,39 @@ public class PrometheusBasedResponseBuilderTest {
             promQLMetricResponseMap, metricAttributeMap, metricMap, columnSet, "SERVICE.startTime");
 
     Assertions.assertEquals(2, rowList.size());
+  }
+
+
+  @Test
+  public void testTimeSeriesQueryResponse() throws IOException {
+    Request request =
+        new Request.Builder()
+            .url(
+                "http://localhost:9090/api/v1/query?query=sum by (job, instance) (sum_over_time(errorCount{}[15ms]))")
+            .build();
+
+    URL fileUrl =
+        PromQLMetricResponseTest.class
+            .getClassLoader()
+            .getResource("promql_error_count_matrix.json");
+    String content = new String(Files.readAllBytes(Paths.get(fileUrl.getFile())));
+    PromQLMetricResponse response = PromQLMetricResponse.fromJson(content);
+
+    Map<Request, PromQLMetricResponse> promQLMetricResponseMap = Map.of(request, response);
+    Map<String, String> metricAttributeMap =
+        Map.of(
+            "SERVICE.job", "job",
+            "SERVICE.instance", "instance");
+
+    Map<String, String> metricMap =
+        Map.of("SERVICE.errorCount", "sum by (job, instance) (sum_over_time(errorCount{}[15ms]))");
+
+    List<String> columnSet = List.of("SERVICE.startTime", "SERVICE.job", "SERVICE.instance", "SERVICE.errorCount");
+
+    List<Row> rowList =
+        PrometheusBasedResponseBuilder.buildResponse(
+            promQLMetricResponseMap, metricAttributeMap, metricMap, columnSet, "SERVICE.startTime");
+
+    Assertions.assertEquals(6, rowList.size());
   }
 }
