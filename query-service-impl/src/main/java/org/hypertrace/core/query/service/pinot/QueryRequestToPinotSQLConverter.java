@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.isComplexAttribute;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
@@ -363,11 +364,6 @@ class QueryRequestToPinotSQLConverter {
     }
 
     return literals;
-  }
-
-  private boolean isComplexAttribute(Expression expression) {
-    return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
-        && expression.getAttributeExpression().hasSubpath();
   }
 
   /** TODO:Handle all types */
