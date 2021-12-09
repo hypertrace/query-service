@@ -369,7 +369,11 @@ final class ProjectionTransformation implements QueryTransformation {
           .addChildFilter(filterFromOrderBys)
           .build();
     } else if (!filterFromOrderBys.equals(Filter.getDefaultInstance())) {
-      return filterFromOrderBys;
+      if (filterFromOrderBys.getChildFilterCount() == 1) {
+        return filterFromOrderBys.getChildFilter(0);
+      } else {
+        return filterFromOrderBys;
+      }
     } else {
       return updatedFilter;
     }
