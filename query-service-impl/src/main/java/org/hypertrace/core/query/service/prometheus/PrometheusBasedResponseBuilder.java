@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import okhttp3.Request;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
@@ -20,7 +21,7 @@ public class PrometheusBasedResponseBuilder {
    * <SERVICE.startTime, SERVICE.id, SERVICE.numCall, Service.errorCount> // columnSet
    * timeStampColumn : SERVICE.startTime
    * */
-  static List<Builder> buildResponse(
+  static List<Row> buildResponse(
       Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
       Map<String, String> columnNameToAttributeMap,
       Map<String, String> columnNameToQueryMap,
@@ -38,22 +39,27 @@ public class PrometheusBasedResponseBuilder {
     PromQLMetricResponse firstResponse =
         promQLMetricResponseMap.values().stream().findFirst().get();
 
+    List<Builder> builderList;
     if (isInstantResponse(firstResponse)) {
-      return buildAggregateResponse(
-          promQLMetricResponseMap,
-          columnNameToAttributeMap,
-          columnNameToQueryMap,
-          columnSet,
-          firstResponse);
+      builderList =
+          buildAggregateResponse(
+              promQLMetricResponseMap,
+              columnNameToAttributeMap,
+              columnNameToQueryMap,
+              columnSet,
+              firstResponse);
     } else {
-      return buildAggregateResponse(
-          promQLMetricResponseMap,
-          columnNameToAttributeMap,
-          columnNameToQueryMap,
-          columnSet,
-          firstResponse,
-          timeStampColumn);
+      builderList =
+          buildAggregateResponse(
+              promQLMetricResponseMap,
+              columnNameToAttributeMap,
+              columnNameToQueryMap,
+              columnSet,
+              firstResponse,
+              timeStampColumn);
     }
+
+    return builderList.stream().map(builder -> builder.build()).collect(Collectors.toList());
   }
 
   private static List<Builder> buildAggregateResponse(
@@ -85,7 +91,9 @@ public class PrometheusBasedResponseBuilder {
                 rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
               } else if (columnNameToAttributeMap.containsKey(selection)) {
                 // attribute selection
-                String colVal = getMetricAttributeValue(selection, promQLMetricResult);
+                String colVal =
+                    getMetricAttributeValue(
+                        columnNameToAttributeMap.get(selection), promQLMetricResult);
                 rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
               } else if (timeStampColumn.equals(selection)) {
                 // time stamp attribute
@@ -111,7 +119,8 @@ public class PrometheusBasedResponseBuilder {
       PromQLMetricResponse firstResponse) {
 
     List<Builder> rowBuilderList = new ArrayList<>();
-    for (int row = 0; row < calcNumberRows(firstResponse); row++) {
+    int numRows = (int) calcNumberRows(firstResponse);
+    for (int row = 0; row < numRows; row++) {
       Builder rowBuilder = Row.newBuilder();
       PromQLMetricResult promQLMetricResult = firstResponse.getData().getResult().get(row);
 
@@ -128,7 +137,9 @@ public class PrometheusBasedResponseBuilder {
               rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
             } else if (columnNameToAttributeMap.containsKey(selection)) {
               // attribute selection
-              String colVal = getMetricAttributeValue(selection, promQLMetricResult);
+              String colVal =
+                  getMetricAttributeValue(
+                      columnNameToAttributeMap.get(selection), promQLMetricResult);
               rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
             } else {
               throw new RuntimeException("Invalid selection");
@@ -170,7 +181,9 @@ public class PrometheusBasedResponseBuilder {
                     metricResult
                         .getMetricAttributes()
                         .equals(promQLMetricResult.getMetricAttributes()))
-            .map(result -> result.getValues().get(0).getValue()));
+            .map(result -> result.getValues().get(0).getValue())
+            .findFirst()
+            .get());
   }
 
   private static String getMetricAttributeValue(
@@ -204,6 +217,8 @@ public class PrometheusBasedResponseBuilder {
                         .findFirst()
                         .get()
                         .getTimeStamp()
-                        .toEpochMilli()));
+                        .toEpochMilli())
+            .findFirst()
+            .get());
   }
 }
