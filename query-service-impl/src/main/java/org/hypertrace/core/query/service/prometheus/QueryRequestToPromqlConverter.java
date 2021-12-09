@@ -32,15 +32,14 @@ class QueryRequestToPromqlConverter {
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
-
-    QueryTimeRange queryTimeRange =
-        executionContext
-            .getQueryTimeRange()
-            .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
-
+    QueryTimeRange queryTimeRange = getQueryTimeRange(executionContext);
     return new PromQLInstantQueries(
         buildPromqlQueries(
-            request, allSelections, queryTimeRange, executionContext.getTimeFilterColumn()),
+            executionContext.getTenantId(),
+            request,
+            allSelections,
+            queryTimeRange.getDuration(),
+            executionContext.getTimeFilterColumn()),
         queryTimeRange.getEndTime());
   }
 
@@ -48,30 +47,38 @@ class QueryRequestToPromqlConverter {
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
-
-    QueryTimeRange queryTimeRange =
-        executionContext
-            .getQueryTimeRange()
-            .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
-
+    QueryTimeRange queryTimeRange = getQueryTimeRange(executionContext);
     return new PromQLRangeQueries(
         buildPromqlQueries(
-            request, allSelections, queryTimeRange, executionContext.getTimeFilterColumn()),
+            executionContext.getTenantId(),
+            request,
+            allSelections,
+            executionContext.getTimeSeriesPeriod().get(),
+            executionContext.getTimeFilterColumn()),
         queryTimeRange.getStartTime(),
         queryTimeRange.getEndTime(),
         getTimeSeriesPeriod(executionContext));
   }
 
+  private QueryTimeRange getQueryTimeRange(ExecutionContext executionContext) {
+    return executionContext
+        .getQueryTimeRange()
+        .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
+  }
+
   private List<String> buildPromqlQueries(
+      String tenantId,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections,
-      QueryTimeRange queryTimeRange,
+      Duration queryDuration,
       String timeFilterColumn) {
     List<String> groupByList = getGroupByList(request);
 
     List<String> filterList = new ArrayList<>();
+    filterList.add(
+        String.format("%s=\"%s\"", prometheusViewDefinition.getTenantAttributeName(), tenantId));
     filterToPromqlConverter.convertFilterToString(
-        request.getFilter(), filterList, timeFilterColumn, this::convertColumnAttributeToString);
+        request.getFilter(), timeFilterColumn, this::convertColumnAttributeToString, filterList);
 
     // iterate over all the functions in the query except for date time function (which is handled
     // separately and not a part of the query string)
@@ -82,7 +89,7 @@ class QueryRequestToPromqlConverter {
                     && !QueryRequestUtil.isDateTimeFunction(expression))
         .map(
             functionExpression ->
-                mapToPromqlQuery(functionExpression, groupByList, filterList, queryTimeRange))
+                mapToPromqlQuery(functionExpression, groupByList, filterList, queryDuration))
         .collect(Collectors.toUnmodifiableList());
   }
 
@@ -90,16 +97,16 @@ class QueryRequestToPromqlConverter {
       Expression functionExpression,
       List<String> groupByList,
       List<String> filterList,
-      QueryTimeRange queryTimeRange) {
+      Duration queryDuration) {
     String functionName =
         prometheusFunctionConverter.mapToPrometheusFunctionName(functionExpression);
     MetricConfig metricConfig = getMetricConfigForFunction(functionExpression);
     return buildQuery(
-        metricConfig.getName(),
+        metricConfig.getMetricName(),
         functionName,
         String.join(", ", groupByList),
         String.join(", ", filterList),
-        queryTimeRange.getDuration().toMillis());
+        queryDuration.toMillis());
   }
 
   private List<String> getGroupByList(QueryRequest queryRequest) {
@@ -115,9 +122,8 @@ class QueryRequestToPromqlConverter {
 
   private String buildQuery(
       String metricName, String function, String groupByList, String filter, long durationMillis) {
-    String template =
-        "%s by (%s) (%s(%s{%s}[%sms]))"; // sum by (a1, a2) (sum_over_time(num_calls{a4="..",
-    // a5=".."}[xms]))
+    // sum by (a1, a2) (sum_over_time(num_calls{a4="..", a5=".."}[xms]))
+    String template = "%s by (%s) (%s(%s{%s}[%sms]))";
 
     return String.format(
         template,

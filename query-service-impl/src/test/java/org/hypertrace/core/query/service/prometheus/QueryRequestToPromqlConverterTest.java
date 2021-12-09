@@ -44,8 +44,10 @@ class QueryRequestToPromqlConverterTest {
                 executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
 
     // time filter is removed from the query
-    String query1 = "count by (service_name, api_name) (count_over_time(error_count{}[100ms]))";
-    String query2 = "avg by (service_name, api_name) (avg_over_time(num_calls{}[100ms]))";
+    String query1 =
+        "count by (service_name, api_name) (count_over_time(error_count{tenant_id=\"__default\"}[100ms]))";
+    String query2 =
+        "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\"}[100ms]))";
 
     Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
     Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
@@ -69,9 +71,9 @@ class QueryRequestToPromqlConverterTest {
 
     // time filter is removed from the query
     String query1 =
-        "count by (service_name, api_name) (count_over_time(error_count{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
+        "count by (service_name, api_name) (count_over_time(error_count{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
     String query2 =
-        "avg by (service_name, api_name) (avg_over_time(num_calls{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
+        "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
 
     Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
     Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
@@ -95,9 +97,9 @@ class QueryRequestToPromqlConverterTest {
 
     // time filter is removed from the query
     String query1 =
-        "count by (service_name, api_name) (count_over_time(error_count{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
+        "count by (service_name, api_name) (count_over_time(error_count{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[15000ms]))";
     String query2 =
-        "avg by (service_name, api_name) (avg_over_time(num_calls{service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
+        "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[15000ms]))";
 
     Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
     Assertions.assertTrue(promqlQuery.getQueries().contains(query2));

@@ -12,7 +12,7 @@ import org.hypertrace.core.query.service.api.Row;
 
 public class PrometheusBasedRequestHandler implements RequestHandler {
 
-  public static final String VIEW_DEFINITION_CONFIG_KEY = "prometheusViewDefinition";
+  private static final String VIEW_DEFINITION_CONFIG_KEY = "prometheusViewDefinition";
   private static final String TENANT_COLUMN_NAME_CONFIG_KEY = "tenantAttributeName";
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
 

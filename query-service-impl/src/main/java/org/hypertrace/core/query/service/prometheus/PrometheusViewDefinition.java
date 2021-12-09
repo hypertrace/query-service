@@ -23,9 +23,9 @@ class PrometheusViewDefinition {
   private static final String METRIC_SCOPE_CONFIG_KEY = "metricScope";
 
   private final String viewName;
-  private final String tenantColumnName;
+  private final String tenantAttributeName;
   private final Map<String, MetricConfig> metricMap;
-  private final Map<String, String> columnMap;
+  private final Map<String, String> attributeMap;
 
   public PrometheusViewDefinition(
       String viewName,
@@ -33,9 +33,9 @@ class PrometheusViewDefinition {
       Map<String, MetricConfig> metricMap,
       Map<String, String> columnMap) {
     this.viewName = viewName;
-    this.tenantColumnName = tenantColumnName; // tenantAttributeName
+    this.tenantAttributeName = tenantColumnName;
     this.metricMap = metricMap;
-    this.columnMap = columnMap;
+    this.attributeMap = columnMap;
   }
 
   public static PrometheusViewDefinition parse(Config config, String tenantColumnName) {
@@ -73,7 +73,7 @@ class PrometheusViewDefinition {
   }
 
   public String getPhysicalColumnNameForLogicalColumnName(String logicalColumnName) {
-    return columnMap.get(logicalColumnName);
+    return attributeMap.get(logicalColumnName);
   }
 
   public MetricConfig getMetricConfigForLogicalMetricName(String logicalMetricName) {
@@ -84,14 +84,14 @@ class PrometheusViewDefinition {
     return viewName;
   }
 
-  public String getTenantColumnName() {
-    return tenantColumnName;
+  public String getTenantAttributeName() {
+    return tenantAttributeName;
   }
 
   @Value
   @AllArgsConstructor
   public static class MetricConfig {
-    String name;
+    String metricName;
     MetricType metricType;
   }
 

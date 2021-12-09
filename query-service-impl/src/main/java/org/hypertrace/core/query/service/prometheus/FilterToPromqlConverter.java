@@ -15,20 +15,16 @@ import org.hypertrace.core.query.service.api.Value;
 
 class FilterToPromqlConverter {
 
-  /**
-   * only `AND` operator in filter is allowed
-   *
-   * <p>rhs of leaf filter should be literal
-   */
+  /** only `AND` operator in filter is allowed rhs of leaf filter should be literal */
   void convertFilterToString(
       Filter filter,
-      List<String> filterList,
       String timeFilterColumn,
-      Function<Expression, String> expressionToColumnConverter) {
+      Function<Expression, String> expressionToColumnConverter,
+      List<String> filterList) {
     if (filter.getChildFilterCount() > 0) {
       for (Filter childFilter : filter.getChildFilterList()) {
         convertFilterToString(
-            childFilter, filterList, timeFilterColumn, expressionToColumnConverter);
+            childFilter, timeFilterColumn, expressionToColumnConverter, filterList);
       }
     } else {
       if (QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())
@@ -109,7 +105,8 @@ class FilterToPromqlConverter {
       case BOOLEAN_ARRAY:
       case UNRECOGNIZED:
       default:
-        return null;
+        throw new RuntimeException(
+            String.format("Literal type %s not supported", value.getValueType()));
     }
   }
 }

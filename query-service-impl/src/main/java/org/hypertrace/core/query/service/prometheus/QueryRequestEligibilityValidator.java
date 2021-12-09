@@ -16,6 +16,8 @@ import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
+import org.hypertrace.core.query.service.prometheus.PrometheusViewDefinition.MetricConfig;
+import org.hypertrace.core.query.service.prometheus.PrometheusViewDefinition.MetricType;
 
 /** Set of rules to check if the given request can be served by prometheus */
 class QueryRequestEligibilityValidator {
@@ -98,6 +100,10 @@ class QueryRequestEligibilityValidator {
   }
 
   private boolean areAggregationsNotSupported(List<Expression> aggregationList) {
+    // supported aggregation must have single argument (except for dateTimeConvert)
+    // and prometheusViewDef must have mapping for the metric in the argument
+    // the function type must be supported
+    // right now only GAUGE type of metric is supported
     return aggregationList.stream()
         .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
         .anyMatch(
@@ -112,13 +118,16 @@ class QueryRequestEligibilityValidator {
                   function.getFunctionName())) {
                 return true;
               }
-              return prometheusViewDefinition.getMetricConfigForLogicalMetricName(attributeId)
-                  == null;
+              MetricConfig metricConfig =
+                  prometheusViewDefinition.getMetricConfigForLogicalMetricName(attributeId);
+              return null == metricConfig || metricConfig.getMetricType() != MetricType.GAUGE;
             });
   }
 
   private boolean isFilterNotSupported(Filter filter) {
     if (filter.getChildFilterCount() > 0) {
+      // AND high level operator is supported
+      // later OR operator can be supported for same column
       if (filter.getOperator() != Operator.AND) {
         return true;
       }
@@ -127,19 +136,18 @@ class QueryRequestEligibilityValidator {
           return true;
         }
       }
+    } else {
+      // filter rhs should be literal only
+      if (filter.getRhs().getValueCase() != ValueCase.LITERAL) {
+        return true;
+      }
+
+      // filter lhs should be column or simple attribute
+      if (!QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())) {
+        return true;
+      }
     }
 
-    // filter rhs should be literal only
-    if (filter.getRhs().getValueCase() != ValueCase.LITERAL) {
-      return true;
-    }
-
-    // filter lhs should be column or simple attribute
-    if (!QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())) {
-      return true;
-    }
-
-    // todo check for valid operators here
     return false;
   }
 }
