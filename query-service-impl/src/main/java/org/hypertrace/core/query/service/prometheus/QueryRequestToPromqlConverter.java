@@ -70,7 +70,7 @@ class QueryRequestToPromqlConverter {
       String tenantId,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections,
-      Duration queryDuration,
+      Duration duration,
       String timeFilterColumn) {
     List<String> groupByList = getGroupByList(request);
 
@@ -89,7 +89,7 @@ class QueryRequestToPromqlConverter {
                     && !QueryRequestUtil.isDateTimeFunction(expression))
         .map(
             functionExpression ->
-                mapToPromqlQuery(functionExpression, groupByList, filterList, queryDuration))
+                mapToPromqlQuery(functionExpression, groupByList, filterList, duration))
         .collect(Collectors.toUnmodifiableList());
   }
 
@@ -97,7 +97,7 @@ class QueryRequestToPromqlConverter {
       Expression functionExpression,
       List<String> groupByList,
       List<String> filterList,
-      Duration queryDuration) {
+      Duration duration) {
     String functionName =
         prometheusFunctionConverter.mapToPrometheusFunctionName(functionExpression);
     MetricConfig metricConfig = getMetricConfigForFunction(functionExpression);
@@ -106,7 +106,7 @@ class QueryRequestToPromqlConverter {
         functionName,
         String.join(", ", groupByList),
         String.join(", ", filterList),
-        queryDuration.toMillis());
+        duration.toMillis());
   }
 
   private List<String> getGroupByList(QueryRequest queryRequest) {
@@ -120,9 +120,12 @@ class QueryRequestToPromqlConverter {
     return executionContext.getTimeSeriesPeriod().get();
   }
 
+  /**
+   * Builds a promql query. example query `sum by (a1, a2) (sum_over_time(num_calls{a4="..",
+   * a5=".."}[xms]))`
+   */
   private String buildQuery(
       String metricName, String function, String groupByList, String filter, long durationMillis) {
-    // sum by (a1, a2) (sum_over_time(num_calls{a4="..", a5=".."}[xms]))
     String template = "%s by (%s) (%s(%s{%s}[%sms]))";
 
     return String.format(

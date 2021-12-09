@@ -97,13 +97,13 @@ class QueryRequestToPromqlConverterTest {
 
     // time filter is removed from the query
     String query1 =
-        "count by (service_name, api_name) (count_over_time(error_count{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[15000ms]))";
+        "count by (service_name, api_name) (count_over_time(error_count{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[10ms]))";
     String query2 =
-        "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[15000ms]))";
+        "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[10ms]))";
 
     Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
     Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
-    Assertions.assertEquals(15000, promqlQuery.getPeriod().toMillis());
+    Assertions.assertEquals(10, promqlQuery.getPeriod().toMillis());
   }
 
   private QueryRequest buildMultipleGroupByMultipleAggQuery() {
@@ -138,8 +138,8 @@ class QueryRequestToPromqlConverterTest {
         createFunctionExpression("AVG", createColumnExpression("SERVICE.numCalls").build());
     builder.addAggregation(avg);
 
-    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GT, 100L);
-    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 200L);
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GT, 100000L);
+    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 200000L);
     Filter inFilter = createInFilter("SERVICE.id", List.of("1", "2", "3"));
     Filter likeFilter =
         Filter.newBuilder()
@@ -191,7 +191,7 @@ class QueryRequestToPromqlConverterTest {
 
     builder.addGroupBy(createColumnExpression("SERVICE.name"));
     builder.addGroupBy(createColumnExpression("API.name"));
-    builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
+    builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "10:MILLISECONDS"));
     return builder.build();
   }
 

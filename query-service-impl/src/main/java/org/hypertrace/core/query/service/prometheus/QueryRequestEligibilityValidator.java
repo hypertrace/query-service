@@ -101,8 +101,8 @@ class QueryRequestEligibilityValidator {
 
   private boolean areAggregationsNotSupported(List<Expression> aggregationList) {
     // supported aggregation must have single argument (except for dateTimeConvert)
-    // and prometheusViewDef must have mapping for the metric in the argument
-    // the function type must be supported
+    // prometheusViewDef must have mapping for the metric
+    // function type must be supported
     // right now only GAUGE type of metric is supported
     return aggregationList.stream()
         .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
@@ -126,7 +126,7 @@ class QueryRequestEligibilityValidator {
 
   private boolean isFilterNotSupported(Filter filter) {
     if (filter.getChildFilterCount() > 0) {
-      // AND high level operator is supported
+      // Currently, `AND` high level composite operator is supported
       // later OR operator can be supported for same column
       if (filter.getOperator() != Operator.AND) {
         return true;
@@ -137,12 +137,12 @@ class QueryRequestEligibilityValidator {
         }
       }
     } else {
-      // filter rhs should be literal only
+      // rhs condition of filter should be literal only
       if (filter.getRhs().getValueCase() != ValueCase.LITERAL) {
         return true;
       }
 
-      // filter lhs should be column or simple attribute
+      // lhs condition of filter should be column or simple attribute
       if (!QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())) {
         return true;
       }

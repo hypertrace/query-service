@@ -13,7 +13,7 @@ import org.hypertrace.core.query.service.api.Row;
 public class PrometheusBasedRequestHandler implements RequestHandler {
 
   private static final String VIEW_DEFINITION_CONFIG_KEY = "prometheusViewDefinition";
-  private static final String TENANT_COLUMN_NAME_CONFIG_KEY = "tenantAttributeName";
+  private static final String TENANT_ATTRIBUTE_NAME_CONFIG_KEY = "tenantAttributeName";
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
 
   private final QueryRequestEligibilityValidator queryRequestEligibilityValidator;
@@ -41,15 +41,18 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
 
   private void processConfig(Config config) {
 
-    if (!config.hasPath(TENANT_COLUMN_NAME_CONFIG_KEY)) {
+    if (!config.hasPath(TENANT_ATTRIBUTE_NAME_CONFIG_KEY)) {
       throw new RuntimeException(
-          TENANT_COLUMN_NAME_CONFIG_KEY + " is not defined in the " + name + " request handler.");
+          TENANT_ATTRIBUTE_NAME_CONFIG_KEY
+              + " is not defined in the "
+              + name
+              + " request handler.");
     }
 
-    String tenantColumnName = config.getString(TENANT_COLUMN_NAME_CONFIG_KEY);
+    String tenantAttributeName = config.getString(TENANT_ATTRIBUTE_NAME_CONFIG_KEY);
     this.prometheusViewDefinition =
         PrometheusViewDefinition.parse(
-            config.getConfig(VIEW_DEFINITION_CONFIG_KEY), tenantColumnName);
+            config.getConfig(VIEW_DEFINITION_CONFIG_KEY), tenantAttributeName);
 
     this.startTimeAttributeName =
         config.hasPath(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY)

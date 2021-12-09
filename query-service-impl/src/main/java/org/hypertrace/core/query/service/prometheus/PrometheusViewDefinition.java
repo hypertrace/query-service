@@ -29,23 +29,23 @@ class PrometheusViewDefinition {
 
   public PrometheusViewDefinition(
       String viewName,
-      String tenantColumnName,
+      String tenantAttributeName,
       Map<String, MetricConfig> metricMap,
-      Map<String, String> columnMap) {
+      Map<String, String> attributeMap) {
     this.viewName = viewName;
-    this.tenantAttributeName = tenantColumnName;
+    this.tenantAttributeName = tenantAttributeName;
     this.metricMap = metricMap;
-    this.attributeMap = columnMap;
+    this.attributeMap = attributeMap;
   }
 
-  public static PrometheusViewDefinition parse(Config config, String tenantColumnName) {
+  public static PrometheusViewDefinition parse(Config config, String tenantAttributeName) {
     String viewName = config.getString(VIEW_NAME_CONFIG_KEY);
 
-    final Map<String, String> fieldMap = Maps.newHashMap();
+    final Map<String, String> attributeMap = Maps.newHashMap();
     Config fieldMapConfig = config.getConfig(ATTRIBUTE_MAP_CONFIG_KEY);
     for (Entry<String, ConfigValue> element : fieldMapConfig.entrySet()) {
       List<String> keys = ConfigUtil.splitPath(element.getKey());
-      fieldMap.put(keys.get(0), fieldMapConfig.getString(element.getKey()));
+      attributeMap.put(keys.get(0), fieldMapConfig.getString(element.getKey()));
     }
 
     Config metricMapConfig = config.getConfig(METRIC_MAP_CONFIG_KEY);
@@ -68,8 +68,8 @@ class PrometheusViewDefinition {
     }
 
     return new PrometheusViewDefinition(
-        viewName, tenantColumnName,
-        metricMap, fieldMap);
+        viewName, tenantAttributeName,
+        metricMap, attributeMap);
   }
 
   public String getPhysicalColumnNameForLogicalColumnName(String logicalColumnName) {
