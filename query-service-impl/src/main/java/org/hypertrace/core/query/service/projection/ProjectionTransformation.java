@@ -323,17 +323,17 @@ final class ProjectionTransformation implements QueryTransformation {
       QueryRequest original,
       List<Expression> selections,
       List<Expression> aggregations,
-      Filter filter,
+      Filter originalFilter,
       List<Expression> groupBys,
       List<OrderByExpression> orderBys) {
 
     QueryRequest.Builder builder = original.toBuilder();
-    filter = updateFilterForComplexAttributeExpression(filter, orderBys);
+    Filter updatedFilter = rebuildFilterForComplexAttributeExpression(originalFilter, orderBys);
 
-    if (Filter.getDefaultInstance().equals(filter)) {
+    if (Filter.getDefaultInstance().equals(updatedFilter)) {
       builder.clearFilter();
     } else {
-      builder.setFilter(filter);
+      builder.setFilter(updatedFilter);
     }
 
     return builder
@@ -354,23 +354,23 @@ final class ProjectionTransformation implements QueryTransformation {
    * To handle order bys, we add the corresponding filter at the top and 'AND' it with the main filter.
    * To handle filter, we modify each filter (say filter1) as : "CONTAINS_KEY AND filter1".
    */
-  private Filter updateFilterForComplexAttributeExpression(
-      Filter filter, List<OrderByExpression> orderBys) {
+  private Filter rebuildFilterForComplexAttributeExpression(
+      Filter originalFilter, List<OrderByExpression> orderBys) {
 
     Filter filterFromOrderBys = createFilterForComplexAttributeExpressionFromOrderBy(orderBys);
-    filter = updateFilterForComplexAttributeExpressionFromFilter(filter, filterFromOrderBys);
+    Filter updatedFilter = updateFilterForComplexAttributeExpressionFromFilter(originalFilter);
 
-    if (!filter.equals(Filter.getDefaultInstance())
+    if (!updatedFilter.equals(Filter.getDefaultInstance())
         && !filterFromOrderBys.equals(Filter.getDefaultInstance())) {
       return Filter.newBuilder()
           .setOperator(Operator.AND)
-          .addChildFilter(filter)
+          .addChildFilter(updatedFilter)
           .addChildFilter(filterFromOrderBys)
           .build();
     } else if (!filterFromOrderBys.equals(Filter.getDefaultInstance())) {
       return filterFromOrderBys;
     } else {
-      return filter;
+      return updatedFilter;
     }
   }
 
@@ -396,40 +396,34 @@ final class ProjectionTransformation implements QueryTransformation {
         : Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(childFilterList).build();
   }
 
-  private Filter updateFilterForComplexAttributeExpressionFromFilter(
-      Filter filter, Filter filterFromOrderBys) {
+  private Filter updateFilterForComplexAttributeExpressionFromFilter(Filter originalFilter) {
 
-    Filter.Builder builder = filter.toBuilder();
+    Filter.Builder builder = originalFilter.toBuilder();
     builder.clearChildFilter();
 
-    for (int i = 0; i < filter.getChildFilterCount(); i++) {
-      Filter childFilter =
-          updateFilterForComplexAttributeExpressionFromFilter(
-              filter.getChildFilterList().get(i), filterFromOrderBys);
-      builder.addChildFilter(childFilter);
-    }
+    originalFilter
+        .getChildFilterList()
+        .forEach(
+            childFilter ->
+                builder.addChildFilter(
+                    updateFilterForComplexAttributeExpressionFromFilter(childFilter)));
 
-    filter = builder.build();
+    Filter updatedFilter = builder.build();
 
-    if (filter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
-        && filter.getLhs().getAttributeExpression().hasSubpath()) {
+    if (updatedFilter.getLhs().getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
+        && updatedFilter.getLhs().getAttributeExpression().hasSubpath()) {
 
       Filter childFilter =
           createContainsKeyFilter(
-              filter.getLhs().getAttributeExpression().getAttributeId(),
-              filter.getLhs().getAttributeExpression().getSubpath());
-
-      if (filterFromOrderBys.getChildFilterCount() > 0
-          && filterFromOrderBys.getChildFilterList().contains(childFilter)) {
-        return filter;
-      }
+              updatedFilter.getLhs().getAttributeExpression().getAttributeId(),
+              updatedFilter.getLhs().getAttributeExpression().getSubpath());
 
       return Filter.newBuilder()
           .setOperator(Operator.AND)
-          .addChildFilter(filter)
+          .addChildFilter(updatedFilter)
           .addChildFilter(childFilter)
           .build();
     }
-    return filter;
+    return updatedFilter;
   }
 }
