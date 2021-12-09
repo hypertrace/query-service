@@ -138,8 +138,8 @@ class QueryRequestToPromqlConverterTest {
         createFunctionExpression("AVG", createColumnExpression("SERVICE.numCalls").build());
     builder.addAggregation(avg);
 
-    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GT, 100000L);
-    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 200000L);
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GT, 100L);
+    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 200L);
     Filter inFilter = createInFilter("SERVICE.id", List.of("1", "2", "3"));
     Filter likeFilter =
         Filter.newBuilder()
