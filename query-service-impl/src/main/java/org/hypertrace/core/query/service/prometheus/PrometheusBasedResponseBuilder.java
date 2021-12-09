@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import okhttp3.Request;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
@@ -40,15 +39,17 @@ public class PrometheusBasedResponseBuilder {
         promQLMetricResponseMap.values().stream().findFirst().get();
 
     if (isInstantResponse(firstResponse)) {
-      List<Builder> builderList = buildAggregateResponse(
-          promQLMetricResponseMap,
-          columnNameToAttributeMap,
-          columnNameToQueryMap,
-          columnSet,
-          firstResponse);
+      List<Builder> builderList =
+          buildAggregateResponse(
+              promQLMetricResponseMap,
+              columnNameToAttributeMap,
+              columnNameToQueryMap,
+              columnSet,
+              firstResponse);
     } else {
       // todo of timeseries
-      buildAggregateResponse(promQLMetricResponseMap,
+      buildAggregateResponse(
+          promQLMetricResponseMap,
           columnNameToAttributeMap,
           columnNameToQueryMap,
           columnSet,
@@ -67,12 +68,12 @@ public class PrometheusBasedResponseBuilder {
 
     List<Builder> rowBuilderList = new ArrayList<>();
     for (int row = 0; row < calcNumberRows(firstResponse); row++) {
+      PromQLMetricResult promQLMetricResult = firstResponse.getData().getResult().get(row);
       // now time loop
       for (int timeRow = 0; timeRow < firstResponse.getData().getResult().size(); timeRow++) {
         Builder rowBuilder = Row.newBuilder();
-        PromQLMetricResult promQLMetricResult = firstResponse.getData().getResult().get(row);
+        Instant time = promQLMetricResult.getValues().get(timeRow).getTimeStamp();
         // column loop
-
         columnSet.forEach(
             selection -> {
               if (columnNameToQueryMap.containsKey(selection)) {
@@ -81,7 +82,8 @@ public class PrometheusBasedResponseBuilder {
                     getMetricValueForTime(
                         columnNameToQueryMap.get(selection),
                         promQLMetricResponseMap,
-                        promQLMetricResult);
+                        promQLMetricResult,
+                        time);
                 rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
               } else if (columnNameToAttributeMap.containsKey(selection)) {
                 // attribute selection
@@ -89,18 +91,17 @@ public class PrometheusBasedResponseBuilder {
                 rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
               } else if (timeStampColumn.equals(selection)) {
                 // time stamp attribute
-                String colVal = getTimeValue();
+                String colVal = String.valueOf(time.toEpochMilli());
               } else {
                 throw new RuntimeException("Invalid selection");
               }
             });
-
       }
     }
 
     return new ArrayList<>();
-
   }
+
   private static List<Builder> buildAggregateResponse(
       Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
       Map<String, String> columnNameToAttributeMap,
@@ -137,7 +138,6 @@ public class PrometheusBasedResponseBuilder {
     }
     return rowBuilderList;
   }
-
 
   private static boolean isInstantResponse(PromQLMetricResponse firstResponse) {
     return firstResponse.getData().getResultType().equals("vector");
@@ -196,12 +196,13 @@ public class PrometheusBasedResponseBuilder {
                     metricResult
                         .getMetricAttributes()
                         .equals(promQLMetricResult.getMetricAttributes()))
-            .map(matchedResult -> matchedResult
-                .getValues()
-                .stream()
-                .filter(value -> value.getTimeStamp().equals(time))
-                .findFirst())
-            .filter(result -> result.isPresent())
-            .collect(Collectors.toUnmodifiableList()));
+            .map(
+                matchedResult ->
+                    matchedResult.getValues().stream()
+                        .filter(value -> value.getTimeStamp().equals(time))
+                        .findFirst()
+                        .get()
+                        .getTimeStamp()
+                        .toEpochMilli()));
   }
 }
