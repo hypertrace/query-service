@@ -20,7 +20,7 @@ public class PrometheusBasedResponseBuilder {
    * <SERVICE.startTime, SERVICE.id, SERVICE.numCall, Service.errorCount> // columnSet
    * timeStampColumn : SERVICE.startTime
    * */
-  static void buildResponse(
+  static List<Builder> buildResponse(
       Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
       Map<String, String> columnNameToAttributeMap,
       Map<String, String> columnNameToQueryMap,
@@ -29,7 +29,7 @@ public class PrometheusBasedResponseBuilder {
 
     // check if response is empty
     if (promQLMetricResponseMap.isEmpty()) {
-      return;
+      return null;
     }
 
     // as multiple request only vary in metric value, and all other attributes
@@ -39,16 +39,14 @@ public class PrometheusBasedResponseBuilder {
         promQLMetricResponseMap.values().stream().findFirst().get();
 
     if (isInstantResponse(firstResponse)) {
-      List<Builder> builderList =
-          buildAggregateResponse(
-              promQLMetricResponseMap,
-              columnNameToAttributeMap,
-              columnNameToQueryMap,
-              columnSet,
-              firstResponse);
+      return buildAggregateResponse(
+          promQLMetricResponseMap,
+          columnNameToAttributeMap,
+          columnNameToQueryMap,
+          columnSet,
+          firstResponse);
     } else {
-      // todo of timeseries
-      buildAggregateResponse(
+      return buildAggregateResponse(
           promQLMetricResponseMap,
           columnNameToAttributeMap,
           columnNameToQueryMap,
@@ -92,14 +90,17 @@ public class PrometheusBasedResponseBuilder {
               } else if (timeStampColumn.equals(selection)) {
                 // time stamp attribute
                 String colVal = String.valueOf(time.toEpochMilli());
+                rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
               } else {
                 throw new RuntimeException("Invalid selection");
               }
             });
+
+        rowBuilderList.add(rowBuilder);
       }
     }
 
-    return new ArrayList<>();
+    return rowBuilderList;
   }
 
   private static List<Builder> buildAggregateResponse(
