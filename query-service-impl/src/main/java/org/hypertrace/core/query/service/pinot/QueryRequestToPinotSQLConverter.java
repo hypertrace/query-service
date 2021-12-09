@@ -1,5 +1,8 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.isMapAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isMapSubpathAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
@@ -201,7 +204,7 @@ class QueryRequestToPinotSQLConverter {
    * @return newly created literal {@link Expression} of rhs if converted else the same one.
    */
   private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
-    if (!(isSimpleAttributeExpression(lhs) && rhs.getValueCase().equals(LITERAL))) {
+    if (!(isSimpleAttributeExpression(lhs, viewDefinition) && rhs.getValueCase().equals(LITERAL))) {
       return rhs;
     }
 
@@ -268,7 +271,7 @@ class QueryRequestToPinotSQLConverter {
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
-        if (isMapSubpathAttributeExpression(expression)) {
+        if (isMapSubpathAttributeExpression(expression, viewDefinition)) {
           String keyCol = convertExpressionToMapKeyColumn(expression);
           String valCol = convertExpressionToMapValueColumn(expression);
           String pathExpression = expression.getAttributeExpression().getSubpath();
@@ -306,7 +309,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
-    if (isMapAttributeExpression(expression)) {
+    if (isMapAttributeExpression(expression, viewDefinition)) {
       String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -316,7 +319,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapValueColumn(Expression expression) {
-    if (isMapAttributeExpression(expression)) {
+    if (isMapAttributeExpression(expression, viewDefinition)) {
       String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -449,30 +452,5 @@ class QueryRequestToPinotSQLConverter {
         break;
     }
     return ret;
-  }
-
-  private boolean isColumnMapAttribute(Expression expression) {
-    return expression.getValueCase() == COLUMNIDENTIFIER
-        && isMapField(expression.getColumnIdentifier().getColumnName());
-  }
-
-  private boolean isMapSubpathAttributeExpression(Expression expression) {
-    return expression.getValueCase() == ATTRIBUTE_EXPRESSION
-        && expression.getAttributeExpression().hasSubpath()
-        && isMapField(expression.getAttributeExpression().getAttributeId());
-  }
-
-  private boolean isMapAttributeExpression(Expression expression) {
-    return isColumnMapAttribute(expression) || isMapSubpathAttributeExpression(expression);
-  }
-
-  private boolean isMapField(String columnName) {
-    return viewDefinition.getColumnType(columnName) == ValueType.STRING_MAP;
-  }
-
-  private boolean isSimpleAttributeExpression(Expression expression) {
-    return (expression.getValueCase() == COLUMNIDENTIFIER)
-        || ((expression.getValueCase() == ATTRIBUTE_EXPRESSION)
-            && (!isMapSubpathAttributeExpression(expression)));
   }
 }
