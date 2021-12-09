@@ -48,7 +48,6 @@ class PrometheusViewDefinition {
       fieldMap.put(keys.get(0), fieldMapConfig.getString(element.getKey()));
     }
 
-    final Map<String, MetricConfig> metricMap = Maps.newHashMap();
     Config metricMapConfig = config.getConfig(METRIC_MAP_CONFIG_KEY);
 
     Set<String> metricNames = Sets.newHashSet();
@@ -57,6 +56,7 @@ class PrometheusViewDefinition {
       metricNames.add(keys.get(0));
     }
 
+    final Map<String, MetricConfig> metricMap = Maps.newHashMap();
     String metricScope = config.getString(METRIC_SCOPE_CONFIG_KEY);
     for (String metricName : metricNames) {
       Config metricDef = metricMapConfig.getConfig(metricName);

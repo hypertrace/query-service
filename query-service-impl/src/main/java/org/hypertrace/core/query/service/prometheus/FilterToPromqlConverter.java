@@ -61,7 +61,6 @@ class FilterToPromqlConverter {
 
   private String convertLiteralToString(LiteralConstant literal) {
     Value value = literal.getValue();
-    String ret = null;
     switch (value.getValueType()) {
       case STRING_ARRAY:
         StringBuilder builder = new StringBuilder("\"");
@@ -72,8 +71,7 @@ class FilterToPromqlConverter {
           builder.append(item);
         }
         builder.append("\"");
-        ret = builder.toString();
-        break;
+        return builder.toString();
       case BYTES_ARRAY:
         builder = new StringBuilder("\"");
         for (ByteString item : value.getBytesArrayList()) {
@@ -83,46 +81,35 @@ class FilterToPromqlConverter {
           builder.append(Hex.encodeHexString(item.toByteArray()));
         }
         builder.append("\"");
-        ret = builder.toString();
-        break;
+        return builder.toString();
       case STRING:
-        ret = "\"" + value.getString() + "\"";
-        break;
+        return "\"" + value.getString() + "\"";
       case LONG:
-        ret = "\"" + value.getLong() + "\"";
-        break;
+        return "\"" + value.getLong() + "\"";
       case INT:
-        ret = "\"" + value.getInt() + "\"";
-        break;
+        return "\"" + value.getInt() + "\"";
       case FLOAT:
-        ret = "\"" + value.getFloat() + "\"";
-        break;
+        return "\"" + value.getFloat() + "\"";
       case DOUBLE:
-        ret = "\"" + value.getDouble() + "\"";
-        break;
+        return "\"" + value.getDouble() + "\"";
       case BYTES:
-        ret = "\"" + Hex.encodeHexString(value.getBytes().toByteArray()) + "\"";
-        break;
+        return "\"" + Hex.encodeHexString(value.getBytes().toByteArray()) + "\"";
       case BOOL:
-        ret = "\"" + value.getBoolean() + "\"";
-        break;
+        return "\"" + value.getBoolean() + "\"";
       case TIMESTAMP:
-        ret = "\"" + value.getTimestamp() + "\"";
-        break;
+        return "\"" + value.getTimestamp() + "\"";
       case NULL_NUMBER:
-        ret = "0";
-        break;
+        return "0";
       case NULL_STRING:
-        ret = "null";
-        break;
+        return "null";
       case LONG_ARRAY:
       case INT_ARRAY:
       case FLOAT_ARRAY:
       case DOUBLE_ARRAY:
       case BOOLEAN_ARRAY:
       case UNRECOGNIZED:
-        break;
+      default:
+        return null;
     }
-    return ret;
   }
 }

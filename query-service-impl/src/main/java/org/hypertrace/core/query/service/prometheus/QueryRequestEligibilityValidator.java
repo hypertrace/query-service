@@ -34,8 +34,7 @@ class QueryRequestEligibilityValidator {
       }
 
       // only aggregation queries are supported
-      if (queryRequest.getAggregationCount() == 0
-          || queryRequest.getGroupByCount() == 0) {
+      if (queryRequest.getAggregationCount() == 0 || queryRequest.getGroupByCount() == 0) {
         return QueryCost.UNSUPPORTED;
       }
 
