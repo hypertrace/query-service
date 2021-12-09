@@ -35,8 +35,11 @@ class QueryRequestEligibilityValidator {
 
       // only aggregation queries are supported
       if (queryRequest.getAggregationCount() == 0
-          || queryRequest.getGroupByCount() == 0
-          || queryRequest.getDistinctSelections()) {
+          || queryRequest.getGroupByCount() == 0) {
+        return QueryCost.UNSUPPORTED;
+      }
+
+      if (queryRequest.getDistinctSelections()) {
         return QueryCost.UNSUPPORTED;
       }
 
@@ -63,6 +66,7 @@ class QueryRequestEligibilityValidator {
         return QueryCost.UNSUPPORTED;
       }
 
+      // if selection and groupBy should be on same column or simple attribute
       if (selectionAndGroupByOnDifferentColumn(
           queryRequest.getSelectionList(), queryRequest.getGroupByList())) {
         return QueryCost.UNSUPPORTED;
@@ -91,7 +95,6 @@ class QueryRequestEligibilityValidator {
             .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
             .map(QueryRequestUtil::getLogicalColumnNameForSimpleColumnExpression)
             .collect(Collectors.toSet());
-    // all selection and group by should be on same column
     return !selections.equals(groupBys);
   }
 
