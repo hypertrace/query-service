@@ -107,7 +107,8 @@ public class QueryRequestUtil {
         && expression.getAttributeExpression().hasSubpath();
   }
 
-  public static boolean isColumnMapAttribute(Expression expression, ViewDefinition viewDefinition) {
+  private static boolean isColumnMapAttribute(
+      Expression expression, ViewDefinition viewDefinition) {
     return expression.getValueCase() == COLUMNIDENTIFIER
         && isMapField(expression.getColumnIdentifier().getColumnName(), viewDefinition);
   }
@@ -124,7 +125,7 @@ public class QueryRequestUtil {
         || isMapSubpathAttributeExpression(expression, viewDefinition);
   }
 
-  public static boolean isMapField(String columnName, ViewDefinition viewDefinition) {
+  private static boolean isMapField(String columnName, ViewDefinition viewDefinition) {
     return viewDefinition.getColumnType(columnName) == ValueType.STRING_MAP;
   }
 
