@@ -3,8 +3,6 @@ package org.hypertrace.core.query.service.pinot;
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isMapAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
 import com.google.common.base.Joiner;
