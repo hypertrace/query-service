@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.prometheus;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import io.reactivex.rxjava3.core.Observable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -13,8 +14,6 @@ import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
-import org.hypertrace.core.query.service.api.Row.Builder;
-import org.hypertrace.core.query.service.pinot.PinotBasedRequestHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,26 +85,27 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
   @Override
   public Observable<Row> handleRequest(
       QueryRequest originalRequest, ExecutionContext executionContext) {
-
     // Validate QueryContext and tenant id presence
     Preconditions.checkNotNull(executionContext);
     Preconditions.checkNotNull(executionContext.getTenantId());
 
-    // todo call convert and execute request using client here
-
     Map<Request, PromQLMetricResponse> responseMap;
-    Map<String, String> metricNameToQueryMap;
+    Map<String, String> metricNameToQueryMap = new LinkedHashMap<>();
     if (isRangeQueryRequest(originalRequest)) {
       PromQLRangeQueries promQLRangeQueries =
           requestToPromqlConverter.convertToPromqlRangeQuery(
-              executionContext, originalRequest, executionContext.getAllSelections());
-      metricNameToQueryMap = promQLRangeQueries.getMetricNameToQueryMap();
+              executionContext,
+              originalRequest,
+              executionContext.getAllSelections(),
+              metricNameToQueryMap);
       responseMap = prometheusRestClient.executeRangeQuery(promQLRangeQueries);
     } else {
       PromQLInstantQueries promQLInstantQueries =
           requestToPromqlConverter.convertToPromqlInstantQuery(
-              executionContext, originalRequest, executionContext.getAllSelections());
-      metricNameToQueryMap = promQLInstantQueries.getMetricNameToQueryMap();
+              executionContext,
+              originalRequest,
+              executionContext.getAllSelections(),
+              metricNameToQueryMap);
       responseMap = prometheusRestClient.executeInstantQuery(promQLInstantQueries);
     }
 
@@ -117,8 +117,7 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
             executionContext.getColumnSet(),
             executionContext.getTimeFilterColumn());
 
-    return Observable.fromIterable(rows)
-        .doOnNext(row -> LOG.debug("collect a row: {}", row));
+    return Observable.fromIterable(rows).doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
   private boolean isRangeQueryRequest(QueryRequest queryRequest) {

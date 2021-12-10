@@ -18,9 +18,9 @@ public class PrometheusRestClient {
   private static final String INSTANT_QUERY = "api/v1/query";
   private static final String RANGE_QUERY = "api/v1/query_range";
 
-  private final String host;
-  private final int port;
-  private final OkHttpClient okHttpClient;
+  private String host;
+  private int port;
+  private OkHttpClient okHttpClient;
 
   public PrometheusRestClient(String host, int port) {
     this.okHttpClient = new OkHttpClient();
@@ -75,7 +75,7 @@ public class PrometheusRestClient {
   }
 
   private List<Request> getInstantQueryRequests(PromQLInstantQueries promQLQuery) {
-    return promQLQuery.getMetricNameToQueryMap().values().stream()
+    return promQLQuery.getQueries().stream()
         .map(
             query -> {
               HttpUrl.Builder urlBuilder = HttpUrl.parse(getRequestUrl(INSTANT_QUERY)).newBuilder();
@@ -88,7 +88,7 @@ public class PrometheusRestClient {
   }
 
   private List<Request> getRangeQueryRequests(PromQLRangeQueries promQLQuery) {
-    return promQLQuery.getMetricNameToQueryMap().values().stream()
+    return promQLQuery.getQueries().stream()
         .map(
             query -> {
               HttpUrl.Builder urlBuilder = HttpUrl.parse(getRequestUrl(RANGE_QUERY)).newBuilder();

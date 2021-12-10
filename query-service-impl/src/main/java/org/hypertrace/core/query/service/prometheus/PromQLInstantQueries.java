@@ -1,15 +1,16 @@
 package org.hypertrace.core.query.service.prometheus;
 
 import java.time.Instant;
-import java.util.Map;
+import java.util.List;
 import lombok.Builder;
 import lombok.NonNull;
+import lombok.Singular;
 import lombok.Value;
 
 @Value
 @Builder
 class PromQLInstantQueries {
-  @NonNull Map<String, String> metricNameToQueryMap;
+  @NonNull @Singular List<String> queries;
 
   /*
    * Eval Time is the time of instant when the metrics queries are evaluated.

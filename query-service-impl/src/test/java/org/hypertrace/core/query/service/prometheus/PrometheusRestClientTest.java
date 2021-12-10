@@ -20,8 +20,7 @@ import org.junit.jupiter.api.Test;
 public class PrometheusRestClientTest {
 
   private static MockWebServer mockWebServer;
-  private final PrometheusRestClient prometheusRestClient =
-      new PrometheusRestClient("localhost", 9090);
+  private PrometheusRestClient prometheusRestClient = new PrometheusRestClient("localhost", 9090);
 
   @BeforeAll
   public static void setUp() throws IOException {
@@ -40,7 +39,7 @@ public class PrometheusRestClientTest {
 
     PromQLInstantQueries query =
         PromQLInstantQueries.builder()
-            .metricNameToQueryMap(Map.of("errorCount", "errorCount"))
+            .query("errorCount")
             .evalTime(Instant.ofEpochMilli(1435781451000L))
             .build();
 
@@ -56,7 +55,7 @@ public class PrometheusRestClientTest {
 
     PromQLRangeQueries query =
         PromQLRangeQueries.builder()
-            .metricNameToQueryMap(Map.of("errorCount", "errorCount"))
+            .query("errorCount")
             .startTime(Instant.ofEpochMilli(1435781430000L))
             .endTime(Instant.ofEpochMilli(1435781460000L))
             .period(Duration.of(15000, ChronoUnit.MILLIS))
@@ -69,13 +68,14 @@ public class PrometheusRestClientTest {
   }
 
   @Test
-  public void testMultipleInstantQuery() {
+  public void testMultipleInstantQuery() throws IOException {
     List<String> files = List.of("promql_error_count_vector.json", "promql_num_call_vector.json");
-    files.forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
+    files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
 
     PromQLInstantQueries query =
         PromQLInstantQueries.builder()
-            .metricNameToQueryMap(Map.of("errorCount", "errorCount", "numCall", "numCall"))
+            .query("errorCount")
+            .query("numCall")
             .evalTime(Instant.ofEpochMilli(1435781451000L))
             .build();
 
@@ -86,13 +86,14 @@ public class PrometheusRestClientTest {
   }
 
   @Test
-  public void testMultipleRangeQuery() {
+  public void testMultipleRangeQuery() throws IOException {
     List<String> files = List.of("promql_error_count_matrix.json", "promql_num_call_matrix.json");
-    files.forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
+    files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
 
     PromQLRangeQueries query =
         PromQLRangeQueries.builder()
-            .metricNameToQueryMap(Map.of("errorCount", "errorCount", "numCall", "numCall"))
+            .query("errorCount")
+            .query("numCall")
             .startTime(Instant.ofEpochMilli(1435781430000L))
             .endTime(Instant.ofEpochMilli(1435781460000L))
             .period(Duration.of(15000, ChronoUnit.MILLIS))
@@ -105,14 +106,15 @@ public class PrometheusRestClientTest {
   }
 
   @Test
-  public void testOneOfInstantQueryFail() {
+  public void testOneOfInstantQueryFail() throws IOException {
     List<String> files = List.of("promql_error_count_vector.json");
-    files.forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
+    files.stream().forEach(fileName -> mockWebServer.enqueue(getSuccessMockResponse(fileName)));
     mockWebServer.enqueue(getFailMockResponse("promql_num_call_vector.json"));
 
     PromQLInstantQueries query =
         PromQLInstantQueries.builder()
-            .metricNameToQueryMap(Map.of("errorCount", "errorCount", "numCall", "numCall"))
+            .query("errorCount")
+            .query("numCall")
             .evalTime(Instant.ofEpochMilli(1435781451000L))
             .build();
 
@@ -122,7 +124,7 @@ public class PrometheusRestClientTest {
 
   private MockResponse getSuccessMockResponse(String fileName) {
     URL fileUrl = PrometheusRestClientTest.class.getClassLoader().getResource(fileName);
-    String content;
+    String content = null;
     try {
       content = new String(Files.readAllBytes(Paths.get(fileUrl.getFile())));
     } catch (IOException ioException) {

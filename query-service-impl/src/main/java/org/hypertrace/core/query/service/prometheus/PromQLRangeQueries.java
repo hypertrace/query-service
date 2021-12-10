@@ -2,15 +2,16 @@ package org.hypertrace.core.query.service.prometheus;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
+import java.util.List;
 import lombok.Builder;
 import lombok.NonNull;
+import lombok.Singular;
 import lombok.Value;
 
 @Value
 @Builder
 class PromQLRangeQueries {
-  @NonNull Map<String, String> metricNameToQueryMap;
+  @NonNull @Singular List<String> queries;
 
   @NonNull Instant startTime;
 

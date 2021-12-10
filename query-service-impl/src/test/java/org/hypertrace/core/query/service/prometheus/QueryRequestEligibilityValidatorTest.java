@@ -21,7 +21,8 @@ class QueryRequestEligibilityValidatorTest {
   @BeforeEach
   public void setup() {
     queryRequestEligibilityValidator =
-        new QueryRequestEligibilityValidator(PrometheusTestUtils.getDefaultPrometheusViewDefinition());
+        new QueryRequestEligibilityValidator(
+            PrometheusTestUtils.getDefaultPrometheusViewDefinition());
   }
 
   @Test

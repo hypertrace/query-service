@@ -7,8 +7,10 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createS
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -25,16 +27,21 @@ class QueryRequestToPromqlConverterTest {
     QueryRequest query = buildMultipleGroupByMultipleAggQuery();
     Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
-    PrometheusViewDefinition prometheusViewDefinition = PrometheusTestUtils.getDefaultPrometheusViewDefinition();
+    PrometheusViewDefinition prometheusViewDefinition =
+        PrometheusTestUtils.getDefaultPrometheusViewDefinition();
 
     QueryRequest queryRequest = builder.build();
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
+    Map<String, String> metricNameToQueryMap = new LinkedHashMap<>();
     PromQLInstantQueries promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
             .convertToPromqlInstantQuery(
-                executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
+                executionContext,
+                builder.build(),
+                createSelectionsFromQueryRequest(queryRequest),
+                metricNameToQueryMap);
 
     // time filter is removed from the query
     String query1 =
@@ -42,8 +49,8 @@ class QueryRequestToPromqlConverterTest {
     String query2 =
         "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\"}[100ms]))";
 
-    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query1));
-    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query2));
+    Assertions.assertTrue(metricNameToQueryMap.containsValue(query1));
+    Assertions.assertTrue(metricNameToQueryMap.containsValue(query2));
   }
 
   @Test
@@ -51,16 +58,21 @@ class QueryRequestToPromqlConverterTest {
     QueryRequest query = buildMultipleGroupByMultipleAggQueryWithMultipleFilters();
     Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
-    PrometheusViewDefinition prometheusViewDefinition = PrometheusTestUtils.getDefaultPrometheusViewDefinition();
+    PrometheusViewDefinition prometheusViewDefinition =
+        PrometheusTestUtils.getDefaultPrometheusViewDefinition();
 
     QueryRequest queryRequest = builder.build();
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
+    Map<String, String> metricNameToQueryMap = new LinkedHashMap<>();
     PromQLInstantQueries promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
             .convertToPromqlInstantQuery(
-                executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
+                executionContext,
+                builder.build(),
+                createSelectionsFromQueryRequest(queryRequest),
+                metricNameToQueryMap);
 
     // time filter is removed from the query
     String query1 =
@@ -68,8 +80,8 @@ class QueryRequestToPromqlConverterTest {
     String query2 =
         "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
 
-    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query1));
-    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query2));
+    Assertions.assertTrue(metricNameToQueryMap.containsValue(query1));
+    Assertions.assertTrue(metricNameToQueryMap.containsValue(query2));
   }
 
   @Test
@@ -77,16 +89,21 @@ class QueryRequestToPromqlConverterTest {
     QueryRequest query = buildMultipleGroupByMultipleAggQueryWithMultipleFiltersAndDateTime();
     Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
-    PrometheusViewDefinition prometheusViewDefinition = PrometheusTestUtils.getDefaultPrometheusViewDefinition();
+    PrometheusViewDefinition prometheusViewDefinition =
+        PrometheusTestUtils.getDefaultPrometheusViewDefinition();
 
     QueryRequest queryRequest = builder.build();
 
     ExecutionContext executionContext = new ExecutionContext("__default", queryRequest);
     executionContext.setTimeFilterColumn("SERVICE.startTime");
+    Map<String, String> metricNameToQueryMap = new LinkedHashMap<>();
     PromQLRangeQueries promqlQuery =
         new QueryRequestToPromqlConverter(prometheusViewDefinition)
             .convertToPromqlRangeQuery(
-                executionContext, builder.build(), createSelectionsFromQueryRequest(queryRequest));
+                executionContext,
+                builder.build(),
+                createSelectionsFromQueryRequest(queryRequest),
+                metricNameToQueryMap);
 
     // time filter is removed from the query
     String query1 =
@@ -94,8 +111,8 @@ class QueryRequestToPromqlConverterTest {
     String query2 =
         "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[10ms]))";
 
-    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query1));
-    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query2));
+    Assertions.assertTrue(metricNameToQueryMap.containsValue(query1));
+    Assertions.assertTrue(metricNameToQueryMap.containsValue(query2));
     Assertions.assertEquals(10, promqlQuery.getPeriod().toMillis());
   }
 

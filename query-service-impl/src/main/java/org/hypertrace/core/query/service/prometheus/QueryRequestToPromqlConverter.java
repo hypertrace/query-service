@@ -6,8 +6,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTimeRange;
@@ -31,33 +33,49 @@ class QueryRequestToPromqlConverter {
   PromQLInstantQueries convertToPromqlInstantQuery(
       ExecutionContext executionContext,
       QueryRequest request,
-      LinkedHashSet<Expression> allSelections) {
+      LinkedHashSet<Expression> allSelections,
+      Map<String, String> metricNameToQueryMap) {
+
     QueryTimeRange queryTimeRange = getQueryTimeRange(executionContext);
-    return new PromQLInstantQueries(
+
+    metricNameToQueryMap.putAll(
         buildPromqlQueries(
             executionContext.getTenantId(),
             request,
             allSelections,
             queryTimeRange.getDuration(),
-            executionContext.getTimeFilterColumn()),
-        queryTimeRange.getEndTime());
+            executionContext.getTimeFilterColumn()));
+
+    PromQLInstantQueries.PromQLInstantQueriesBuilder builder = PromQLInstantQueries.builder();
+    metricNameToQueryMap.entrySet().forEach(entry -> builder.query(entry.getValue()));
+    builder.evalTime(queryTimeRange.getEndTime());
+
+    return builder.build();
   }
 
   PromQLRangeQueries convertToPromqlRangeQuery(
       ExecutionContext executionContext,
       QueryRequest request,
-      LinkedHashSet<Expression> allSelections) {
+      LinkedHashSet<Expression> allSelections,
+      Map<String, String> metricNameToQueryMap) {
+
     QueryTimeRange queryTimeRange = getQueryTimeRange(executionContext);
-    return new PromQLRangeQueries(
+
+    metricNameToQueryMap.putAll(
         buildPromqlQueries(
             executionContext.getTenantId(),
             request,
             allSelections,
-            executionContext.getTimeSeriesPeriod().get(),
-            executionContext.getTimeFilterColumn()),
-        queryTimeRange.getStartTime(),
-        queryTimeRange.getEndTime(),
-        getTimeSeriesPeriod(executionContext));
+            getTimeSeriesPeriod(executionContext),
+            executionContext.getTimeFilterColumn()));
+
+    PromQLRangeQueries.PromQLRangeQueriesBuilder builder = PromQLRangeQueries.builder();
+    metricNameToQueryMap.entrySet().forEach(entry -> builder.query(entry.getValue()));
+    builder.startTime(queryTimeRange.getStartTime());
+    builder.endTime(queryTimeRange.getEndTime());
+    builder.period(getTimeSeriesPeriod(executionContext));
+
+    return builder.build();
   }
 
   private QueryTimeRange getQueryTimeRange(ExecutionContext executionContext) {
@@ -66,7 +84,7 @@ class QueryRequestToPromqlConverter {
         .orElseThrow(() -> new RuntimeException("Time Range missing in query"));
   }
 
-  private List<String> buildPromqlQueries(
+  private Map<String, String> buildPromqlQueries(
       String tenantId,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections,
@@ -89,8 +107,10 @@ class QueryRequestToPromqlConverter {
                     && !QueryRequestUtil.isDateTimeFunction(expression))
         .map(
             functionExpression ->
-                mapToPromqlQuery(functionExpression, groupByList, filterList, duration))
-        .collect(Collectors.toUnmodifiableList());
+                ImmutablePair.of(
+                    getColumnNameForMetricFunction(functionExpression),
+                    mapToPromqlQuery(functionExpression, groupByList, filterList, duration)))
+        .collect(Collectors.toMap(pair -> pair.getLeft(), pair -> pair.getRight()));
   }
 
   private String mapToPromqlQuery(
@@ -147,5 +167,12 @@ class QueryRequestToPromqlConverter {
   private String convertColumnAttributeToString(Expression expression) {
     return prometheusViewDefinition.getPhysicalColumnNameForLogicalColumnName(
         getLogicalColumnNameForSimpleColumnExpression(expression));
+  }
+
+  private String getColumnNameForMetricFunction(Expression functionExpression) {
+    String functionName = functionExpression.getFunction().getFunctionName().toUpperCase();
+    String columnName =
+        functionExpression.getFunction().getArguments(0).getColumnIdentifier().getColumnName();
+    return String.join(":", columnName, functionName);
   }
 }
