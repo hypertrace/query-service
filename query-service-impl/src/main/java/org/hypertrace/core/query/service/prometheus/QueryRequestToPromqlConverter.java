@@ -174,6 +174,6 @@ class QueryRequestToPromqlConverter {
     String columnName =
         QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(
             functionExpression.getFunction().getArguments(0));
-    return String.join(":", columnName, functionName);
+    return String.join(":", functionName, columnName);
   }
 }

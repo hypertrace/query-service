@@ -37,13 +37,15 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
   private Optional<String> startTimeAttributeName;
   private PrometheusViewDefinition prometheusViewDefinition;
 
-  PrometheusBasedRequestHandler(String name, Config config) {
+  PrometheusBasedRequestHandler(String name, Config config, String clientConfig) {
     this.name = name;
     this.processConfig(config);
     this.queryRequestEligibilityValidator =
         new QueryRequestEligibilityValidator(prometheusViewDefinition);
     this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
-    this.prometheusRestClient = null;
+    String[] hostPort = clientConfig.split(":");
+    this.prometheusRestClient =
+        new PrometheusRestClient(hostPort[0], Integer.parseInt(hostPort[1]));
   }
 
   @Override
