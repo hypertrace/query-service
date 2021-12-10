@@ -38,6 +38,14 @@ public class PrometheusBasedResponseBuilder {
       return List.of();
     }
 
+    // convert map to query -> response
+    Map<String, PromQLMetricResponse> metricResponseMap =
+        promQLMetricResponseMap.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    entry -> entry.getKey().url().queryParameter("query"),
+                    entry -> entry.getValue()));
+
     List<Builder> builderList = new ArrayList<>();
 
     // as multiple request only vary in metric value, and all other attributes
@@ -49,7 +57,7 @@ public class PrometheusBasedResponseBuilder {
     if (isInstantResponse(firstResponse)) {
       builderList =
           buildAggregateResponse(
-              promQLMetricResponseMap,
+              metricResponseMap,
               columnNameToAttributeMap,
               columnNameToQueryMap,
               columnSet,
@@ -57,7 +65,7 @@ public class PrometheusBasedResponseBuilder {
     } else if (isRangeResponse(firstResponse)) {
       builderList =
           buildAggregateResponse(
-              promQLMetricResponseMap,
+              metricResponseMap,
               columnNameToAttributeMap,
               columnNameToQueryMap,
               columnSet,
@@ -69,7 +77,7 @@ public class PrometheusBasedResponseBuilder {
   }
 
   private static List<Builder> buildAggregateResponse(
-      Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
+      Map<String, PromQLMetricResponse> promQLMetricResponseMap,
       Map<String, String> columnNameToAttributeMap,
       Map<String, String> columnNameToQueryMap,
       List<String> columnSet,
@@ -120,7 +128,7 @@ public class PrometheusBasedResponseBuilder {
   }
 
   private static List<Builder> buildAggregateResponse(
-      Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
+      Map<String, PromQLMetricResponse> promQLMetricResponseMap,
       Map<String, String> columnNameToAttributeMap,
       Map<String, String> columnNameToQueryMap,
       List<String> columnSet,
@@ -179,14 +187,10 @@ public class PrometheusBasedResponseBuilder {
 
   private static String getMetricValue(
       String query,
-      Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
+      Map<String, PromQLMetricResponse> promQLMetricResponseMap,
       PromQLMetricResult promQLMetricResult) {
-    PromQLMetricResponse matchedResponse =
-        promQLMetricResponseMap.entrySet().stream()
-            .filter(entry -> entry.getKey().url().queryParameter("query").equals(query))
-            .findFirst()
-            .get()
-            .getValue();
+
+    PromQLMetricResponse matchedResponse = promQLMetricResponseMap.get(query);
 
     return String.valueOf(
         matchedResponse.getData().getResult().stream()
@@ -206,15 +210,11 @@ public class PrometheusBasedResponseBuilder {
 
   private static String getMetricValueForTime(
       String query,
-      Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
+      Map<String, PromQLMetricResponse> promQLMetricResponseMap,
       PromQLMetricResult promQLMetricResult,
       Instant time) {
-    PromQLMetricResponse matchedResponse =
-        promQLMetricResponseMap.entrySet().stream()
-            .filter(entry -> entry.getKey().url().queryParameter("query").equals(query))
-            .findFirst()
-            .get()
-            .getValue();
+
+    PromQLMetricResponse matchedResponse = promQLMetricResponseMap.get(query);
 
     return String.valueOf(
         matchedResponse.getData().getResult().stream()
