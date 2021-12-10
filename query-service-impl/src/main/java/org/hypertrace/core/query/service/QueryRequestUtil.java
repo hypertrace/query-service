@@ -1,8 +1,5 @@
 package org.hypertrace.core.query.service;
 
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
-
 import java.util.List;
 import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
