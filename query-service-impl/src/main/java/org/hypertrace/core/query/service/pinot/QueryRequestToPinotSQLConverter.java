@@ -1,7 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static org.hypertrace.core.query.service.QueryRequestUtil.isMapAttributeExpression;
-import static org.hypertrace.core.query.service.QueryRequestUtil.isMapSubpathAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
@@ -271,7 +270,7 @@ class QueryRequestToPinotSQLConverter {
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
-        if (isMapSubpathAttributeExpression(expression, viewDefinition)) {
+        if (isMapAttributeExpression(expression, viewDefinition)) {
           String keyCol = convertExpressionToMapKeyColumn(expression);
           String valCol = convertExpressionToMapValueColumn(expression);
           String pathExpression = expression.getAttributeExpression().getSubpath();

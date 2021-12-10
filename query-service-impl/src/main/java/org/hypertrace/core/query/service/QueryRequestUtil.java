@@ -7,7 +7,6 @@ import java.util.List;
 import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
-import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
@@ -102,37 +101,33 @@ public class QueryRequestUtil {
         .build();
   }
 
-  public static boolean isComplexAttributeExpression(Expression expression) {
-    return expression.getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
-        && expression.getAttributeExpression().hasSubpath();
-  }
-
-  private static boolean isColumnMapAttribute(
-      Expression expression, ViewDefinition viewDefinition) {
-    return expression.getValueCase() == COLUMNIDENTIFIER
-        && isMapField(expression.getColumnIdentifier().getColumnName(), viewDefinition);
-  }
-
-  public static boolean isMapSubpathAttributeExpression(
-      Expression expression, ViewDefinition viewDefinition) {
-    return isComplexAttributeExpression(expression)
-        && isMapField(expression.getAttributeExpression().getAttributeId(), viewDefinition);
-  }
-
   public static boolean isMapAttributeExpression(
       Expression expression, ViewDefinition viewDefinition) {
-    return isColumnMapAttribute(expression, viewDefinition)
-        || isMapSubpathAttributeExpression(expression, viewDefinition);
-  }
-
-  private static boolean isMapField(String columnName, ViewDefinition viewDefinition) {
-    return viewDefinition.getColumnType(columnName) == ValueType.STRING_MAP;
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return isMapField(expression.getColumnIdentifier().getColumnName(), viewDefinition);
+      case ATTRIBUTE_EXPRESSION:
+        return expression.getAttributeExpression().hasSubpath()
+            && isMapField(expression.getAttributeExpression().getAttributeId(), viewDefinition);
+      default:
+        return false;
+    }
   }
 
   public static boolean isSimpleAttributeExpression(
       Expression expression, ViewDefinition viewDefinition) {
-    return (expression.getValueCase() == COLUMNIDENTIFIER)
-        || ((expression.getValueCase() == ATTRIBUTE_EXPRESSION)
-            && (!isMapSubpathAttributeExpression(expression, viewDefinition)));
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return true;
+      case ATTRIBUTE_EXPRESSION:
+        return !expression.getAttributeExpression().hasSubpath()
+            || !isMapField(expression.getAttributeExpression().getAttributeId(), viewDefinition);
+      default:
+        return false;
+    }
+  }
+
+  private static boolean isMapField(String columnName, ViewDefinition viewDefinition) {
+    return viewDefinition.getColumnType(columnName) == ValueType.STRING_MAP;
   }
 }
