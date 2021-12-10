@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.prometheus;
 
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 
 import com.typesafe.config.Config;
@@ -53,7 +54,7 @@ class PrometheusBasedRequestHandlerTest {
   }
 
   @Test
-  public void test() throws IOException {
+  public void testSingleAggregation() throws IOException {
     QueryRequest request = buildSingleAggQuery();
 
     MockResponse mockResponse = getSuccessMockResponse("promql_error_count_service_vector.json");
@@ -71,6 +72,29 @@ class PrometheusBasedRequestHandlerTest {
         2, executionContext.getResultSetMetadata().getColumnMetadataList().size());
 
     Assertions.assertEquals(2, rowList.size());
+    Assertions.assertEquals(
+        executionContext.getResultSetMetadata().getColumnMetadataList().size(),
+        rowList.get(0).getColumnList().size());
+  }
+
+  @Test
+  public void testTimeSeriesAggregation() throws IOException {
+    QueryRequest request = buildTimeSeriesQuery();
+
+    MockResponse mockResponse = getSuccessMockResponse("promql_error_count_service_matrix.json");
+    mockWebServer.enqueue(mockResponse);
+
+    ExecutionContext executionContext = new ExecutionContext("__default", request);
+    executionContext.setTimeFilterColumn("SERVICE.startTime");
+
+    Observable<Row> rowObservable =
+        prometheusBasedRequestHandler.handleRequest(request, executionContext);
+
+    List<Row> rowList = rowObservable.toList().blockingGet();
+
+    Assertions.assertEquals(6, rowList.size());
+    Assertions.assertEquals(
+        3, executionContext.getResultSetMetadata().getColumnMetadataList().size());
     Assertions.assertEquals(
         executionContext.getResultSetMetadata().getColumnMetadataList().size(),
         rowList.get(0).getColumnList().size());
@@ -95,6 +119,32 @@ class PrometheusBasedRequestHandlerTest {
             .build();
     builder.setFilter(andFilter);
     builder.addGroupBy(createColumnExpression("SERVICE.name"));
+    return builder.build();
+  }
+
+  /**
+   * select SERVICE.name, SUM(SERVICE.errorCount), dateTimeConvert()
+   * from timeRange
+   * GroupBy SERVICE.name, dateTimeConvert()
+   * */
+  private QueryRequest buildTimeSeriesQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addAggregation(
+        createFunctionExpression("SUM", createColumnExpression("SERVICE.errorCount").build()));
+
+    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GT, 1435781430000L);
+    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 1435781460000L);
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .build();
+    builder.setFilter(andFilter);
+
+    builder.addGroupBy(createColumnExpression("SERVICE.name"));
+    builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "15:SECONDS"));
     return builder.build();
   }
 

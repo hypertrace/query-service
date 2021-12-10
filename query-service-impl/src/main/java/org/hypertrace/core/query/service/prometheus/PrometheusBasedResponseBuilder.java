@@ -106,8 +106,9 @@ public class PrometheusBasedResponseBuilder {
                         promQLMetricResult,
                         time);
                 rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
-              } else if (columnNameToAttributeMap.containsKey(selection)) {
-                // attribute selection
+              } else if (columnNameToAttributeMap.containsKey(selection)
+                  && !timeStampColumn.equals(selection)) {
+                // attribute selection (note: should have only supported metric attributes)
                 String colVal =
                     getMetricAttributeValue(
                         columnNameToAttributeMap.get(selection), promQLMetricResult);
@@ -153,7 +154,7 @@ public class PrometheusBasedResponseBuilder {
                       promQLMetricResult);
               rowBuilder.addColumn(Value.newBuilder().setString(colVal).build());
             } else if (columnNameToAttributeMap.containsKey(selection)) {
-              // attribute selection
+              // attribute selection (note: should have only supported metric attributes)
               String colVal =
                   getMetricAttributeValue(
                       columnNameToAttributeMap.get(selection), promQLMetricResult);
