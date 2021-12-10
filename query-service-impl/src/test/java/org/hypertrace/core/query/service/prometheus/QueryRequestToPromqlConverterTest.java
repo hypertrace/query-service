@@ -1,6 +1,5 @@
 package org.hypertrace.core.query.service.prometheus;
 
-import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
@@ -8,8 +7,6 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createS
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.util.LinkedHashSet;
 import java.util.List;
 import org.hypertrace.core.query.service.ExecutionContext;
@@ -23,16 +20,12 @@ import org.junit.jupiter.api.Test;
 
 class QueryRequestToPromqlConverterTest {
 
-  private static final String TENANT_COLUMN_NAME = "tenant_id";
-
-  private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "prometheus_request_handler.conf";
-
   @Test
   void testInstantQueryWithGroupByWithMultipleAggregates() {
     QueryRequest query = buildMultipleGroupByMultipleAggQuery();
     Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
-    PrometheusViewDefinition prometheusViewDefinition = getDefaultPrometheusViewDefinition();
+    PrometheusViewDefinition prometheusViewDefinition = PrometheusTestUtils.getDefaultPrometheusViewDefinition();
 
     QueryRequest queryRequest = builder.build();
 
@@ -49,8 +42,8 @@ class QueryRequestToPromqlConverterTest {
     String query2 =
         "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\"}[100ms]))";
 
-    Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
-    Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
+    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query1));
+    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query2));
   }
 
   @Test
@@ -58,7 +51,7 @@ class QueryRequestToPromqlConverterTest {
     QueryRequest query = buildMultipleGroupByMultipleAggQueryWithMultipleFilters();
     Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
-    PrometheusViewDefinition prometheusViewDefinition = getDefaultPrometheusViewDefinition();
+    PrometheusViewDefinition prometheusViewDefinition = PrometheusTestUtils.getDefaultPrometheusViewDefinition();
 
     QueryRequest queryRequest = builder.build();
 
@@ -75,8 +68,8 @@ class QueryRequestToPromqlConverterTest {
     String query2 =
         "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[100ms]))";
 
-    Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
-    Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
+    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query1));
+    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query2));
   }
 
   @Test
@@ -84,7 +77,7 @@ class QueryRequestToPromqlConverterTest {
     QueryRequest query = buildMultipleGroupByMultipleAggQueryWithMultipleFiltersAndDateTime();
     Builder builder = QueryRequest.newBuilder(query);
     builder.setLimit(20);
-    PrometheusViewDefinition prometheusViewDefinition = getDefaultPrometheusViewDefinition();
+    PrometheusViewDefinition prometheusViewDefinition = PrometheusTestUtils.getDefaultPrometheusViewDefinition();
 
     QueryRequest queryRequest = builder.build();
 
@@ -101,8 +94,8 @@ class QueryRequestToPromqlConverterTest {
     String query2 =
         "avg by (service_name, api_name) (avg_over_time(num_calls{tenant_id=\"__default\", service_id=\"1|2|3\", service_name=~\"someregex\"}[10ms]))";
 
-    Assertions.assertTrue(promqlQuery.getQueries().contains(query1));
-    Assertions.assertTrue(promqlQuery.getQueries().contains(query2));
+    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query1));
+    Assertions.assertTrue(promqlQuery.getMetricNameToQueryMap().containsValue(query2));
     Assertions.assertEquals(10, promqlQuery.getPeriod().toMillis());
   }
 
@@ -193,18 +186,6 @@ class QueryRequestToPromqlConverterTest {
     builder.addGroupBy(createColumnExpression("API.name"));
     builder.addGroupBy(createTimeColumnGroupByExpression("SERVICE.startTime", "10:MILLISECONDS"));
     return builder.build();
-  }
-
-  private PrometheusViewDefinition getDefaultPrometheusViewDefinition() {
-    Config fileConfig =
-        ConfigFactory.parseURL(
-            requireNonNull(
-                QueryRequestToPromqlConverterTest.class
-                    .getClassLoader()
-                    .getResource(TEST_REQUEST_HANDLER_CONFIG_FILE)));
-
-    return PrometheusViewDefinition.parse(
-        fileConfig.getConfig("requestHandlerInfo.prometheusViewDefinition"), TENANT_COLUMN_NAME);
   }
 
   private LinkedHashSet<Expression> createSelectionsFromQueryRequest(QueryRequest queryRequest) {

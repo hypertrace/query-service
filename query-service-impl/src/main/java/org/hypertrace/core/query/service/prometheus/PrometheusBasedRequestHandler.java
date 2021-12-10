@@ -3,14 +3,24 @@ package org.hypertrace.core.query.service.prometheus;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import io.reactivex.rxjava3.core.Observable;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import okhttp3.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
+import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
+import org.hypertrace.core.query.service.api.Row.Builder;
+import org.hypertrace.core.query.service.pinot.PinotBasedRequestHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PrometheusBasedRequestHandler implements RequestHandler {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PrometheusBasedRequestHandler.class);
 
   private static final String VIEW_DEFINITION_CONFIG_KEY = "prometheusViewDefinition";
   private static final String TENANT_ATTRIBUTE_NAME_CONFIG_KEY = "tenantAttributeName";
@@ -18,15 +28,19 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
 
   private final QueryRequestEligibilityValidator queryRequestEligibilityValidator;
   private final String name;
-  private PrometheusViewDefinition prometheusViewDefinition;
+  private final QueryRequestToPromqlConverter requestToPromqlConverter;
+  private final PrometheusRestClient prometheusRestClient;
+
   private Optional<String> startTimeAttributeName;
-  private QueryRequestToPromqlConverter requestToPromqlConverter;
+  private PrometheusViewDefinition prometheusViewDefinition;
 
   PrometheusBasedRequestHandler(String name, Config config) {
     this.name = name;
     this.processConfig(config);
     this.queryRequestEligibilityValidator =
         new QueryRequestEligibilityValidator(prometheusViewDefinition);
+    this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
+    this.prometheusRestClient = null;
   }
 
   @Override
@@ -58,8 +72,6 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
         config.hasPath(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY)
             ? Optional.of(config.getString(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY))
             : Optional.empty();
-
-    this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
   }
 
   /**
@@ -81,6 +93,35 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
 
     // todo call convert and execute request using client here
 
-    return null;
+    Map<Request, PromQLMetricResponse> responseMap;
+    Map<String, String> metricNameToQueryMap;
+    if (isRangeQueryRequest(originalRequest)) {
+      PromQLRangeQueries promQLRangeQueries =
+          requestToPromqlConverter.convertToPromqlRangeQuery(
+              executionContext, originalRequest, executionContext.getAllSelections());
+      metricNameToQueryMap = promQLRangeQueries.getMetricNameToQueryMap();
+      responseMap = prometheusRestClient.executeRangeQuery(promQLRangeQueries);
+    } else {
+      PromQLInstantQueries promQLInstantQueries =
+          requestToPromqlConverter.convertToPromqlInstantQuery(
+              executionContext, originalRequest, executionContext.getAllSelections());
+      metricNameToQueryMap = promQLInstantQueries.getMetricNameToQueryMap();
+      responseMap = prometheusRestClient.executeInstantQuery(promQLInstantQueries);
+    }
+
+    List<Row> rows =
+        PrometheusBasedResponseBuilder.buildResponse(
+            responseMap,
+            prometheusViewDefinition.getAttributeMap(),
+            metricNameToQueryMap,
+            executionContext.getColumnSet(),
+            executionContext.getTimeFilterColumn());
+
+    return Observable.fromIterable(rows)
+        .doOnNext(row -> LOG.debug("collect a row: {}", row));
+  }
+
+  private boolean isRangeQueryRequest(QueryRequest queryRequest) {
+    return queryRequest.getGroupByList().stream().anyMatch(QueryRequestUtil::isDateTimeFunction);
   }
 }
