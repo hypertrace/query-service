@@ -106,7 +106,6 @@ public class ExecutionContext {
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
         extractColumns(postFilterColumns, expression);
-        columnSet.addAll(postFilterColumns);
         columnMetadataSet.add(toColumnMetadata(expression));
         allSelections.add(expression);
       }
@@ -115,7 +114,6 @@ public class ExecutionContext {
       for (Expression expression : request.getSelectionList()) {
         extractColumns(selectedList, expression);
         postFilterColumns.addAll(selectedList);
-        columnSet.addAll(selectedList);
         columnMetadataSet.add(toColumnMetadata(expression));
         allSelections.add(expression);
       }
@@ -123,7 +121,6 @@ public class ExecutionContext {
     if (request.getAggregationCount() > 0) {
       for (Expression expression : request.getAggregationList()) {
         extractColumns(postFilterColumns, expression);
-        columnSet.addAll(postFilterColumns);
         columnMetadataSet.add(toColumnMetadata(expression));
         allSelections.add(expression);
       }
