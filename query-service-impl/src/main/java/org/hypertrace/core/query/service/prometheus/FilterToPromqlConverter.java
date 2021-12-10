@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service.prometheus;
 
-import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 
 import com.google.protobuf.ByteString;
 import java.util.List;
@@ -28,8 +28,7 @@ class FilterToPromqlConverter {
       }
     } else {
       if (QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())
-          && timeFilterColumn.equals(
-              getLogicalColumnNameForSimpleColumnExpression(filter.getLhs()))) {
+          && timeFilterColumn.equals(getLogicalColumnName(filter.getLhs()))) {
         return;
       }
       StringBuilder builder = new StringBuilder();

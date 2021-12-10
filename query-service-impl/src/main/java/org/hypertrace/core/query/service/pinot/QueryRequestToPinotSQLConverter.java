@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isMapAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
@@ -325,22 +326,6 @@ class QueryRequestToPinotSQLConverter {
       }
     }
     throw new IllegalArgumentException("operator supports multi value column only");
-  }
-
-  private String getLogicalColumnName(Expression expression) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        return expression.getColumnIdentifier().getColumnName();
-      case ATTRIBUTE_EXPRESSION:
-        return expression.getAttributeExpression().getAttributeId();
-      default:
-        throw new IllegalArgumentException(
-            "Supports "
-                + ATTRIBUTE_EXPRESSION
-                + " and "
-                + COLUMNIDENTIFIER
-                + " expression type only");
-    }
   }
 
   private LiteralConstant[] convertExpressionToMapLiterals(Expression expression) {

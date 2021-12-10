@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service;
 
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 
 import java.util.List;
 import org.hypertrace.core.query.service.api.AttributeExpression;
@@ -146,14 +147,19 @@ public class QueryRequestUtil {
         || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression));
   }
 
-  public static String getLogicalColumnNameForSimpleColumnExpression(Expression expression) {
-    if (!isSimpleColumnExpression(expression)) {
-      throw new RuntimeException("Expecting expression of type COLUMN or ATTRIBUTE");
-    }
-    if (expression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
-      return expression.getColumnIdentifier().getColumnName();
-    } else {
-      return expression.getAttributeExpression().getAttributeId();
+  public static String getLogicalColumnName(Expression expression) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return expression.getColumnIdentifier().getColumnName();
+      case ATTRIBUTE_EXPRESSION:
+        return expression.getAttributeExpression().getAttributeId();
+      default:
+        throw new IllegalArgumentException(
+            "Supports "
+                + ATTRIBUTE_EXPRESSION
+                + " and "
+                + COLUMNIDENTIFIER
+                + " expression type only");
     }
   }
 }

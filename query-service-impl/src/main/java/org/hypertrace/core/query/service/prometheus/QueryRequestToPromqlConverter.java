@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service.prometheus;
 
-import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -140,12 +140,11 @@ class QueryRequestToPromqlConverter {
 
   private MetricConfig getMetricConfigForFunction(Expression functionSelection) {
     return prometheusViewDefinition.getMetricConfigForLogicalMetricName(
-        getLogicalColumnNameForSimpleColumnExpression(
-            functionSelection.getFunction().getArgumentsList().get(0)));
+        getLogicalColumnName(functionSelection.getFunction().getArgumentsList().get(0)));
   }
 
   private String convertColumnAttributeToString(Expression expression) {
     return prometheusViewDefinition.getPhysicalColumnNameForLogicalColumnName(
-        getLogicalColumnNameForSimpleColumnExpression(expression));
+        getLogicalColumnName(expression));
   }
 }
