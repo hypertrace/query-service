@@ -1,9 +1,12 @@
 package org.hypertrace.core.query.service;
 
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
+
 import java.util.List;
 import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
@@ -126,5 +129,31 @@ public class QueryRequestUtil {
 
   private static boolean isMapField(String columnName, ViewDefinition viewDefinition) {
     return viewDefinition.getColumnType(columnName) == ValueType.STRING_MAP;
+  }
+
+  public static boolean isDateTimeFunction(Expression expression) {
+    return expression.getValueCase() == ValueCase.FUNCTION
+        && expression.getFunction().getFunctionName().equals("dateTimeConvert");
+  }
+
+  public static boolean isComplexAttribute(Expression expression) {
+    return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
+        && expression.getAttributeExpression().hasSubpath();
+  }
+
+  public static boolean isSimpleColumnExpression(Expression expression) {
+    return expression.getValueCase() == ValueCase.COLUMNIDENTIFIER
+        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression));
+  }
+
+  public static String getLogicalColumnNameForSimpleColumnExpression(Expression expression) {
+    if (!isSimpleColumnExpression(expression)) {
+      throw new RuntimeException("Expecting expression of type COLUMN or ATTRIBUTE");
+    }
+    if (expression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
+      return expression.getColumnIdentifier().getColumnName();
+    } else {
+      return expression.getAttributeExpression().getAttributeId();
+    }
   }
 }
