@@ -46,7 +46,6 @@ public class ExecutionContext {
   // is a set of column names.
   private final String tenantId;
   private final LinkedHashSet<String> selectedColumns;
-  LinkedHashSet<String> columnSet;
   private final LinkedHashSet<Expression> allSelections;
   private final Optional<Duration> timeSeriesPeriod;
   private final Filter queryRequestFilter;
@@ -56,7 +55,6 @@ public class ExecutionContext {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
-    this.columnSet = new LinkedHashSet<>();
     this.timeSeriesPeriod = calculateTimeSeriesPeriod(request);
     this.queryRequestFilter = request.getFilter();
     queryTimeRangeSupplier =
@@ -285,9 +283,5 @@ public class ExecutionContext {
 
   public String getTimeFilterColumn() {
     return timeFilterColumn;
-  }
-
-  public LinkedHashSet<String> getColumnSet() {
-    return columnSet;
   }
 }
