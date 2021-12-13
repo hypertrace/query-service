@@ -15,7 +15,6 @@ import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
-import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
 import org.slf4j.Logger;
@@ -147,11 +146,7 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
               if (QueryRequestUtil.isDateTimeFunction(expression)) {
                 columnSet.add(executionContext.getTimeFilterColumn());
               } else {
-                Function function = expression.getFunction();
-                String columnName =
-                    QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(
-                        function.getArguments(0));
-                columnSet.add(String.join(":", function.getFunctionName(), columnName));
+                columnSet.add(PrometheusUtils.getColumnNameForMetricFunction(expression));
               }
               break;
             default:

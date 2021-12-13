@@ -14,15 +14,15 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
-public class PrometheusRestClient {
+class PrometheusRestClient {
   private static final String INSTANT_QUERY = "api/v1/query";
   private static final String RANGE_QUERY = "api/v1/query_range";
 
-  private String host;
-  private int port;
-  private OkHttpClient okHttpClient;
+  private final String host;
+  private final int port;
+  private final OkHttpClient okHttpClient;
 
-  public PrometheusRestClient(String host, int port) {
+  PrometheusRestClient(String host, int port) {
     this.okHttpClient = new OkHttpClient();
     this.host = host;
     this.port = port;

@@ -108,9 +108,9 @@ class QueryRequestToPromqlConverter {
         .map(
             functionExpression ->
                 ImmutablePair.of(
-                    getColumnNameForMetricFunction(functionExpression),
+                    PrometheusUtils.getColumnNameForMetricFunction(functionExpression),
                     mapToPromqlQuery(functionExpression, groupByList, filterList, duration)))
-        .collect(Collectors.toMap(pair -> pair.getLeft(), pair -> pair.getRight()));
+        .collect(Collectors.toMap(ImmutablePair::getLeft, ImmutablePair::getRight));
   }
 
   private String mapToPromqlQuery(
@@ -167,13 +167,5 @@ class QueryRequestToPromqlConverter {
   private String convertColumnAttributeToString(Expression expression) {
     return prometheusViewDefinition.getPhysicalColumnNameForLogicalColumnName(
         getLogicalColumnNameForSimpleColumnExpression(expression));
-  }
-
-  private String getColumnNameForMetricFunction(Expression functionExpression) {
-    String functionName = functionExpression.getFunction().getFunctionName().toUpperCase();
-    String columnName =
-        QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(
-            functionExpression.getFunction().getArguments(0));
-    return String.join(":", functionName, columnName);
   }
 }
