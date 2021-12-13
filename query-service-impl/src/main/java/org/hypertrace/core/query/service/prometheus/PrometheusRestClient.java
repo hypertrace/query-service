@@ -29,6 +29,12 @@ class PrometheusRestClient {
     this.port = Integer.parseInt(hostPort[1]);
   }
 
+  PrometheusRestClient(String host, int port) {
+    this.okHttpClient = new OkHttpClient();
+    this.host = host;
+    this.port = port;
+  }
+
   public Map<Request, PromQLMetricResponse> executeInstantQuery(PromQLInstantQueries instantQuery) {
     List<Request> requests = getInstantQueryRequests(instantQuery);
     return execute(requests);
