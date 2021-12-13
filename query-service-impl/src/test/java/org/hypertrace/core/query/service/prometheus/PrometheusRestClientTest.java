@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.Test;
 public class PrometheusRestClientTest {
 
   private static MockWebServer mockWebServer;
-  private OkHttpClient okHttpClient = new OkHttpClient();
   private PrometheusRestClient prometheusRestClient = new PrometheusRestClient("localhost", 9090);
 
   @BeforeAll

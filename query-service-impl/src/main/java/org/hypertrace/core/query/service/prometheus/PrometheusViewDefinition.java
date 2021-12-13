@@ -80,6 +80,10 @@ class PrometheusViewDefinition {
     return metricMap.get(logicalMetricName);
   }
 
+  public Map<String, String> getAttributeMap() {
+    return attributeMap;
+  }
+
   public String getViewName() {
     return viewName;
   }
