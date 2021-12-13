@@ -109,25 +109,6 @@ public class MigrationTest {
   }
 
   @Test
-  public void testQuerySelectionUsingMapAttributeWithSubPathWithColumnAttribute() {
-    Builder builder = QueryRequest.newBuilder();
-    builder.addSelection(createComplexAttributeExpression("Span.id", "span.kind"));
-    ViewDefinition viewDefinition = getDefaultViewDefinition();
-    defaultMockingForExecutionContext();
-
-    assertPQLQuery(
-        builder.build(),
-        "Select span_id FROM SpanEventView "
-            + "where "
-            + viewDefinition.getTenantIdColumn()
-            + " = '"
-            + TENANT_ID
-            + "'",
-        viewDefinition,
-        executionContext);
-  }
-
-  @Test
   public void testQuerySelectionUsingMapAttributeWithoutSubPath() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createSimpleAttributeExpression("Span.tags"));

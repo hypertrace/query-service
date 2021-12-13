@@ -47,7 +47,7 @@ class QueryRequestEligibilityValidator {
       // all selection including group by and aggregations should be either on column or attribute
       if (executionContext.getAllSelections().stream()
           .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
-          .anyMatch(Predicate.not(QueryRequestUtil::isSimpleColumnExpression))) {
+          .anyMatch(Predicate.not(QueryRequestUtil::isSimpleAttributeExpression))) {
         return QueryCost.UNSUPPORTED;
       }
 
@@ -143,7 +143,7 @@ class QueryRequestEligibilityValidator {
       }
 
       // lhs condition of filter should be column or simple attribute
-      if (!QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())) {
+      if (!QueryRequestUtil.isSimpleAttributeExpression(filter.getLhs())) {
         return true;
       }
     }

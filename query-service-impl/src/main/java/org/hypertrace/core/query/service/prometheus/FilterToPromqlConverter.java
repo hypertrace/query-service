@@ -27,7 +27,7 @@ class FilterToPromqlConverter {
             childFilter, timeFilterColumn, expressionToColumnConverter, filterList);
       }
     } else {
-      if (QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())
+      if (QueryRequestUtil.isSimpleAttributeExpression(filter.getLhs())
           && timeFilterColumn.equals(getLogicalColumnName(filter.getLhs()))) {
         return;
       }

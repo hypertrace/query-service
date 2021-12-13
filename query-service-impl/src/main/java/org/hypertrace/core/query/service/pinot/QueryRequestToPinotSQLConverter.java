@@ -202,7 +202,7 @@ class QueryRequestToPinotSQLConverter {
    * @return newly created literal {@link Expression} of rhs if converted else the same one.
    */
   private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
-    if (!(isSimpleAttributeExpression(lhs, viewDefinition) && rhs.getValueCase().equals(LITERAL))) {
+    if (!(isSimpleAttributeExpression(lhs) && rhs.getValueCase().equals(LITERAL))) {
       return rhs;
     }
 
@@ -269,7 +269,7 @@ class QueryRequestToPinotSQLConverter {
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
-        if (isMapAttributeExpression(expression, viewDefinition)) {
+        if (isMapAttributeExpression(expression)) {
           String keyCol = convertExpressionToMapKeyColumn(expression);
           String valCol = convertExpressionToMapValueColumn(expression);
           String pathExpression = expression.getAttributeExpression().getSubpath();
@@ -307,7 +307,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
-    if (isMapAttributeExpression(expression, viewDefinition)) {
+    if (isMapAttributeExpression(expression)) {
       String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -317,7 +317,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapValueColumn(Expression expression) {
-    if (isMapAttributeExpression(expression, viewDefinition)) {
+    if (isMapAttributeExpression(expression)) {
       String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;

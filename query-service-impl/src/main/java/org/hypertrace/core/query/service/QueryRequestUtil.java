@@ -13,7 +13,6 @@ import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
-import org.hypertrace.core.query.service.pinot.ViewDefinition;
 
 /**
  * Utility methods to easily create {@link org.hypertrace.core.query.service.api.QueryRequest} its
@@ -102,49 +101,31 @@ public class QueryRequestUtil {
         .build();
   }
 
-  public static boolean isMapAttributeExpression(
-      Expression expression, ViewDefinition viewDefinition) {
+  public static boolean isMapAttributeExpression(Expression expression) {
     switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        return isMapField(expression.getColumnIdentifier().getColumnName(), viewDefinition);
+      case COLUMNIDENTIFIER: // backward compatibility
+        return true;
       case ATTRIBUTE_EXPRESSION:
-        return expression.getAttributeExpression().hasSubpath()
-            && isMapField(expression.getAttributeExpression().getAttributeId(), viewDefinition);
+        return expression.getAttributeExpression().hasSubpath();
       default:
         return false;
     }
   }
 
-  public static boolean isSimpleAttributeExpression(
-      Expression expression, ViewDefinition viewDefinition) {
+  public static boolean isSimpleAttributeExpression(Expression expression) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
         return true;
       case ATTRIBUTE_EXPRESSION:
-        return !expression.getAttributeExpression().hasSubpath()
-            || !isMapField(expression.getAttributeExpression().getAttributeId(), viewDefinition);
+        return !expression.getAttributeExpression().hasSubpath();
       default:
         return false;
     }
-  }
-
-  private static boolean isMapField(String columnName, ViewDefinition viewDefinition) {
-    return viewDefinition.getColumnType(columnName) == ValueType.STRING_MAP;
   }
 
   public static boolean isDateTimeFunction(Expression expression) {
     return expression.getValueCase() == ValueCase.FUNCTION
         && expression.getFunction().getFunctionName().equals("dateTimeConvert");
-  }
-
-  public static boolean isComplexAttribute(Expression expression) {
-    return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
-        && expression.getAttributeExpression().hasSubpath();
-  }
-
-  public static boolean isSimpleColumnExpression(Expression expression) {
-    return expression.getValueCase() == ValueCase.COLUMNIDENTIFIER
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression));
   }
 
   public static String getLogicalColumnName(Expression expression) {
