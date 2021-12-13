@@ -36,23 +36,13 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
   private Optional<String> startTimeAttributeName;
   private PrometheusViewDefinition prometheusViewDefinition;
 
-  PrometheusBasedRequestHandler(String name, Config config) {
+  PrometheusBasedRequestHandler(String name, Config requestHandlerConfig) {
     this.name = name;
-    this.processConfig(config);
+    this.processConfig(requestHandlerConfig);
     this.queryRequestEligibilityValidator =
         new QueryRequestEligibilityValidator(prometheusViewDefinition);
     this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
     this.prometheusRestClient = PrometheusRestClientFactory.get().getPrometheusClient(name);
-  }
-
-  PrometheusBasedRequestHandler(
-      String name, Config config, PrometheusRestClient prometheusRestClient) {
-    this.name = name;
-    this.processConfig(config);
-    this.queryRequestEligibilityValidator =
-        new QueryRequestEligibilityValidator(prometheusViewDefinition);
-    this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
-    this.prometheusRestClient = prometheusRestClient;
   }
 
   @Override
@@ -103,14 +93,14 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
     Preconditions.checkNotNull(executionContext.getTenantId());
 
     Map<Request, PromQLMetricResponse> responseMap;
-    Map<String, String> metricNameToQueryMap = new LinkedHashMap<>();
+    Map<String, String> logicalAttributeNameToMetricQueryMap = new LinkedHashMap<>();
     if (isRangeQueryRequest(originalRequest)) {
       PromQLRangeQueries promQLRangeQueries =
           requestToPromqlConverter.convertToPromqlRangeQuery(
               executionContext,
               originalRequest,
               executionContext.getAllSelections(),
-              metricNameToQueryMap);
+              logicalAttributeNameToMetricQueryMap);
       responseMap = prometheusRestClient.executeRangeQuery(promQLRangeQueries);
     } else {
       PromQLInstantQueries promQLInstantQueries =
@@ -118,7 +108,7 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
               executionContext,
               originalRequest,
               executionContext.getAllSelections(),
-              metricNameToQueryMap);
+              logicalAttributeNameToMetricQueryMap);
       responseMap = prometheusRestClient.executeInstantQuery(promQLInstantQueries);
     }
 
@@ -126,8 +116,8 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
         PrometheusBasedResponseBuilder.buildResponse(
             responseMap,
             prometheusViewDefinition.getAttributeMap(),
-            metricNameToQueryMap,
-            prepareColumnSet(executionContext.getAllSelections(), executionContext),
+            logicalAttributeNameToMetricQueryMap,
+            prepareSelectionColumnSet(executionContext.getAllSelections(), executionContext),
             executionContext.getTimeFilterColumn());
 
     return Observable.fromIterable(rows).doOnNext(row -> LOG.debug("collect a row: {}", row));
@@ -137,9 +127,9 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
     return queryRequest.getGroupByList().stream().anyMatch(QueryRequestUtil::isDateTimeFunction);
   }
 
-  private LinkedHashSet<String> prepareColumnSet(
+  private LinkedHashSet<String> prepareSelectionColumnSet(
       LinkedHashSet<Expression> expressions, ExecutionContext executionContext) {
-    LinkedHashSet<String> columnSet = new LinkedHashSet<>();
+    LinkedHashSet<String> selectionColumnSet = new LinkedHashSet<>();
 
     expressions.forEach(
         expression -> {
@@ -147,14 +137,14 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
           switch (valueCase) {
             case ATTRIBUTE_EXPRESSION:
             case COLUMNIDENTIFIER:
-              columnSet.add(
+              selectionColumnSet.add(
                   QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(expression));
               break;
             case FUNCTION:
               if (QueryRequestUtil.isDateTimeFunction(expression)) {
-                columnSet.add(executionContext.getTimeFilterColumn());
+                selectionColumnSet.add(executionContext.getTimeFilterColumn());
               } else {
-                columnSet.add(PrometheusUtils.getColumnNameForMetricFunction(expression));
+                selectionColumnSet.add(PrometheusUtils.getColumnNameForMetricFunction(expression));
               }
               break;
             default:
@@ -162,6 +152,6 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
           }
         });
 
-    return columnSet;
+    return selectionColumnSet;
   }
 }

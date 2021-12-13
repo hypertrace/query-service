@@ -34,11 +34,11 @@ class QueryRequestToPromqlConverter {
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections,
-      Map<String, String> metricNameToQueryMap) {
+      Map<String, String> logicalAttributeNameToMetricQueryMap) {
 
     QueryTimeRange queryTimeRange = getQueryTimeRange(executionContext);
 
-    metricNameToQueryMap.putAll(
+    logicalAttributeNameToMetricQueryMap.putAll(
         buildPromqlQueries(
             executionContext.getTenantId(),
             request,
@@ -47,7 +47,7 @@ class QueryRequestToPromqlConverter {
             executionContext.getTimeFilterColumn()));
 
     PromQLInstantQueries.PromQLInstantQueriesBuilder builder = PromQLInstantQueries.builder();
-    metricNameToQueryMap.entrySet().forEach(entry -> builder.query(entry.getValue()));
+    logicalAttributeNameToMetricQueryMap.forEach((key, value) -> builder.query(value));
     builder.evalTime(queryTimeRange.getEndTime());
 
     return builder.build();
