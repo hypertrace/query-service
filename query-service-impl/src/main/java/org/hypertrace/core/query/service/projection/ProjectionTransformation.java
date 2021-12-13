@@ -359,21 +359,22 @@ final class ProjectionTransformation implements QueryTransformation {
       Filter originalFilter, List<OrderByExpression> orderBys) {
 
     Filter updatedFilter = updateFilterForComplexAttributeExpressionFromFilter(originalFilter);
-    List<Filter> childFilterList = createFilterForComplexAttributeExpressionFromOrderBy(orderBys);
+    List<Filter> filterList = createFilterForComplexAttributeExpressionFromOrderBy(orderBys);
 
-    if (childFilterList.isEmpty()) {
+    if (filterList.isEmpty()) {
       return updatedFilter;
     } else {
       if (!updatedFilter.equals(Filter.getDefaultInstance())) {
-        childFilterList.add(updatedFilter);
-      }
-      if (childFilterList.size() > 1) {
         return Filter.newBuilder()
             .setOperator(Operator.AND)
-            .addAllChildFilter(childFilterList)
+            .addChildFilter(updatedFilter)
+            .addAllChildFilter(filterList)
             .build();
+      }
+      if (filterList.size() > 1) {
+        return Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(filterList).build();
       } else {
-        return childFilterList.get(0);
+        return filterList.get(0);
       }
     }
   }
