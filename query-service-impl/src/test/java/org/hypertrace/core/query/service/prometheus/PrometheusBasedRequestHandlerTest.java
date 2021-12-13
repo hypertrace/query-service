@@ -31,7 +31,6 @@ class PrometheusBasedRequestHandlerTest {
   private static PrometheusBasedRequestHandler prometheusBasedRequestHandler;
 
   private static final String CONFIG_PATH_NAME = "name";
-  private static final String CONFIG_PATH_TYPE = "type";
   private static final String CONFIG_PATH_CLIENT_KEY = "clientConfig";
   private static final String CONFIG_PATH_REQUEST_HANDLER_INFO = "requestHandlerInfo";
 
@@ -41,11 +40,14 @@ class PrometheusBasedRequestHandlerTest {
     mockWebServer.start(9099);
 
     Config config = PrometheusTestUtils.getDefaultPrometheusConfig();
+    String[] hostPort = config.getString(CONFIG_PATH_CLIENT_KEY).split(":");
+    PrometheusRestClient prometheusRestClient =
+        new PrometheusRestClient(hostPort[0], Integer.parseInt(hostPort[1]));
     prometheusBasedRequestHandler =
         new PrometheusBasedRequestHandler(
             config.getString(CONFIG_PATH_NAME),
             config.getConfig(CONFIG_PATH_REQUEST_HANDLER_INFO),
-            config.getString(CONFIG_PATH_CLIENT_KEY));
+            prometheusRestClient);
   }
 
   @AfterAll

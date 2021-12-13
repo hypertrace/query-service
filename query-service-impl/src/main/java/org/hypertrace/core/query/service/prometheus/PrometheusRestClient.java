@@ -18,9 +18,14 @@ class PrometheusRestClient {
   private static final String INSTANT_QUERY = "api/v1/query";
   private static final String RANGE_QUERY = "api/v1/query_range";
 
-  private final String host;
-  private final int port;
-  private final OkHttpClient okHttpClient;
+  private String host;
+  private int port;
+  private OkHttpClient okHttpClient;
+
+  PrometheusRestClient(String connection) {
+    String[] hostPort = connection.split(":");
+    new PrometheusRestClient(hostPort[0], Integer.parseInt(hostPort[1]));
+  }
 
   PrometheusRestClient(String host, int port) {
     this.okHttpClient = new OkHttpClient();
