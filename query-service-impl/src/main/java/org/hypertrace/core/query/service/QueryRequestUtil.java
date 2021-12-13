@@ -107,8 +107,14 @@ public class QueryRequestUtil {
   }
 
   public static boolean isSimpleAttributeExpression(Expression expression) {
-    return expression.getValueCase() == COLUMNIDENTIFIER
-        || !isAttributeExpressionMapAttribute(expression);
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return true;
+      case ATTRIBUTE_EXPRESSION:
+        return !expression.getAttributeExpression().hasSubpath();
+      default:
+        return false;
+    }
   }
 
   public static boolean isDateTimeFunction(Expression expression) {
