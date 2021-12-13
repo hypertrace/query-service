@@ -158,9 +158,9 @@ public class PrometheusBasedResponseBuilder {
                     matchedResult.getValues().stream()
                         .filter(value -> value.getTimeStamp().equals(rowTimeStamp))
                         .findFirst()
-                        .get()
+                        .orElseThrow()
                         .getValue())
             .findFirst()
-            .get());
+            .orElseThrow());
   }
 }
