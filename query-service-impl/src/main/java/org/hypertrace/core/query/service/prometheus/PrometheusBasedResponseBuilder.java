@@ -51,6 +51,7 @@ public class PrometheusBasedResponseBuilder {
     // building attribute columns, for metric columns we can use other response
     PromQLMetricResponse firstResponse =
         promQLMetricResponseMap.values().stream().findFirst().get();
+
     List<Builder> builderList =
         buildAggregateResponse(
             metricResponseMap,
