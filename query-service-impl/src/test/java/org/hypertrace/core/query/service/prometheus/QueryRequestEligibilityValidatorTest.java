@@ -1,12 +1,9 @@
 package org.hypertrace.core.query.service.prometheus;
 
-import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.api.Expression;
@@ -19,15 +16,13 @@ import org.junit.jupiter.api.Test;
 
 class QueryRequestEligibilityValidatorTest {
 
-  private static final String TENANT_COLUMN_NAME = "tenant_id";
-  private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "prometheus_request_handler.conf";
-
   private QueryRequestEligibilityValidator queryRequestEligibilityValidator;
 
   @BeforeEach
   public void setup() {
     queryRequestEligibilityValidator =
-        new QueryRequestEligibilityValidator(getDefaultPrometheusViewDefinition());
+        new QueryRequestEligibilityValidator(
+            PrometheusTestUtils.getDefaultPrometheusViewDefinition());
   }
 
   @Test
@@ -81,18 +76,6 @@ class QueryRequestEligibilityValidatorTest {
     Assertions.assertEquals(
         QueryCost.UNSUPPORTED,
         queryRequestEligibilityValidator.calculateCost(queryRequest, executionContext));
-  }
-
-  private PrometheusViewDefinition getDefaultPrometheusViewDefinition() {
-    Config fileConfig =
-        ConfigFactory.parseURL(
-            requireNonNull(
-                QueryRequestToPromqlConverterTest.class
-                    .getClassLoader()
-                    .getResource(TEST_REQUEST_HANDLER_CONFIG_FILE)));
-
-    return PrometheusViewDefinition.parse(
-        fileConfig.getConfig("requestHandlerInfo.prometheusViewDefinition"), TENANT_COLUMN_NAME);
   }
 
   private QueryRequest buildOrderByQuery() {
