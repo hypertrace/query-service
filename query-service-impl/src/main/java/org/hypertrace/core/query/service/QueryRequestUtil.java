@@ -101,26 +101,14 @@ public class QueryRequestUtil {
         .build();
   }
 
-  public static boolean isMapAttributeExpression(Expression expression) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER: // backward compatibility
-        return true;
-      case ATTRIBUTE_EXPRESSION:
-        return expression.getAttributeExpression().hasSubpath();
-      default:
-        return false;
-    }
+  public static boolean isAttributeExpressionMapAttribute(Expression expression) {
+    return expression.getValueCase() == ATTRIBUTE_EXPRESSION
+        && expression.getAttributeExpression().hasSubpath();
   }
 
   public static boolean isSimpleAttributeExpression(Expression expression) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        return true;
-      case ATTRIBUTE_EXPRESSION:
-        return !expression.getAttributeExpression().hasSubpath();
-      default:
-        return false;
-    }
+    return expression.getValueCase() == COLUMNIDENTIFIER
+        || !isAttributeExpressionMapAttribute(expression);
   }
 
   public static boolean isDateTimeFunction(Expression expression) {

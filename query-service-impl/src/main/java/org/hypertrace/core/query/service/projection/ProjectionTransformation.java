@@ -9,6 +9,7 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.createLongLiter
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionMapAttribute;
 
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
@@ -31,7 +32,6 @@ import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTransformation;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
-import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.Operator;
@@ -363,19 +363,20 @@ final class ProjectionTransformation implements QueryTransformation {
 
     if (filterList.isEmpty()) {
       return updatedFilter;
+    }
+
+    if (!updatedFilter.equals(Filter.getDefaultInstance())) {
+      return Filter.newBuilder()
+          .setOperator(Operator.AND)
+          .addChildFilter(updatedFilter)
+          .addAllChildFilter(filterList)
+          .build();
+    }
+
+    if (filterList.size() > 1) {
+      return Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(filterList).build();
     } else {
-      if (!updatedFilter.equals(Filter.getDefaultInstance())) {
-        return Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(updatedFilter)
-            .addAllChildFilter(filterList)
-            .build();
-      }
-      if (filterList.size() > 1) {
-        return Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(filterList).build();
-      } else {
-        return filterList.get(0);
-      }
+      return filterList.get(0);
     }
   }
 
@@ -394,7 +395,7 @@ final class ProjectionTransformation implements QueryTransformation {
                   builder.addChildFilter(
                       updateFilterForComplexAttributeExpressionFromFilter(childFilter)));
       return builder.build();
-    } else if (isAttributeExpressionWithSubpath(originalFilter.getLhs())) {
+    } else if (isAttributeExpressionMapAttribute(originalFilter.getLhs())) {
       Filter childFilter =
           createContainsKeyFilter(originalFilter.getLhs().getAttributeExpression());
       return Filter.newBuilder()
@@ -411,14 +412,9 @@ final class ProjectionTransformation implements QueryTransformation {
       List<OrderByExpression> orderByExpressionList) {
     return orderByExpressionList.stream()
         .map(OrderByExpression::getExpression)
-        .filter(this::isAttributeExpressionWithSubpath)
+        .filter(QueryRequestUtil::isAttributeExpressionMapAttribute)
         .map(Expression::getAttributeExpression)
         .map(QueryRequestUtil::createContainsKeyFilter)
         .collect(Collectors.toList());
-  }
-
-  private boolean isAttributeExpressionWithSubpath(Expression expression) {
-    return expression.getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
-        && expression.getAttributeExpression().hasSubpath();
   }
 }
