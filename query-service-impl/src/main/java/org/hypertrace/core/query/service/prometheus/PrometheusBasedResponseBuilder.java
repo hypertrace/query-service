@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.prometheus;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -31,7 +32,7 @@ public class PrometheusBasedResponseBuilder {
       Map<Request, PromQLMetricResponse> promQLMetricResponseMap,
       Map<String, String> logicalAttributeNameToMetricAttributeMap,
       Map<String, String> logicalAttributeNameToMetricQueryMap,
-      List<String> columnSelectionSet,
+      LinkedHashSet<String> columnSelectionSet,
       String timeStampLogicalAttribute) {
 
     // check if response is empty
@@ -68,7 +69,7 @@ public class PrometheusBasedResponseBuilder {
       Map<String, PromQLMetricResponse> promQLMetricResponseMap,
       Map<String, String> logicalAttributeNameToMetricAttributeMap,
       Map<String, String> logicalAttributeNameToMetricQueryMap,
-      List<String> columnSelectionSet,
+      LinkedHashSet<String> columnSelectionSet,
       PromQLMetricResponse firstResponse,
       String timeStampLogicalAttribute) {
 

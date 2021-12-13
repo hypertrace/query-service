@@ -123,10 +123,9 @@ class PrometheusBasedRequestHandlerTest {
   }
 
   /**
-   * select SERVICE.name, SUM(SERVICE.errorCount), dateTimeConvert()
-   * from timeRange
-   * GroupBy SERVICE.name, dateTimeConvert()
-   * */
+   * select SERVICE.name, SUM(SERVICE.errorCount), dateTimeConvert() from timeRange GroupBy
+   * SERVICE.name, dateTimeConvert()
+   */
   private QueryRequest buildTimeSeriesQuery() {
     Builder builder = QueryRequest.newBuilder();
     builder.addAggregation(
