@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import io.reactivex.rxjava3.core.Observable;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -12,6 +13,9 @@ import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.RequestHandler;
+import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Expression.ValueCase;
+import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
 import org.slf4j.Logger;
@@ -33,13 +37,15 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
   private Optional<String> startTimeAttributeName;
   private PrometheusViewDefinition prometheusViewDefinition;
 
-  PrometheusBasedRequestHandler(String name, Config config) {
+  PrometheusBasedRequestHandler(String name, Config config, String clientConfig) {
     this.name = name;
     this.processConfig(config);
     this.queryRequestEligibilityValidator =
         new QueryRequestEligibilityValidator(prometheusViewDefinition);
     this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
-    this.prometheusRestClient = null;
+    String[] hostPort = clientConfig.split(":");
+    this.prometheusRestClient =
+        new PrometheusRestClient(hostPort[0], Integer.parseInt(hostPort[1]));
   }
 
   @Override
@@ -114,7 +120,7 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
             responseMap,
             prometheusViewDefinition.getAttributeMap(),
             metricNameToQueryMap,
-            executionContext.getColumnSet(),
+            prepareColumnSet(executionContext.getAllSelections(), executionContext),
             executionContext.getTimeFilterColumn());
 
     return Observable.fromIterable(rows).doOnNext(row -> LOG.debug("collect a row: {}", row));
@@ -122,5 +128,37 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
 
   private boolean isRangeQueryRequest(QueryRequest queryRequest) {
     return queryRequest.getGroupByList().stream().anyMatch(QueryRequestUtil::isDateTimeFunction);
+  }
+
+  private LinkedHashSet<String> prepareColumnSet(
+      LinkedHashSet<Expression> expressions, ExecutionContext executionContext) {
+    LinkedHashSet<String> columnSet = new LinkedHashSet<>();
+
+    expressions.forEach(
+        expression -> {
+          ValueCase valueCase = expression.getValueCase();
+          switch (valueCase) {
+            case ATTRIBUTE_EXPRESSION:
+            case COLUMNIDENTIFIER:
+              columnSet.add(
+                  QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(expression));
+              break;
+            case FUNCTION:
+              if (QueryRequestUtil.isDateTimeFunction(expression)) {
+                columnSet.add(executionContext.getTimeFilterColumn());
+              } else {
+                Function function = expression.getFunction();
+                String columnName =
+                    QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(
+                        function.getArguments(0));
+                columnSet.add(String.join(":", function.getFunctionName(), columnName));
+              }
+              break;
+            default:
+              throw new IllegalArgumentException("un-supported selection for promql request");
+          }
+        });
+
+    return columnSet;
   }
 }

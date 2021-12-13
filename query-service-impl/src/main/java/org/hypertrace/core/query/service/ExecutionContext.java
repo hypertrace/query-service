@@ -46,7 +46,6 @@ public class ExecutionContext {
   // is a set of column names.
   private final String tenantId;
   private final LinkedHashSet<String> selectedColumns;
-  LinkedHashSet<String> columnSet;
   private final LinkedHashSet<Expression> allSelections;
   private final Optional<Duration> timeSeriesPeriod;
   private final Filter queryRequestFilter;
@@ -56,7 +55,6 @@ public class ExecutionContext {
     this.tenantId = tenantId;
     this.selectedColumns = new LinkedHashSet<>();
     this.allSelections = new LinkedHashSet<>();
-    this.columnSet = new LinkedHashSet<>();
     this.timeSeriesPeriod = calculateTimeSeriesPeriod(request);
     this.queryRequestFilter = request.getFilter();
     queryTimeRangeSupplier =
@@ -106,7 +104,6 @@ public class ExecutionContext {
     if (request.getGroupByCount() > 0) {
       for (Expression expression : request.getGroupByList()) {
         extractColumns(postFilterColumns, expression);
-        columnSet.addAll(postFilterColumns);
         columnMetadataSet.add(toColumnMetadata(expression));
         allSelections.add(expression);
       }
@@ -115,7 +112,6 @@ public class ExecutionContext {
       for (Expression expression : request.getSelectionList()) {
         extractColumns(selectedList, expression);
         postFilterColumns.addAll(selectedList);
-        columnSet.addAll(selectedList);
         columnMetadataSet.add(toColumnMetadata(expression));
         allSelections.add(expression);
       }
@@ -123,7 +119,6 @@ public class ExecutionContext {
     if (request.getAggregationCount() > 0) {
       for (Expression expression : request.getAggregationList()) {
         extractColumns(postFilterColumns, expression);
-        columnSet.addAll(postFilterColumns);
         columnMetadataSet.add(toColumnMetadata(expression));
         allSelections.add(expression);
       }
@@ -288,9 +283,5 @@ public class ExecutionContext {
 
   public String getTimeFilterColumn() {
     return timeFilterColumn;
-  }
-
-  public LinkedHashSet<String> getColumnSet() {
-    return columnSet;
   }
 }

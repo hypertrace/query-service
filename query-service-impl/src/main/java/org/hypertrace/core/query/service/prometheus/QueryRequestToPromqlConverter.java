@@ -172,7 +172,8 @@ class QueryRequestToPromqlConverter {
   private String getColumnNameForMetricFunction(Expression functionExpression) {
     String functionName = functionExpression.getFunction().getFunctionName().toUpperCase();
     String columnName =
-        functionExpression.getFunction().getArguments(0).getColumnIdentifier().getColumnName();
-    return String.join(":", columnName, functionName);
+        QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(
+            functionExpression.getFunction().getArguments(0));
+    return String.join(":", functionName, columnName);
   }
 }
