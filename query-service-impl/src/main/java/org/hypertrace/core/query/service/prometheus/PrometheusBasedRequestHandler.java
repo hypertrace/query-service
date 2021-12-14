@@ -8,6 +8,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import okhttp3.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
@@ -37,15 +38,13 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
   private PrometheusViewDefinition prometheusViewDefinition;
 
   PrometheusBasedRequestHandler(
-      String name,
-      Config requestHandlerConfig,
-      PrometheusRestClientFactory prometheusRestClientFactory) {
+      String name, Config requestHandlerConfig, PrometheusRestClient prometheusRestClient) {
     this.name = name;
     this.processConfig(requestHandlerConfig);
     this.queryRequestEligibilityValidator =
         new QueryRequestEligibilityValidator(prometheusViewDefinition);
     this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
-    this.prometheusRestClient = prometheusRestClientFactory.getPrometheusClient(name);
+    this.prometheusRestClient = prometheusRestClient;
   }
 
   @Override
@@ -130,31 +129,26 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
     return queryRequest.getGroupByList().stream().anyMatch(QueryRequestUtil::isDateTimeFunction);
   }
 
-  private LinkedHashSet<String> prepareSelectionColumnSet(
+  private List<String> prepareSelectionColumnSet(
       LinkedHashSet<Expression> expressions, ExecutionContext executionContext) {
-    LinkedHashSet<String> selectionColumnSet = new LinkedHashSet<>();
-
-    expressions.forEach(
-        expression -> {
-          ValueCase valueCase = expression.getValueCase();
-          switch (valueCase) {
-            case ATTRIBUTE_EXPRESSION:
-            case COLUMNIDENTIFIER:
-              selectionColumnSet.add(
-                  QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(expression));
-              break;
-            case FUNCTION:
-              if (QueryRequestUtil.isDateTimeFunction(expression)) {
-                selectionColumnSet.add(executionContext.getTimeFilterColumn());
-              } else {
-                selectionColumnSet.add(PrometheusUtils.getColumnNameForMetricFunction(expression));
+    return expressions.stream()
+        .map(
+            expression -> {
+              ValueCase valueCase = expression.getValueCase();
+              switch (valueCase) {
+                case ATTRIBUTE_EXPRESSION:
+                case COLUMNIDENTIFIER:
+                  return QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(expression);
+                case FUNCTION:
+                  if (QueryRequestUtil.isDateTimeFunction(expression)) {
+                    return executionContext.getTimeFilterColumn();
+                  } else {
+                    return PrometheusUtils.getColumnNameForMetricFunction(expression);
+                  }
+                default:
+                  throw new IllegalArgumentException("un-supported selection for promql request");
               }
-              break;
-            default:
-              throw new IllegalArgumentException("un-supported selection for promql request");
-          }
-        });
-
-    return selectionColumnSet;
+            })
+        .collect(Collectors.toUnmodifiableList());
   }
 }

@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import okhttp3.Request;
@@ -32,8 +31,7 @@ public class PrometheusBasedResponseBuilderTest {
     Map<String, String> metricMap =
         Map.of("SERVICE.errorCount", getPromQLQuery("promql_error_count_vector.json"));
 
-    LinkedHashSet<String> columnSet =
-        new LinkedHashSet<>(List.of("SERVICE.job", "SERVICE.instance", "SERVICE.errorCount"));
+    List<String> columnSet = List.of("SERVICE.job", "SERVICE.instance", "SERVICE.errorCount");
 
     List<Row> rowList =
         PrometheusBasedResponseBuilder.buildResponse(
@@ -57,9 +55,8 @@ public class PrometheusBasedResponseBuilderTest {
     Map<String, String> metricMap =
         Map.of("SERVICE.errorCount", getPromQLQuery("promql_error_count_matrix.json"));
 
-    LinkedHashSet<String> columnSet =
-        new LinkedHashSet<>(
-            List.of("SERVICE.startTime", "SERVICE.job", "SERVICE.instance", "SERVICE.errorCount"));
+    List<String> columnSet =
+        List.of("SERVICE.startTime", "SERVICE.job", "SERVICE.instance", "SERVICE.errorCount");
 
     List<Row> rowList =
         PrometheusBasedResponseBuilder.buildResponse(
@@ -93,9 +90,8 @@ public class PrometheusBasedResponseBuilderTest {
             "SERVICE.errorCount", getPromQLQuery("promql_error_count_vector.json"),
             "SERVICE.numCalls", getPromQLQuery("promql_num_call_vector.json"));
 
-    LinkedHashSet<String> columnSet =
-        new LinkedHashSet<>(
-            List.of("SERVICE.job", "SERVICE.instance", "SERVICE.errorCount", "SERVICE.numCalls"));
+    List<String> columnSet =
+        List.of("SERVICE.job", "SERVICE.instance", "SERVICE.errorCount", "SERVICE.numCalls");
 
     List<Row> rowList =
         PrometheusBasedResponseBuilder.buildResponse(
@@ -129,14 +125,13 @@ public class PrometheusBasedResponseBuilderTest {
             "SERVICE.errorCount", getPromQLQuery("promql_error_count_matrix.json"),
             "SERVICE.numCalls", getPromQLQuery("promql_num_call_matrix.json"));
 
-    LinkedHashSet<String> columnSet =
-        new LinkedHashSet<>(
-            List.of(
-                "SERVICE.startTime",
-                "SERVICE.job",
-                "SERVICE.instance",
-                "SERVICE.errorCount",
-                "SERVICE.numCalls"));
+    List<String> columnSet =
+        List.of(
+            "SERVICE.startTime",
+            "SERVICE.job",
+            "SERVICE.instance",
+            "SERVICE.errorCount",
+            "SERVICE.numCalls");
 
     List<Row> rowList =
         PrometheusBasedResponseBuilder.buildResponse(

@@ -36,10 +36,9 @@ public class PrometheusRequestHandlerBuilder implements RequestHandlerBuilder {
                     new UnsupportedOperationException(
                         "Client config requested but not registered: " + config.getClientConfig()));
 
-    prometheusRestClientFactory.createPrometheusClient(
-        config.getName(), clientConfig.getConnectionString());
-
     return new PrometheusBasedRequestHandler(
-        config.getName(), config.getRequestHandlerInfo(), prometheusRestClientFactory);
+        config.getName(),
+        config.getRequestHandlerInfo(),
+        prometheusRestClientFactory.getPrometheusClient(clientConfig.getConnectionString()));
   }
 }
