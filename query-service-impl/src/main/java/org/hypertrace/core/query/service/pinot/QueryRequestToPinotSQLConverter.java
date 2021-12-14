@@ -308,23 +308,17 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
-    if (expression.getValueCase() == COLUMNIDENTIFIER
-        || isAttributeExpressionWithSubpath(expression)) {
-      String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
-      if (col != null && col.length() > 0) {
-        return col;
-      }
+    String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
+    if (col != null && col.length() > 0) {
+      return col;
     }
     throw new IllegalArgumentException("operator supports multi value column only");
   }
 
   private String convertExpressionToMapValueColumn(Expression expression) {
-    if (expression.getValueCase() == COLUMNIDENTIFIER
-        || isAttributeExpressionWithSubpath(expression)) {
-      String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
-      if (col != null && col.length() > 0) {
-        return col;
-      }
+    String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
+    if (col != null && col.length() > 0) {
+      return col;
     }
     throw new IllegalArgumentException("operator supports multi value column only");
   }
