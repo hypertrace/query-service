@@ -237,10 +237,10 @@ class ProjectionTransformationTest {
             .blockingGet());
   }
 
-  @Disabled
   @Test
-  void transQueryWithComplexAttributeExpressionOrderBy() {
+  void transQueryWithComplexAttributeExpression_SingleOrderBy() {
     Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
+
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
@@ -248,12 +248,37 @@ class ProjectionTransformationTest {
 
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
-            .setFilter(
-                Filter.newBuilder()
-                    .setOperator(Operator.AND)
-                    .addChildFilter(createContainsKeyFilter("Span.tags", "span.kind"))
-                    .build())
+            .setFilter(createContainsKeyFilter("Span.tags", "span.kind"))
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_MultipleOrderBy() {
+    Expression.Builder spanTag1 = createComplexAttributeExpression("Span.tags", "span.kind");
+    Expression.Builder spanTag2 = createComplexAttributeExpression("Span.tags", "FLAGS");
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addOrderBy(createOrderByExpression(spanTag1, SortOrder.ASC))
+            .addOrderBy(createOrderByExpression(spanTag2, SortOrder.ASC))
+            .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .setFilter(
+                createCompositeFilter(
+                    Operator.AND,
+                    createContainsKeyFilter("Span.tags", "span.kind"),
+                    createContainsKeyFilter("Span.tags", "FLAGS")))
+            .addOrderBy(createOrderByExpression(spanTag1, SortOrder.ASC))
+            .addOrderBy(createOrderByExpression(spanTag2, SortOrder.ASC))
             .build();
 
     assertEquals(
