@@ -18,4 +18,8 @@ ignore:
     - '*':
         reason: None Given
         expires: 2021-12-31T00:00:00.000Z
+  SNYK-JAVA-LOG4J-2316893:
+    - '*':
+        reason: None Given
+        expires: 2021-12-31T00:00:00.000Z
 patch: {}
