@@ -48,7 +48,6 @@ import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -200,9 +199,8 @@ class ProjectionTransformationTest {
             .contains(createContainsKeyFilter(spanTags2.getAttributeExpression())));
   }
 
-  @Disabled
   @Test
-  void transQueryWithComplexAttributeExpressionOrderByAndFilter() {
+  void transQueryWithComplexAttributeExpression_OrderByAndFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
     Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
 
@@ -212,6 +210,7 @@ class ProjectionTransformationTest {
             .setOperator(Operator.EQ)
             .setRhs(createColumnExpression("server"))
             .build();
+    Filter containsKeyFilter = createContainsKeyFilter("Span.tags", "span.kind");
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
@@ -222,11 +221,10 @@ class ProjectionTransformationTest {
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .setFilter(
-                Filter.newBuilder()
-                    .setOperator(Operator.AND)
-                    .addAllChildFilter(
-                        List.of(filter, createContainsKeyFilter("Span.tags", "span.kind")))
-                    .build())
+                createCompositeFilter(
+                    Operator.AND,
+                    createCompositeFilter(Operator.AND, filter, containsKeyFilter).build(),
+                    containsKeyFilter))
             .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
             .build();
 
