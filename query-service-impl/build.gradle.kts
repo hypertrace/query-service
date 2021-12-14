@@ -49,7 +49,7 @@ dependencies {
   implementation("com.squareup.okhttp3:okhttp:4.9.1")
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
-  implementation("org.apache.commons:commons-lang3:3.10")
+  // implementation("org.apache.commons:commons-lang3:3.10")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
