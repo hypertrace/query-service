@@ -79,14 +79,14 @@ class ProjectionTransformationTest {
         new ProjectionTransformation(this.mockAttributeClient, new AttributeProjectionRegistry());
   }
 
-  @Disabled
   @Test
-  void transQueryWithComplexAttributeExpressionFilter() {
+  void transQueryWithComplexAttributeExpression_SingleFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
 
+    Expression spanTags = createComplexAttributeExpression("Span.tags", "span.kind").build();
     Filter filter =
         Filter.newBuilder()
-            .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
+            .setLhs(spanTags)
             .setOperator(Operator.EQ)
             .setRhs(createColumnExpression("server"))
             .build();
@@ -98,7 +98,7 @@ class ProjectionTransformationTest {
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
                     .addAllChildFilter(
-                        List.of(filter, createContainsKeyFilter("Span.tags", "span.kind")))
+                        List.of(filter, createContainsKeyFilter(spanTags.getAttributeExpression())))
                     .build())
             .build();
 
@@ -109,24 +109,27 @@ class ProjectionTransformationTest {
             .blockingGet());
   }
 
-  @Disabled
   @Test
-  void transQueryWithMultipleComplexAttributeExpressionFilter() {
+  void transQueryWithComplexAttributeExpression_MultipleFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
     this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
 
+    Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
+    Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
+
     Filter childFilter1 =
         Filter.newBuilder()
-            .setLhs(createComplexAttributeExpression("Span.tags", "FLAGS"))
+            .setLhs(spanTags1)
             .setOperator(Operator.EQ)
             .setRhs(createColumnExpression("0"))
             .build();
     Filter childFilter2 =
         Filter.newBuilder()
-            .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
+            .setLhs(spanTags2)
             .setOperator(Operator.EQ)
             .setRhs(createColumnExpression("server"))
             .build();
+
     Filter.Builder filter = createCompositeFilter(Operator.AND, childFilter1, childFilter2);
     QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
 
@@ -134,17 +137,67 @@ class ProjectionTransformationTest {
         this.projectionTransformation
             .transform(originalRequest, mockTransformationContext)
             .blockingGet();
+    List<Filter> childFilterList = expectedTransform.getFilter().getChildFilterList();
 
     assertTrue(
-        expectedTransform
-            .getFilter()
+        childFilterList
+            .get(0)
             .getChildFilterList()
-            .contains(createContainsKeyFilter("Span.tags", "FLAGS")));
+            .contains(createContainsKeyFilter(spanTags1.getAttributeExpression())));
     assertTrue(
-        expectedTransform
-            .getFilter()
+        childFilterList
+            .get(1)
             .getChildFilterList()
-            .contains(createContainsKeyFilter("Span.tags", "span.kind")));
+            .contains(createContainsKeyFilter(spanTags2.getAttributeExpression())));
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_HierarchicalFilter() {
+    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
+
+    Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
+    Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
+
+    Filter filter1 =
+        Filter.newBuilder()
+            .setLhs(spanTags1)
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("0"))
+            .build();
+    Filter filter2 =
+        Filter.newBuilder()
+            .setLhs(spanTags2)
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("server"))
+            .build();
+    Filter filter =
+        createCompositeFilter(
+                Operator.AND,
+                createEqualsFilter(SIMPLE_ATTRIBUTE_ID, "otherValue"),
+                createCompositeFilter(Operator.AND, filter1, filter2).build())
+            .build();
+
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
+
+    QueryRequest expectedTransform =
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet();
+    List<Filter> childFilterList =
+        expectedTransform.getFilter().getChildFilterList().get(1).getChildFilterList();
+
+    assertTrue(
+        childFilterList
+            .get(0)
+            .getChildFilterList()
+            .contains(createContainsKeyFilter(spanTags1.getAttributeExpression())));
+    assertTrue(
+        childFilterList
+            .get(1)
+            .getChildFilterList()
+            .contains(createContainsKeyFilter(spanTags2.getAttributeExpression())));
   }
 
   @Disabled
