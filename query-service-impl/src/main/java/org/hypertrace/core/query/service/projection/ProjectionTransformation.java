@@ -9,7 +9,7 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.createLongLiter
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralExpression;
-import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionMapAttribute;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionWithSubpath;
 
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
@@ -395,7 +395,7 @@ final class ProjectionTransformation implements QueryTransformation {
                   builder.addChildFilter(
                       updateFilterForComplexAttributeExpressionFromFilter(childFilter)));
       return builder.build();
-    } else if (isAttributeExpressionMapAttribute(originalFilter.getLhs())) {
+    } else if (isAttributeExpressionWithSubpath(originalFilter.getLhs())) {
       Filter childFilter =
           createContainsKeyFilter(originalFilter.getLhs().getAttributeExpression());
       return Filter.newBuilder()
@@ -412,7 +412,7 @@ final class ProjectionTransformation implements QueryTransformation {
       List<OrderByExpression> orderByExpressionList) {
     return orderByExpressionList.stream()
         .map(OrderByExpression::getExpression)
-        .filter(QueryRequestUtil::isAttributeExpressionMapAttribute)
+        .filter(QueryRequestUtil::isAttributeExpressionWithSubpath)
         .map(Expression::getAttributeExpression)
         .map(QueryRequestUtil::createContainsKeyFilter)
         .collect(Collectors.toList());

@@ -101,7 +101,8 @@ public class QueryRequestUtil {
         .build();
   }
 
-  public static boolean isAttributeExpressionMapAttribute(Expression expression) {
+  // attribute expression with sub path is always a map attribute
+  public static boolean isAttributeExpressionWithSubpath(Expression expression) {
     return expression.getValueCase() == ATTRIBUTE_EXPRESSION
         && expression.getAttributeExpression().hasSubpath();
   }

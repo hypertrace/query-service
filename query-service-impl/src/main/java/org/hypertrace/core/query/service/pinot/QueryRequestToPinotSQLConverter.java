@@ -1,7 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
-import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionMapAttribute;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionWithSubpath;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
@@ -270,7 +270,7 @@ class QueryRequestToPinotSQLConverter {
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
-        if (isAttributeExpressionMapAttribute(expression)) {
+        if (isAttributeExpressionWithSubpath(expression)) {
           String keyCol = convertExpressionToMapKeyColumn(expression);
           String valCol = convertExpressionToMapValueColumn(expression);
           String pathExpression = expression.getAttributeExpression().getSubpath();
@@ -309,7 +309,7 @@ class QueryRequestToPinotSQLConverter {
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
     if (expression.getValueCase() == COLUMNIDENTIFIER
-        || isAttributeExpressionMapAttribute(expression)) {
+        || isAttributeExpressionWithSubpath(expression)) {
       String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
@@ -320,7 +320,7 @@ class QueryRequestToPinotSQLConverter {
 
   private String convertExpressionToMapValueColumn(Expression expression) {
     if (expression.getValueCase() == COLUMNIDENTIFIER
-        || isAttributeExpressionMapAttribute(expression)) {
+        || isAttributeExpressionWithSubpath(expression)) {
       String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
       if (col != null && col.length() > 0) {
         return col;
