@@ -10,10 +10,14 @@ import org.hypertrace.core.query.service.RequestHandlerClientConfigRegistry;
 public class PrometheusRequestHandlerBuilder implements RequestHandlerBuilder {
 
   private final RequestHandlerClientConfigRegistry clientConfigRegistry;
+  private final PrometheusRestClientFactory prometheusRestClientFactory;
 
   @Inject
-  PrometheusRequestHandlerBuilder(RequestHandlerClientConfigRegistry clientConfigRegistry) {
+  PrometheusRequestHandlerBuilder(
+      RequestHandlerClientConfigRegistry clientConfigRegistry,
+      PrometheusRestClientFactory prometheusRestClientFactory) {
     this.clientConfigRegistry = clientConfigRegistry;
+    this.prometheusRestClientFactory = prometheusRestClientFactory;
   }
 
   @Override
@@ -32,9 +36,10 @@ public class PrometheusRequestHandlerBuilder implements RequestHandlerBuilder {
                     new UnsupportedOperationException(
                         "Client config requested but not registered: " + config.getClientConfig()));
 
-    PrometheusRestClientFactory.createPrometheusClient(
+    prometheusRestClientFactory.createPrometheusClient(
         config.getName(), clientConfig.getConnectionString());
 
-    return new PrometheusBasedRequestHandler(config.getName(), config.getRequestHandlerInfo());
+    return new PrometheusBasedRequestHandler(
+        config.getName(), config.getRequestHandlerInfo(), prometheusRestClientFactory);
   }
 }

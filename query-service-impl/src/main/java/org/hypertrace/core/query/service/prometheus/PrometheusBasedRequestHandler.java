@@ -36,13 +36,16 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
   private Optional<String> startTimeAttributeName;
   private PrometheusViewDefinition prometheusViewDefinition;
 
-  PrometheusBasedRequestHandler(String name, Config requestHandlerConfig) {
+  PrometheusBasedRequestHandler(
+      String name,
+      Config requestHandlerConfig,
+      PrometheusRestClientFactory prometheusRestClientFactory) {
     this.name = name;
     this.processConfig(requestHandlerConfig);
     this.queryRequestEligibilityValidator =
         new QueryRequestEligibilityValidator(prometheusViewDefinition);
     this.requestToPromqlConverter = new QueryRequestToPromqlConverter(prometheusViewDefinition);
-    this.prometheusRestClient = PrometheusRestClientFactory.get().getPrometheusClient(name);
+    this.prometheusRestClient = prometheusRestClientFactory.getPrometheusClient(name);
   }
 
   @Override
