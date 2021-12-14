@@ -143,7 +143,7 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
                   if (QueryRequestUtil.isDateTimeFunction(expression)) {
                     return executionContext.getTimeFilterColumn();
                   } else {
-                    return PrometheusUtils.getColumnNameForMetricFunction(expression);
+                    return PrometheusUtils.generateAliasForMetricFunction(expression);
                   }
                 default:
                   throw new IllegalArgumentException("un-supported selection for promql request");

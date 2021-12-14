@@ -106,7 +106,7 @@ class QueryRequestToPromqlConverter {
                     && !QueryRequestUtil.isDateTimeFunction(expression))
         .collect(
             Collectors.toMap(
-                PrometheusUtils::getColumnNameForMetricFunction,
+                PrometheusUtils::generateAliasForMetricFunction,
                 function -> mapToPromqlQuery(function, groupByList, filterList, duration)));
   }
 
