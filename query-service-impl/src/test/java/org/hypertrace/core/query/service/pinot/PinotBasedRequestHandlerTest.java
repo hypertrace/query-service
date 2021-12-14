@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.pinot;
 
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -1130,6 +1131,21 @@ public class PinotBasedRequestHandlerTest {
         () ->
             pinotBasedRequestHandler
                 .handleRequest(QueryRequest.newBuilder().build(), mock(ExecutionContext.class))
+                .blockingSubscribe());
+  }
+
+  @Test
+  public void testInvalidAttributeExpressionQueryRequestThrowsIAE() {
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addSelection(createComplexAttributeExpression("Trace.id", "trace.kind"))
+            .build();
+
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pinotBasedRequestHandler
+                .handleRequest(queryRequest, new ExecutionContext("test-tenant-id", queryRequest))
                 .blockingSubscribe());
   }
 

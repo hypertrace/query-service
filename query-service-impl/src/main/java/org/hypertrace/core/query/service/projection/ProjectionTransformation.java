@@ -3,17 +3,20 @@ package org.hypertrace.core.query.service.projection;
 import static io.reactivex.rxjava3.core.Single.zip;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createBooleanLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createDoubleLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createLongLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionWithSubpath;
 
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 import org.hypertrace.core.attribute.service.projection.AttributeProjection;
@@ -25,11 +28,13 @@ import org.hypertrace.core.attribute.service.v1.Projection;
 import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
+import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTransformation;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.slf4j.Logger;
@@ -59,7 +64,7 @@ final class ProjectionTransformation implements QueryTransformation {
             this.transformExpressionList(queryRequest.getGroupByList()),
             this.transformOrderByList(queryRequest.getOrderByList()),
             (selections, aggregations, filter, groupBys, orderBys) ->
-                this.rebuildRequestOmittingDefaults(
+                this.rebuildRequest(
                     queryRequest, selections, aggregations, filter, groupBys, orderBys))
         .doOnSuccess(transformed -> this.debugLogIfRequestTransformed(queryRequest, transformed));
   }
@@ -315,19 +320,21 @@ final class ProjectionTransformation implements QueryTransformation {
     return builder.clearChildFilter().addAllChildFilter(childFilters).build();
   }
 
-  private QueryRequest rebuildRequestOmittingDefaults(
+  private QueryRequest rebuildRequest(
       QueryRequest original,
       List<Expression> selections,
       List<Expression> aggregations,
-      Filter filter,
+      Filter originalFilter,
       List<Expression> groupBys,
       List<OrderByExpression> orderBys) {
-    QueryRequest.Builder builder = original.toBuilder();
 
-    if (Filter.getDefaultInstance().equals(filter)) {
+    QueryRequest.Builder builder = original.toBuilder();
+    Filter updatedFilter = rebuildFilterForComplexAttributeExpression(originalFilter, orderBys);
+
+    if (Filter.getDefaultInstance().equals(updatedFilter)) {
       builder.clearFilter();
     } else {
-      builder.setFilter(filter);
+      builder.setFilter(updatedFilter);
     }
 
     return builder
@@ -340,5 +347,74 @@ final class ProjectionTransformation implements QueryTransformation {
         .clearOrderBy()
         .addAllOrderBy(orderBys)
         .build();
+  }
+
+  /*
+   * We need the CONTAINS_KEY filter in all filters and order bys dealing with complex
+   * attribute expressions as Pinot gives error if particular key is absent. Rest all work fine.
+   * To handle order bys, we add the corresponding filter at the top and 'AND' it with the main filter.
+   * To handle filter, we modify each filter (say filter1) as : "CONTAINS_KEY AND filter1".
+   */
+  private Filter rebuildFilterForComplexAttributeExpression(
+      Filter originalFilter, List<OrderByExpression> orderBys) {
+
+    Filter updatedFilter = updateFilterForComplexAttributeExpressionFromFilter(originalFilter);
+    List<Filter> filterList = createFilterForComplexAttributeExpressionFromOrderBy(orderBys);
+
+    if (filterList.isEmpty()) {
+      return updatedFilter;
+    }
+
+    if (!updatedFilter.equals(Filter.getDefaultInstance())) {
+      return Filter.newBuilder()
+          .setOperator(Operator.AND)
+          .addChildFilter(updatedFilter)
+          .addAllChildFilter(filterList)
+          .build();
+    }
+
+    if (filterList.size() > 1) {
+      return Filter.newBuilder().setOperator(Operator.AND).addAllChildFilter(filterList).build();
+    } else {
+      return filterList.get(0);
+    }
+  }
+
+  private Filter updateFilterForComplexAttributeExpressionFromFilter(Filter originalFilter) {
+    /*
+     * If childFilter is present, then the expected operators comprise the logical operators.
+     * If childFilter is absent, then the filter is a leaf filter which will have lhs and rhs.
+     */
+    if (originalFilter.getChildFilterCount() > 0) {
+      Filter.Builder builder = Filter.newBuilder();
+      builder.setOperator(originalFilter.getOperator());
+      originalFilter
+          .getChildFilterList()
+          .forEach(
+              childFilter ->
+                  builder.addChildFilter(
+                      updateFilterForComplexAttributeExpressionFromFilter(childFilter)));
+      return builder.build();
+    } else if (isAttributeExpressionWithSubpath(originalFilter.getLhs())) {
+      Filter childFilter =
+          createContainsKeyFilter(originalFilter.getLhs().getAttributeExpression());
+      return Filter.newBuilder()
+          .setOperator(Operator.AND)
+          .addChildFilter(originalFilter)
+          .addChildFilter(childFilter)
+          .build();
+    } else {
+      return originalFilter;
+    }
+  }
+
+  private List<Filter> createFilterForComplexAttributeExpressionFromOrderBy(
+      List<OrderByExpression> orderByExpressionList) {
+    return orderByExpressionList.stream()
+        .map(OrderByExpression::getExpression)
+        .filter(QueryRequestUtil::isAttributeExpressionWithSubpath)
+        .map(Expression::getAttributeExpression)
+        .map(QueryRequestUtil::createContainsKeyFilter)
+        .collect(Collectors.toList());
   }
 }

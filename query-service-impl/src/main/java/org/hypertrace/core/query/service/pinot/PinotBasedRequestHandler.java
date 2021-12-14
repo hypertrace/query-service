@@ -34,6 +34,7 @@ import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
+import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
@@ -621,5 +622,46 @@ public class PinotBasedRequestHandler implements RequestHandler {
           noGroupBy && noAggregations,
           "If distinct selections are requested, there should be no groupBys or aggregations.");
     }
+
+    // Validate attribute expressions
+
+    validateAttributeExpressionFilter(request.getFilter());
+
+    for (Expression expression : executionContext.getAllSelections()) {
+      if (isInvalidExpression(expression)) {
+        throw new IllegalArgumentException("Invalid Query");
+      }
+    }
+
+    for (Expression expression : request.getGroupByList()) {
+      if (isInvalidExpression(expression)) {
+        throw new IllegalArgumentException("Invalid Query");
+      }
+    }
+
+    for (OrderByExpression orderByExpression : request.getOrderByList()) {
+      if (isInvalidExpression(orderByExpression.getExpression())) {
+        throw new IllegalArgumentException("Invalid Query");
+      }
+    }
+  }
+
+  private void validateAttributeExpressionFilter(Filter filter) {
+    if (filter.getChildFilterCount() > 0) {
+      for (Filter childFilter : filter.getChildFilterList()) {
+        validateAttributeExpressionFilter(childFilter);
+      }
+    } else {
+      if (isInvalidExpression(filter.getLhs())) {
+        throw new IllegalArgumentException("Invalid Query");
+      }
+    }
+  }
+
+  private boolean isInvalidExpression(Expression expression) {
+    return expression.getValueCase() == ValueCase.ATTRIBUTE_EXPRESSION
+        && expression.getAttributeExpression().hasSubpath()
+        && viewDefinition.getColumnType(expression.getAttributeExpression().getAttributeId())
+            != ValueType.STRING_MAP;
   }
 }

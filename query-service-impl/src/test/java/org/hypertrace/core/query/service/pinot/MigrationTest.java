@@ -2,12 +2,15 @@ package org.hypertrace.core.query.service.pinot;
 
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpressionWithSimpleAttribute;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelectionWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createSimpleAttributeExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilterWithSimpleAttribute;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -15,7 +18,6 @@ import static org.mockito.Mockito.when;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map.Entry;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
@@ -38,11 +40,7 @@ public class MigrationTest {
 
   private static final String TENANT_ID = "__default";
   private static final String TENANT_COLUMN_NAME = "tenant_id";
-
   private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "request_handler.conf";
-  private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
-      "service_request_handler.conf";
-
   private Connection connection;
   private ExecutionContext executionContext;
 
@@ -87,6 +85,44 @@ public class MigrationTest {
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1557780911508 and end_time_millis < 1557780938419 )",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQuerySelectionUsingMapAttributeWithSubPath() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createComplexAttributeExpression("Span.tags", "span.kind"));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "Select mapValue(tags__KEYS,'span.kind',tags__VALUES) FROM SpanEventView "
+            + "where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQuerySelectionUsingMapAttributeWithoutSubPath() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createSimpleAttributeExpression("Span.tags"));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "Select tags__KEYS, tags__VALUES FROM SpanEventView "
+            + "where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'",
         viewDefinition,
         executionContext);
   }
@@ -233,34 +269,164 @@ public class MigrationTest {
   }
 
   @Test
-  public void testQueryWithContainsKeyValueOperator() {
+  public void testQueryWithEQFilterForMapAttribute() {
     Builder builder = QueryRequest.newBuilder();
-    Expression spanTag = createSimpleAttributeExpression("Span.tags").build();
+    Expression spanTag = createComplexAttributeExpression("Span.tags", "FLAGS").build();
     builder.addSelection(spanTag);
 
-    Expression tag = createStringArrayLiteralValueExpression(List.of("FLAGS", "0"));
-    Filter likeFilter =
+    Filter equalFilter =
         Filter.newBuilder()
-            .setOperator(Operator.CONTAINS_KEYVALUE)
+            .setOperator(Operator.EQ)
             .setLhs(spanTag)
-            .setRhs(tag)
+            .setRhs(createStringLiteralValueExpression("0"))
             .build();
-    builder.setFilter(likeFilter);
+    builder.setFilter(
+        createCompositeFilter(
+            Operator.AND, createContainsKeyFilter("Span.tags", "FLAGS"), equalFilter));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
 
     assertPQLQuery(
         builder.build(),
-        "SELECT tags__keys, tags__values FROM SpanEventView "
+        "SELECT mapValue(tags__keys,'flags',tags__values) FROM SpanEventView "
             + "WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0'",
+            + "AND ( tags__keys = 'flags' and mapvalue(tags__keys,'flags',tags__values) = '0' )",
         viewDefinition,
         executionContext);
+  }
+
+  @Test
+  public void testQueryWithGTFilterForMapAttribute() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
+    builder.addSelection(spanKind);
+
+    Filter greaterThanFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.GT)
+            .setLhs(spanKind)
+            .setRhs(createStringLiteralValueExpression("client"))
+            .build();
+    builder.setFilter(
+        createCompositeFilter(
+            Operator.AND, createContainsKeyFilter("Span.tags", "span.kind"), greaterThanFilter));
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT mapValue(tags__keys,'span.kind',tags__values) FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) > 'client' )",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithOrderByWithMapAttribute() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
+    builder.addSelection(spanKind);
+
+    Filter greaterThanOrEqualToFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.GE)
+            .setLhs(spanKind)
+            .setRhs(createStringLiteralValueExpression("client"))
+            .build();
+    builder.setFilter(
+        createCompositeFilter(
+            Operator.AND,
+            createContainsKeyFilter("Span.tags", "span.kind"),
+            greaterThanOrEqualToFilter));
+    builder.addOrderBy(createOrderByExpression(spanKind.toBuilder(), SortOrder.DESC));
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "select mapValue(tags__KEYS,'span.kind',tags__VALUES) FROM spanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) >= 'client' ) "
+            + "order by mapvalue(tags__KEYS,'span.kind',tags__VALUES) "
+            + "DESC ",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithGroupByWithMapAttribute() {
+    Builder builder = QueryRequest.newBuilder(buildGroupByMapAttributeQuery());
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+    assertPQLQuery(
+        builder.build(),
+        "select mapValue(tags__KEYS,'span.kind',tags__VALUES), AVG(duration_millis) FROM spanEventView"
+            + " where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( start_time_millis > 1570658506605 AND start_time_millis < 1570744906673 "
+            + "AND tags__keys = 'span.kind' "
+            + "AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != '' ) "
+            + "group by mapValue(tags__KEYS,'span.kind',tags__VALUES)",
+        viewDefinition,
+        executionContext);
+  }
+
+  private QueryRequest buildGroupByMapAttributeQuery() {
+    Builder builder = QueryRequest.newBuilder();
+
+    Filter startTimeFilter =
+        createTimeFilterWithSimpleAttribute("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter =
+        createTimeFilterWithSimpleAttribute("Span.start_time_millis", Operator.LT, 1570744906673L);
+    Filter neqFilter =
+        Filter.newBuilder()
+            .setLhs(createComplexAttributeExpression("Span.tags", "span.kind"))
+            .setOperator(Operator.NEQ)
+            .setRhs(createStringLiteralValueExpression(""))
+            .build();
+    Filter containsKeyFilter = createContainsKeyFilter("Span.tags", "span.kind");
+
+    Filter andFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .addChildFilter(containsKeyFilter)
+            .addChildFilter(neqFilter)
+            .build();
+    builder.setFilter(andFilter);
+
+    Expression avg =
+        createAliasedFunctionExpressionWithSimpleAttribute(
+                "AVG", "Span.duration_millis", "avg_duration")
+            .build();
+    builder.addSelection(avg);
+
+    Expression mapAttributeSelection =
+        createComplexAttributeExpression("Span.tags", "span.kind").build();
+    builder.addSelection(mapAttributeSelection);
+
+    builder.addGroupBy(mapAttributeSelection);
+    return builder.build();
   }
 
   private QueryRequest buildOrderByQuery() {

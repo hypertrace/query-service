@@ -1,6 +1,10 @@
 package org.hypertrace.core.query.service.htqueries;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFilter;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createOrderByExpression;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createStringLiteralValueExpression;
 
 import java.time.Duration;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
@@ -11,6 +15,7 @@ import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryRequest.Builder;
+import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
@@ -91,6 +96,48 @@ class ExplorerQueries {
                     .build())
             .build();
     builder.addGroupBy(Expression.newBuilder().setFunction(dateTimeConvert).build());
+    return builder.build();
+  }
+
+  static QueryRequest buildQuery2() {
+    Builder builder = QueryRequest.newBuilder();
+
+    Expression apiTraceTags =
+        createComplexAttributeExpression("API_TRACE.tags", "span.kind").build();
+    builder.addSelection(apiTraceTags);
+
+    Filter equalFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.EQ)
+            .setLhs(apiTraceTags)
+            .setRhs(createStringLiteralValueExpression("client"))
+            .build();
+
+    Filter startTimeFilter =
+        createFilter(
+            "API_TRACE.startTime",
+            Operator.GE,
+            ValueType.LONG,
+            System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+
+    Filter endTimeFilter =
+        createFilter(
+            "API_TRACE.startTime",
+            Operator.LT,
+            ValueType.LONG,
+            System.currentTimeMillis() + Duration.ofHours(1).toMillis());
+
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(startTimeFilter)
+            .addChildFilter(endTimeFilter)
+            .addChildFilter(equalFilter)
+            .addChildFilter(createContainsKeyFilter("API_TRACE.tags", "span.kind"))
+            .build());
+
+    builder.addOrderBy(createOrderByExpression(apiTraceTags, SortOrder.DESC));
+
     return builder.build();
   }
 }

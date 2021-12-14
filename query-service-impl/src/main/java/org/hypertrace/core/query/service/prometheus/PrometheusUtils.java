@@ -7,8 +7,7 @@ class PrometheusUtils {
   static String getColumnNameForMetricFunction(Expression functionExpression) {
     String functionName = functionExpression.getFunction().getFunctionName().toUpperCase();
     String columnName =
-        QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(
-            functionExpression.getFunction().getArguments(0));
+        QueryRequestUtil.getLogicalColumnName(functionExpression.getFunction().getArguments(0));
     return String.join(":", functionName, columnName);
   }
 }
