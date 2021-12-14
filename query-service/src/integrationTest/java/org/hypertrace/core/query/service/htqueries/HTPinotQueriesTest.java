@@ -402,5 +402,6 @@ public class HTPinotQueriesTest {
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(10, rows.size());
+    assertEquals("client", rows.get(0).getColumn(0).getString());
   }
 }

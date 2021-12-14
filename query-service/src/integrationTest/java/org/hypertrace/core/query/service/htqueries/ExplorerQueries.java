@@ -106,9 +106,9 @@ class ExplorerQueries {
         createComplexAttributeExpression("API_TRACE.tags", "span.kind").build();
     builder.addSelection(apiTraceTags);
 
-    Filter greaterThanOrEqualToFilter =
+    Filter equalFilter =
         Filter.newBuilder()
-            .setOperator(Operator.GE)
+            .setOperator(Operator.EQ)
             .setLhs(apiTraceTags)
             .setRhs(createStringLiteralValueExpression("client"))
             .build();
@@ -132,7 +132,7 @@ class ExplorerQueries {
             .setOperator(Operator.AND)
             .addChildFilter(startTimeFilter)
             .addChildFilter(endTimeFilter)
-            .addChildFilter(greaterThanOrEqualToFilter)
+            .addChildFilter(equalFilter)
             .addChildFilter(createContainsKeyFilter("API_TRACE.tags", "span.kind"))
             .build());
 
