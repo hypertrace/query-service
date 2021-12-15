@@ -7,10 +7,10 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createC
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelectionWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createSimpleAttributeExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilterWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createSimpleAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;

@@ -3,7 +3,6 @@ package org.hypertrace.core.query.service;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 
-import java.util.List;
 import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -85,20 +84,22 @@ public class QueryRequestUtil {
   public static Filter createContainsKeyFilter(String column, String value) {
     return Filter.newBuilder()
         .setOperator(Operator.CONTAINS_KEY)
-        .setLhs(createColumnExpression(column))
-        .setRhs(createStringArrayLiteralValueExpression(List.of(value)))
+        .setLhs(createSimpleAttributeExpression(column))
+        .setRhs(createStringLiteralValueExpression(value))
         .build();
   }
 
-  public static Expression createStringArrayLiteralValueExpression(List<String> values) {
+  public static Expression createStringLiteralValueExpression(String value) {
     return Expression.newBuilder()
         .setLiteral(
             LiteralConstant.newBuilder()
-                .setValue(
-                    Value.newBuilder()
-                        .addAllStringArray(values)
-                        .setValueType(ValueType.STRING_ARRAY)))
+                .setValue(Value.newBuilder().setString(value).setValueType(ValueType.STRING)))
         .build();
+  }
+
+  public static Expression.Builder createSimpleAttributeExpression(String columnName) {
+    return Expression.newBuilder()
+        .setAttributeExpression(AttributeExpression.newBuilder().setAttributeId(columnName));
   }
 
   // attribute expression with sub path is always a map attribute

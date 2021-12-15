@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service;
 
-import static org.hypertrace.core.query.service.QueryRequestUtil.createStringArrayLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createSimpleAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,11 +21,6 @@ public class QueryRequestBuilderUtils {
   public static Expression.Builder createColumnExpression(String columnName) {
     return Expression.newBuilder()
         .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName));
-  }
-
-  public static Expression.Builder createSimpleAttributeExpression(String columnName) {
-    return Expression.newBuilder()
-        .setAttributeExpression(AttributeExpression.newBuilder().setAttributeId(columnName));
   }
 
   public static Expression.Builder createComplexAttributeExpression(
@@ -170,11 +166,14 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
-  public static Expression createStringLiteralValueExpression(String value) {
+  public static Expression createStringArrayLiteralValueExpression(List<String> values) {
     return Expression.newBuilder()
         .setLiteral(
             LiteralConstant.newBuilder()
-                .setValue(Value.newBuilder().setString(value).setValueType(ValueType.STRING)))
+                .setValue(
+                    Value.newBuilder()
+                        .addAllStringArray(values)
+                        .setValueType(ValueType.STRING_ARRAY)))
         .build();
   }
 

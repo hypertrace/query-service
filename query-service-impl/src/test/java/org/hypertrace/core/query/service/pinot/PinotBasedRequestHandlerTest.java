@@ -23,6 +23,7 @@ import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
+import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -235,7 +236,7 @@ public class PinotBasedRequestHandlerTest {
                     QueryRequestBuilderUtils.createFilter(
                         "EVENT.isEntrySpan",
                         Operator.LIKE,
-                        QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
+                        QueryRequestUtil.createStringLiteralValueExpression("dummy")))
                 .build();
 
         context = new ExecutionContext("__default", request);
@@ -443,7 +444,7 @@ public class PinotBasedRequestHandlerTest {
                     QueryRequestBuilderUtils.createFilter(
                         "EVENT.isEntrySpan",
                         Operator.IN,
-                        QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
+                        QueryRequestUtil.createStringLiteralValueExpression("dummy")))
                 .build();
 
         context = new ExecutionContext("__default", request);
@@ -702,7 +703,7 @@ public class PinotBasedRequestHandlerTest {
                     QueryRequestBuilderUtils.createFilter(
                         "EVENT.isEntrySpan",
                         Operator.IN,
-                        QueryRequestBuilderUtils.createStringLiteralValueExpression("dummy")))
+                        QueryRequestUtil.createStringLiteralValueExpression("dummy")))
                 .build();
 
         executionContext = new ExecutionContext("__default", request);
@@ -1320,7 +1321,7 @@ public class PinotBasedRequestHandlerTest {
                           QueryRequestBuilderUtils.createFilter(
                               "EVENT.startTime",
                               Operator.GT,
-                              QueryRequestBuilderUtils.createStringLiteralValueExpression("1000")))
+                              QueryRequestUtil.createStringLiteralValueExpression("1000")))
                       .addChildFilter(
                           QueryRequestBuilderUtils.createInFilter(
                               "EVENT.isEntrySpan", List.of("true", "false"))))
