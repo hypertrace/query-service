@@ -49,12 +49,11 @@ dependencies {
   implementation("com.squareup.okhttp3:okhttp:4.9.1")
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
-  implementation("org.apache.commons:commons-lang3:3.10")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
   testImplementation("org.mockito:mockito-core:3.8.0")
   testImplementation("org.mockito:mockito-junit-jupiter:3.8.0")
-  testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.15.0")
+  testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.16.0")
   testImplementation("com.squareup.okhttp3:mockwebserver:4.9.1")
 }

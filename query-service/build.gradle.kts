@@ -15,7 +15,7 @@ dependencies {
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("com.typesafe:config:1.4.1")
 
-  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.15.0")
+  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.16.0")
   runtimeOnly("io.grpc:grpc-netty:1.42.0")
   constraints {
     runtimeOnly("io.netty:netty-codec-http2:4.1.71.Final") {
@@ -37,7 +37,7 @@ dependencies {
 
   integrationTestImplementation("org.apache.kafka:kafka-clients:5.5.1-ccs")
   integrationTestImplementation("org.apache.kafka:kafka-streams:5.5.1-ccs")
-  integrationTestImplementation("org.apache.avro:avro:1.10.2")
+  integrationTestImplementation("org.apache.avro:avro:1.11.0")
   integrationTestImplementation("com.google.guava:guava:30.1.1-jre")
   integrationTestImplementation("org.hypertrace.core.datamodel:data-model:0.1.12")
   integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.1.13")

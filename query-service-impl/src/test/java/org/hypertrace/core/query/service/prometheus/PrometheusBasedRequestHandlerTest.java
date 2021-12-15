@@ -40,11 +40,13 @@ class PrometheusBasedRequestHandlerTest {
     mockWebServer.start(9099);
 
     Config config = PrometheusTestUtils.getDefaultPrometheusConfig();
-    PrometheusRestClientFactory.createPrometheusClient(
-        config.getString(CONFIG_PATH_NAME), config.getString(CONFIG_PATH_CLIENT_KEY));
+
     prometheusBasedRequestHandler =
         new PrometheusBasedRequestHandler(
-            config.getString(CONFIG_PATH_NAME), config.getConfig(CONFIG_PATH_REQUEST_HANDLER_INFO));
+            config.getString(CONFIG_PATH_NAME),
+            config.getConfig(CONFIG_PATH_REQUEST_HANDLER_INFO),
+            new PrometheusRestClientFactory()
+                .getPrometheusClient(config.getString(CONFIG_PATH_CLIENT_KEY)));
   }
 
   @AfterAll
