@@ -1,11 +1,16 @@
 package org.hypertrace.core.query.service;
 
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 
+import java.util.List;
+import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
+import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
@@ -72,29 +77,65 @@ public class QueryRequestUtil {
         .build();
   }
 
+  public static Filter createContainsKeyFilter(AttributeExpression complexAttributeExpression) {
+    return createContainsKeyFilter(
+        complexAttributeExpression.getAttributeId(), complexAttributeExpression.getSubpath());
+  }
+
+  public static Filter createContainsKeyFilter(String column, String value) {
+    return Filter.newBuilder()
+        .setOperator(Operator.CONTAINS_KEY)
+        .setLhs(createColumnExpression(column))
+        .setRhs(createStringArrayLiteralValueExpression(List.of(value)))
+        .build();
+  }
+
+  public static Expression createStringArrayLiteralValueExpression(List<String> values) {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder()
+                        .addAllStringArray(values)
+                        .setValueType(ValueType.STRING_ARRAY)))
+        .build();
+  }
+
+  // attribute expression with sub path is always a map attribute
+  public static boolean isAttributeExpressionWithSubpath(Expression expression) {
+    return expression.getValueCase() == ATTRIBUTE_EXPRESSION
+        && expression.getAttributeExpression().hasSubpath();
+  }
+
+  public static boolean isSimpleAttributeExpression(Expression expression) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return true;
+      case ATTRIBUTE_EXPRESSION:
+        return !expression.getAttributeExpression().hasSubpath();
+      default:
+        return false;
+    }
+  }
+
   public static boolean isDateTimeFunction(Expression expression) {
     return expression.getValueCase() == ValueCase.FUNCTION
         && expression.getFunction().getFunctionName().equals("dateTimeConvert");
   }
 
-  public static boolean isComplexAttribute(Expression expression) {
-    return expression.getValueCase().equals(ATTRIBUTE_EXPRESSION)
-        && expression.getAttributeExpression().hasSubpath();
-  }
-
-  public static boolean isSimpleColumnExpression(Expression expression) {
-    return expression.getValueCase() == ValueCase.COLUMNIDENTIFIER
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression));
-  }
-
-  public static String getLogicalColumnNameForSimpleColumnExpression(Expression expression) {
-    if (!isSimpleColumnExpression(expression)) {
-      throw new RuntimeException("Expecting expression of type COLUMN or ATTRIBUTE");
-    }
-    if (expression.getValueCase() == ValueCase.COLUMNIDENTIFIER) {
-      return expression.getColumnIdentifier().getColumnName();
-    } else {
-      return expression.getAttributeExpression().getAttributeId();
+  public static String getLogicalColumnName(Expression expression) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return expression.getColumnIdentifier().getColumnName();
+      case ATTRIBUTE_EXPRESSION:
+        return expression.getAttributeExpression().getAttributeId();
+      default:
+        throw new IllegalArgumentException(
+            "Supports "
+                + ATTRIBUTE_EXPRESSION
+                + " and "
+                + COLUMNIDENTIFIER
+                + " expression type only");
     }
   }
 }

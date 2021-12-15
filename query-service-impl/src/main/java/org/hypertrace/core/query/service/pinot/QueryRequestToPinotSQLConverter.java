@@ -1,7 +1,8 @@
 package org.hypertrace.core.query.service.pinot;
 
-import static org.hypertrace.core.query.service.QueryRequestUtil.isComplexAttribute;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionWithSubpath;
+import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
@@ -66,7 +67,7 @@ class QueryRequestToPinotSQLConverter {
     // how it is created.
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
-      pqlBuilder.append(convertExpression2String(expr, paramsBuilder, executionContext));
+      pqlBuilder.append(convertExpressionToString(expr, paramsBuilder, executionContext));
       delim = ", ";
     }
 
@@ -79,7 +80,7 @@ class QueryRequestToPinotSQLConverter {
     if (request.hasFilter()) {
       pqlBuilder.append(" AND ");
       String filterClause =
-          convertFilter2String(request.getFilter(), paramsBuilder, executionContext);
+          convertFilterToString(request.getFilter(), paramsBuilder, executionContext);
       pqlBuilder.append(filterClause);
     }
 
@@ -89,7 +90,7 @@ class QueryRequestToPinotSQLConverter {
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
         pqlBuilder.append(
-            convertExpression2String(groupByExpression, paramsBuilder, executionContext));
+            convertExpressionToString(groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
     }
@@ -98,10 +99,9 @@ class QueryRequestToPinotSQLConverter {
       delim = "";
       for (OrderByExpression orderByExpression : request.getOrderByList()) {
         pqlBuilder.append(delim);
-        String orderBy =
-            convertExpression2String(
-                orderByExpression.getExpression(), paramsBuilder, executionContext);
-        pqlBuilder.append(orderBy);
+        pqlBuilder.append(
+            convertExpressionToString(
+                orderByExpression.getExpression(), paramsBuilder, executionContext));
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
           pqlBuilder.append(" desc ");
         }
@@ -126,16 +126,16 @@ class QueryRequestToPinotSQLConverter {
     return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
   }
 
-  private String convertFilter2String(
+  private String convertFilterToString(
       Filter filter, Builder paramsBuilder, ExecutionContext executionContext) {
     StringBuilder builder = new StringBuilder();
-    String operator = convertOperator2String(filter.getOperator());
+    String operator = convertOperatorToString(filter.getOperator());
     if (filter.getChildFilterCount() > 0) {
       String delim = "";
       builder.append("( ");
       for (Filter childFilter : filter.getChildFilterList()) {
         builder.append(delim);
-        builder.append(convertFilter2String(childFilter, paramsBuilder, executionContext));
+        builder.append(convertFilterToString(childFilter, paramsBuilder, executionContext));
         builder.append(" ");
         delim = operator + " ";
       }
@@ -149,9 +149,9 @@ class QueryRequestToPinotSQLConverter {
           builder.append(operator);
           builder.append("(");
           builder.append(
-              convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(",");
-          builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
+          builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
           builder.append(")");
           break;
         case CONTAINS_KEY:
@@ -185,11 +185,11 @@ class QueryRequestToPinotSQLConverter {
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(
-              convertExpression2String(filter.getLhs(), paramsBuilder, executionContext));
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(" ");
           builder.append(operator);
           builder.append(" ");
-          builder.append(convertExpression2String(rhs, paramsBuilder, executionContext));
+          builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
       }
     }
     return builder.toString();
@@ -203,9 +203,7 @@ class QueryRequestToPinotSQLConverter {
    * @return newly created literal {@link Expression} of rhs if converted else the same one.
    */
   private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
-    if (!((lhs.getValueCase().equals(COLUMNIDENTIFIER)
-            || (lhs.getValueCase().equals(ATTRIBUTE_EXPRESSION) && !isComplexAttribute(lhs)))
-        && rhs.getValueCase().equals(LITERAL))) {
+    if (!(isSimpleAttributeExpression(lhs) && rhs.getValueCase().equals(LITERAL))) {
       return rhs;
     }
 
@@ -226,7 +224,7 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
-  private String convertOperator2String(Operator operator) {
+  private String convertOperatorToString(Operator operator) {
     switch (operator) {
       case AND:
         return "AND";
@@ -263,7 +261,7 @@ class QueryRequestToPinotSQLConverter {
     }
   }
 
-  private String convertExpression2String(
+  private String convertExpressionToString(
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
@@ -272,8 +270,21 @@ class QueryRequestToPinotSQLConverter {
             viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
-        if (isComplexAttribute(expression)) {
-          /** TODO:Handle complex attribute */
+        if (isAttributeExpressionWithSubpath(expression)) {
+          String keyCol = convertExpressionToMapKeyColumn(expression);
+          String valCol = convertExpressionToMapValueColumn(expression);
+          String pathExpression = expression.getAttributeExpression().getSubpath();
+          LiteralConstant pathExpressionLiteral =
+              LiteralConstant.newBuilder()
+                  .setValue(Value.newBuilder().setString(pathExpression).build())
+                  .build();
+
+          return String.format(
+              "%s(%s,%s,%s)",
+              MAP_VALUE,
+              keyCol,
+              convertLiteralToString(pathExpressionLiteral, paramsBuilder),
+              valCol);
         } else {
           // this takes care of the Map Type where it's split into 2 columns
           columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
@@ -286,10 +297,10 @@ class QueryRequestToPinotSQLConverter {
             executionContext,
             expression.getFunction(),
             argExpression ->
-                convertExpression2String(argExpression, paramsBuilder, executionContext));
+                convertExpressionToString(argExpression, paramsBuilder, executionContext));
       case ORDERBY:
         OrderByExpression orderBy = expression.getOrderBy();
-        return convertExpression2String(orderBy.getExpression(), paramsBuilder, executionContext);
+        return convertExpressionToString(orderBy.getExpression(), paramsBuilder, executionContext);
       case VALUE_NOT_SET:
         break;
     }
@@ -297,43 +308,19 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
-    if ((expression.getValueCase() == COLUMNIDENTIFIER)
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression))) {
-      String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
-      if (col != null && col.length() > 0) {
-        return col;
-      }
+    String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
+    if (col != null && col.length() > 0) {
+      return col;
     }
-    throw new IllegalArgumentException(
-        "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
+    throw new IllegalArgumentException("operator supports multi value column only");
   }
 
   private String convertExpressionToMapValueColumn(Expression expression) {
-    if ((expression.getValueCase() == COLUMNIDENTIFIER)
-        || (expression.getValueCase() == ATTRIBUTE_EXPRESSION && !isComplexAttribute(expression))) {
-      String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
-      if (col != null && col.length() > 0) {
-        return col;
-      }
+    String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
+    if (col != null && col.length() > 0) {
+      return col;
     }
-    throw new IllegalArgumentException(
-        "operator CONTAINS_KEY/KEYVALUE supports multi value column only");
-  }
-
-  private String getLogicalColumnName(Expression expression) {
-    switch (expression.getValueCase()) {
-      case COLUMNIDENTIFIER:
-        return expression.getColumnIdentifier().getColumnName();
-      case ATTRIBUTE_EXPRESSION:
-        return expression.getAttributeExpression().getAttributeId();
-      default:
-        throw new IllegalArgumentException(
-            "Supports "
-                + ATTRIBUTE_EXPRESSION
-                + " and "
-                + COLUMNIDENTIFIER
-                + " expression type only");
-    }
+    throw new IllegalArgumentException("operator supports multi value column only");
   }
 
   private LiteralConstant[] convertExpressionToMapLiterals(Expression expression) {

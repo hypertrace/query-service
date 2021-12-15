@@ -138,7 +138,7 @@ public class PrometheusBasedRequestHandler implements RequestHandler {
               switch (valueCase) {
                 case ATTRIBUTE_EXPRESSION:
                 case COLUMNIDENTIFIER:
-                  return QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression(expression);
+                  return QueryRequestUtil.getLogicalColumnName(expression);
                 case FUNCTION:
                   if (QueryRequestUtil.isDateTimeFunction(expression)) {
                     return executionContext.getTimeFilterColumn();

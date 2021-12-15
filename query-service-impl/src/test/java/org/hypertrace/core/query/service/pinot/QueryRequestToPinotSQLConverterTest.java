@@ -13,10 +13,11 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createN
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimestampFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringArrayLiteralValueExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -546,13 +547,8 @@ public class QueryRequestToPinotSQLConverterTest {
   @Test
   public void testQueryWithContainsKeyOperator() {
     Builder builder = QueryRequest.newBuilder();
-    Expression spanTag = createColumnExpression("Span.tags").build();
-    builder.addSelection(spanTag);
-
-    Expression tag = createStringArrayLiteralValueExpression(List.of("FLAGS", "0"));
-    Filter likeFilter =
-        Filter.newBuilder().setOperator(Operator.CONTAINS_KEY).setLhs(spanTag).setRhs(tag).build();
-    builder.setFilter(likeFilter);
+    builder.addSelection(createColumnExpression("Span.tags"));
+    builder.setFilter(createContainsKeyFilter("Span.tags", "FLAGS"));
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();

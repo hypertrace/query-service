@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service.prometheus;
 
-import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnNameForSimpleColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 
 import com.google.common.base.Preconditions;
 import java.util.List;
@@ -47,7 +47,7 @@ class QueryRequestEligibilityValidator {
       // all selection including group by and aggregations should be either on column or attribute
       if (executionContext.getAllSelections().stream()
           .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
-          .anyMatch(Predicate.not(QueryRequestUtil::isSimpleColumnExpression))) {
+          .anyMatch(Predicate.not(QueryRequestUtil::isSimpleAttributeExpression))) {
         return QueryCost.UNSUPPORTED;
       }
 
@@ -88,13 +88,13 @@ class QueryRequestEligibilityValidator {
 
     Set<String> selections =
         selectionList.stream()
-            .map(QueryRequestUtil::getLogicalColumnNameForSimpleColumnExpression)
+            .map(QueryRequestUtil::getLogicalColumnName)
             .collect(Collectors.toSet());
 
     Set<String> groupBys =
         groupByList.stream()
             .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
-            .map(QueryRequestUtil::getLogicalColumnNameForSimpleColumnExpression)
+            .map(QueryRequestUtil::getLogicalColumnName)
             .collect(Collectors.toSet());
     return !selections.equals(groupBys);
   }
@@ -113,7 +113,7 @@ class QueryRequestEligibilityValidator {
                 return true;
               }
               Expression functionArgument = function.getArgumentsList().get(0);
-              String attributeId = getLogicalColumnNameForSimpleColumnExpression(functionArgument);
+              String attributeId = getLogicalColumnName(functionArgument);
               if (!PrometheusFunctionConverter.supportedFunctions.contains(
                   function.getFunctionName())) {
                 return true;
@@ -143,7 +143,7 @@ class QueryRequestEligibilityValidator {
       }
 
       // lhs condition of filter should be column or simple attribute
-      if (!QueryRequestUtil.isSimpleColumnExpression(filter.getLhs())) {
+      if (!QueryRequestUtil.isSimpleAttributeExpression(filter.getLhs())) {
         return true;
       }
     }

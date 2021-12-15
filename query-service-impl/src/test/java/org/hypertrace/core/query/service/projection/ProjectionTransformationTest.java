@@ -13,17 +13,20 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringArrayLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import io.reactivex.rxjava3.core.Single;
@@ -39,6 +42,8 @@ import org.hypertrace.core.attribute.service.v1.Projection;
 import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
 import org.hypertrace.core.query.service.QueryTransformation.QueryTransformationContext;
+import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
@@ -71,6 +76,214 @@ class ProjectionTransformationTest {
 
     this.projectionTransformation =
         new ProjectionTransformation(this.mockAttributeClient, new AttributeProjectionRegistry());
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_SingleFilter() {
+    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+
+    Expression spanTags = createComplexAttributeExpression("Span.tags", "span.kind").build();
+    Filter filter =
+        Filter.newBuilder()
+            .setLhs(spanTags)
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("server"))
+            .build();
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addAllChildFilter(
+                        List.of(filter, createContainsKeyFilter(spanTags.getAttributeExpression())))
+                    .build())
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_MultipleFilter() {
+    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
+
+    Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
+    Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
+
+    Filter childFilter1 =
+        Filter.newBuilder()
+            .setLhs(spanTags1)
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("0"))
+            .build();
+    Filter childFilter2 =
+        Filter.newBuilder()
+            .setLhs(spanTags2)
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("server"))
+            .build();
+
+    Filter.Builder filter = createCompositeFilter(Operator.AND, childFilter1, childFilter2);
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
+
+    QueryRequest expectedTransform =
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet();
+    List<Filter> childFilterList = expectedTransform.getFilter().getChildFilterList();
+
+    assertTrue(
+        childFilterList
+            .get(0)
+            .getChildFilterList()
+            .contains(createContainsKeyFilter(spanTags1.getAttributeExpression())));
+    assertTrue(
+        childFilterList
+            .get(1)
+            .getChildFilterList()
+            .contains(createContainsKeyFilter(spanTags2.getAttributeExpression())));
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_HierarchicalFilter() {
+    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
+
+    Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
+    Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
+
+    Filter filter1 =
+        Filter.newBuilder()
+            .setLhs(spanTags1)
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("0"))
+            .build();
+    Filter filter2 =
+        Filter.newBuilder()
+            .setLhs(spanTags2)
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("server"))
+            .build();
+    Filter filter =
+        createCompositeFilter(
+                Operator.AND,
+                createEqualsFilter(SIMPLE_ATTRIBUTE_ID, "otherValue"),
+                createCompositeFilter(Operator.AND, filter1, filter2).build())
+            .build();
+
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
+
+    QueryRequest expectedTransform =
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet();
+    List<Filter> childFilterList =
+        expectedTransform.getFilter().getChildFilterList().get(1).getChildFilterList();
+
+    assertTrue(
+        childFilterList
+            .get(0)
+            .getChildFilterList()
+            .contains(createContainsKeyFilter(spanTags1.getAttributeExpression())));
+    assertTrue(
+        childFilterList
+            .get(1)
+            .getChildFilterList()
+            .contains(createContainsKeyFilter(spanTags2.getAttributeExpression())));
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_OrderByAndFilter() {
+    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+    Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
+
+    Filter filter =
+        Filter.newBuilder()
+            .setLhs(spanTag)
+            .setOperator(Operator.EQ)
+            .setRhs(createColumnExpression("server"))
+            .build();
+    Filter containsKeyFilter = createContainsKeyFilter("Span.tags", "span.kind");
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .setFilter(filter)
+            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
+            .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .setFilter(
+                createCompositeFilter(
+                    Operator.AND,
+                    createCompositeFilter(Operator.AND, filter, containsKeyFilter).build(),
+                    containsKeyFilter))
+            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_SingleOrderBy() {
+    Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
+            .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .setFilter(createContainsKeyFilter("Span.tags", "span.kind"))
+            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_MultipleOrderBy() {
+    Expression.Builder spanTag1 = createComplexAttributeExpression("Span.tags", "span.kind");
+    Expression.Builder spanTag2 = createComplexAttributeExpression("Span.tags", "FLAGS");
+
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addOrderBy(createOrderByExpression(spanTag1, SortOrder.ASC))
+            .addOrderBy(createOrderByExpression(spanTag2, SortOrder.ASC))
+            .build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .setFilter(
+                createCompositeFilter(
+                    Operator.AND,
+                    createContainsKeyFilter("Span.tags", "span.kind"),
+                    createContainsKeyFilter("Span.tags", "FLAGS")))
+            .addOrderBy(createOrderByExpression(spanTag1, SortOrder.ASC))
+            .addOrderBy(createOrderByExpression(spanTag2, SortOrder.ASC))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
   }
 
   @Test

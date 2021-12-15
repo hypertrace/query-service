@@ -393,4 +393,15 @@ public class HTPinotQueriesTest {
     // COUNT_API_TRACE.calls_[] is 13
     assertEquals("13", rows.get(0).getColumn(1).getString());
   }
+
+  @Test
+  public void testExplorerQueriesForAttributeExpression() {
+    LOG.info("Explorer queries for attribute expression");
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(ExplorerQueries.buildQuery2(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(10, rows.size());
+    assertEquals("client", rows.get(0).getColumn(0).getString());
+  }
 }
