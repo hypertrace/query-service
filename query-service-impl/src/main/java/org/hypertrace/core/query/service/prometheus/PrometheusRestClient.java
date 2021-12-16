@@ -6,13 +6,13 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 
 class PrometheusRestClient {
   private static final String INSTANT_QUERY = "api/v1/query";
@@ -64,12 +64,10 @@ class PrometheusRestClient {
         .join();
 
     return okHttpResponseCallbacks.stream()
-        .map(
-            okHttpResponseCallback ->
-                ImmutablePair.of(
-                    okHttpResponseCallback.request,
-                    convertResponse(okHttpResponseCallback.future.join())))
-        .collect(Collectors.toMap(pair -> pair.getLeft(), pair -> pair.getRight()));
+        .collect(
+            Collectors.toMap(
+                okHttpResponseCallback -> okHttpResponseCallback.request,
+                okHttpResponseCallback -> convertResponse(okHttpResponseCallback.future.join())));
   }
 
   private PromQLMetricResponse convertResponse(Response response) {
@@ -125,12 +123,12 @@ class PrometheusRestClient {
     }
 
     @Override
-    public void onResponse(Call call, Response response) throws IOException {
+    public void onResponse(@NonNull Call call, @NonNull Response response) {
       future.complete(response);
     }
 
     @Override
-    public void onFailure(Call call, IOException e) {
+    public void onFailure(@NonNull Call call, @NonNull IOException e) {
       future.completeExceptionally(e);
     }
   }

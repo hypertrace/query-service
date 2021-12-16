@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTimeRange;
@@ -105,12 +104,10 @@ class QueryRequestToPromqlConverter {
             expression ->
                 expression.getValueCase().equals(ValueCase.FUNCTION)
                     && !QueryRequestUtil.isDateTimeFunction(expression))
-        .map(
-            functionExpression ->
-                ImmutablePair.of(
-                    PrometheusUtils.getColumnNameForMetricFunction(functionExpression),
-                    mapToPromqlQuery(functionExpression, groupByList, filterList, duration)))
-        .collect(Collectors.toMap(ImmutablePair::getLeft, ImmutablePair::getRight));
+        .collect(
+            Collectors.toMap(
+                PrometheusUtils::generateAliasForMetricFunction,
+                function -> mapToPromqlQuery(function, groupByList, filterList, duration)));
   }
 
   private String mapToPromqlQuery(
