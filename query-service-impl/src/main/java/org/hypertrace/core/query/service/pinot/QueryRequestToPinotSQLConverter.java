@@ -340,7 +340,7 @@ class QueryRequestToPinotSQLConverter {
       }
     }
 
-    List<LiteralConstant> literalConstantList = new ArrayList<>(List.of());
+    List<LiteralConstant> literalConstantList = new ArrayList<>();
     for (int i = 0; i < 2; i++) {
       literalConstantList.add(
           LiteralConstant.newBuilder()
