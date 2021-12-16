@@ -155,8 +155,14 @@ class QueryRequestToPinotSQLConverter {
           builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
           builder.append(")");
           break;
-        case CONTAINS_KEY:
+        case NOT_CONTAINS_KEY:
           List<LiteralConstant> kvp = convertExpressionToMapLiterals(filter.getRhs());
+          builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
+          builder.append(" != ");
+          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
+          break;
+        case CONTAINS_KEY:
+          kvp = convertExpressionToMapLiterals(filter.getRhs());
           builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
           builder.append(" = ");
           builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
@@ -251,6 +257,7 @@ class QueryRequestToPinotSQLConverter {
         return "<=";
       case LIKE:
         return REGEX_OPERATOR;
+      case NOT_CONTAINS_KEY:
       case CONTAINS_KEY:
       case CONTAINS_KEYVALUE:
         return MAP_VALUE;

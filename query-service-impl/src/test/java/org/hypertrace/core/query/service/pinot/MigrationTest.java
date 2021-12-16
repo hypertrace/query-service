@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.pinot;
 
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpressionWithSimpleAttribute;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelectionWithSimpleAttribute;
@@ -194,6 +195,33 @@ public class MigrationTest {
             + TENANT_ID
             + "' "
             + "AND REGEXP_LIKE(span_id,'042e5523ff6b2506')",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithNotContainsKeyOperator() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.tags"));
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.NOT_CONTAINS_KEY)
+            .setLhs(createSimpleAttributeExpression("Span.tags"))
+            .setRhs(createStringLiteralValueExpression("Flags"))
+            .build());
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT tags__keys, tags__values FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags__keys != 'flags'",
         viewDefinition,
         executionContext);
   }
