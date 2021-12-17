@@ -1,5 +1,8 @@
 package org.hypertrace.core.query.service;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.getAlias;
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
+
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.time.Duration;
@@ -15,7 +18,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
@@ -137,12 +139,12 @@ public class ExecutionContext {
     ValueCase valueCase = expression.getValueCase();
     switch (valueCase) {
       case COLUMNIDENTIFIER:
-        ColumnIdentifier columnIdentifier = expression.getColumnIdentifier();
-        String alias = columnIdentifier.getAlias();
+      case ATTRIBUTE_EXPRESSION:
+        String alias = getAlias(expression);
         if (alias != null && alias.trim().length() > 0) {
           builder.setColumnName(alias);
         } else {
-          builder.setColumnName(columnIdentifier.getColumnName());
+          builder.setColumnName(getLogicalColumnName(expression));
         }
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
@@ -172,8 +174,8 @@ public class ExecutionContext {
     ValueCase valueCase = expression.getValueCase();
     switch (valueCase) {
       case COLUMNIDENTIFIER:
-        ColumnIdentifier columnIdentifier = expression.getColumnIdentifier();
-        columns.add(columnIdentifier.getColumnName());
+      case ATTRIBUTE_EXPRESSION:
+        columns.add(getLogicalColumnName(expression));
         break;
       case LITERAL:
         // no columns
@@ -233,7 +235,13 @@ public class ExecutionContext {
   }
 
   private boolean isMatchingFilter(Filter filter, String column, Collection<Operator> operators) {
-    return column.equals(filter.getLhs().getColumnIdentifier().getColumnName())
+
+    // if not leaf filter, then return false
+    if (!filter.hasLhs()) {
+      return false;
+    }
+
+    return column.equals(getLogicalColumnName(filter.getLhs()))
         && (operators.stream()
             .anyMatch(operator -> Objects.equals(operator, filter.getOperator())));
   }

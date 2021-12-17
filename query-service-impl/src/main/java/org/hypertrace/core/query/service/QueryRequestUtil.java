@@ -139,4 +139,20 @@ public class QueryRequestUtil {
                 + " expression type only");
     }
   }
+
+  public static String getAlias(Expression expression) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return expression.getColumnIdentifier().getAlias();
+      case ATTRIBUTE_EXPRESSION:
+        return expression.getAttributeExpression().getAlias();
+      default:
+        throw new IllegalArgumentException(
+            "Supports "
+                + ATTRIBUTE_EXPRESSION
+                + " and "
+                + COLUMNIDENTIFIER
+                + " expression type only");
+    }
+  }
 }
