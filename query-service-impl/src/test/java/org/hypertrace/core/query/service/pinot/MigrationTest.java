@@ -2,15 +2,17 @@ package org.hypertrace.core.query.service.pinot;
 
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpressionWithSimpleAttribute;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelectionWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createSimpleAttributeExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilterWithSimpleAttribute;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createSimpleAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -163,6 +165,63 @@ public class MigrationTest {
             + TENANT_ID
             + "' "
             + "order by start_time_millis desc , end_time_millis limit 100",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithLikeOperator() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanId = createSimpleAttributeExpression("Span.id").build();
+    builder.addSelection(spanId);
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.LIKE)
+            .setLhs(spanId)
+            .setRhs(createStringLiteralValueExpression("042e5523ff6b2506"))
+            .build();
+    builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT span_id FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND REGEXP_LIKE(span_id,'042e5523ff6b2506')",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithNotContainsKeyOperator() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.tags"));
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.NOT_CONTAINS_KEY)
+            .setLhs(createSimpleAttributeExpression("Span.tags"))
+            .setRhs(createStringLiteralValueExpression("Flags"))
+            .build());
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT tags__keys, tags__values FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags__keys != 'flags'",
         viewDefinition,
         executionContext);
   }
@@ -328,6 +387,49 @@ public class MigrationTest {
             + TENANT_ID
             + "' "
             + "AND ( tags__keys = 'span.kind' and mapvalue(tags__keys,'span.kind',tags__values) > 'client' )",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithLikeOperatorForMapAttribute() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanKind = createComplexAttributeExpression("Span.tags", "span.kind").build();
+    builder.addSelection(spanKind);
+
+    Filter notEqualsFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.NEQ)
+            .setLhs(spanKind)
+            .setRhs(createNullStringLiteralValueExpression())
+            .build();
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.LIKE)
+            .setLhs(spanKind)
+            .setRhs(createStringLiteralValueExpression("^client*"))
+            .build();
+
+    Filter containsKeyFilter = createContainsKeyFilter(spanKind.getAttributeExpression());
+
+    builder.setFilter(
+        createCompositeFilter(Operator.AND, containsKeyFilter, notEqualsFilter, likeFilter));
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT mapValue(tags__KEYS,'span.kind',tags__VALUES) FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( tags__KEYS = 'span.kind' "
+            + "AND mapValue(tags__KEYS,'span.kind',tags__VALUES) != 'null' "
+            + "AND REGEXP_LIKE(mapValue(tags__KEYS,'span.kind',tags__VALUES),'^client*') )",
         viewDefinition,
         executionContext);
   }

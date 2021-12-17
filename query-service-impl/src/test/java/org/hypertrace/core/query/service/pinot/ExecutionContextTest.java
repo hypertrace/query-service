@@ -1,9 +1,9 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 

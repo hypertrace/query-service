@@ -9,6 +9,7 @@ import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL
 import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -155,10 +156,13 @@ class QueryRequestToPinotSQLConverter {
           builder.append(")");
           break;
         case CONTAINS_KEY:
-          LiteralConstant[] kvp = convertExpressionToMapLiterals(filter.getRhs());
+        case NOT_CONTAINS_KEY:
+          List<LiteralConstant> kvp = convertExpressionToMapLiterals(filter.getRhs());
           builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
-          builder.append(" = ");
-          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+          builder.append(" ");
+          builder.append(operator);
+          builder.append(" ");
+          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
           break;
         case CONTAINS_KEYVALUE:
           kvp = convertExpressionToMapLiterals(filter.getRhs());
@@ -166,21 +170,21 @@ class QueryRequestToPinotSQLConverter {
           String valCol = convertExpressionToMapValueColumn(filter.getLhs());
           builder.append(keyCol);
           builder.append(" = ");
-          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
           builder.append(" AND ");
           builder.append(valCol);
           builder.append(" = ");
-          builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+          builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder));
           builder.append(" AND ");
           builder.append(MAP_VALUE);
           builder.append("(");
           builder.append(keyCol);
           builder.append(",");
-          builder.append(convertLiteralToString(kvp[MAP_KEY_INDEX], paramsBuilder));
+          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
           builder.append(",");
           builder.append(valCol);
           builder.append(") = ");
-          builder.append(convertLiteralToString(kvp[MAP_VALUE_INDEX], paramsBuilder));
+          builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder));
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
@@ -233,8 +237,10 @@ class QueryRequestToPinotSQLConverter {
       case NOT:
         return "NOT";
       case EQ:
+      case CONTAINS_KEY:
         return "=";
       case NEQ:
+      case NOT_CONTAINS_KEY:
         return "!=";
       case IN:
         return "IN";
@@ -250,7 +256,6 @@ class QueryRequestToPinotSQLConverter {
         return "<=";
       case LIKE:
         return REGEX_OPERATOR;
-      case CONTAINS_KEY:
       case CONTAINS_KEYVALUE:
         return MAP_VALUE;
       case RANGE:
@@ -323,34 +328,31 @@ class QueryRequestToPinotSQLConverter {
     throw new IllegalArgumentException("operator supports multi value column only");
   }
 
-  private LiteralConstant[] convertExpressionToMapLiterals(Expression expression) {
-    LiteralConstant[] literals = new LiteralConstant[2];
+  private List<LiteralConstant> convertExpressionToMapLiterals(Expression expression) {
+    List<String> literals = new ArrayList<>(List.of("", ""));
     if (expression.getValueCase() == LITERAL) {
       LiteralConstant value = expression.getLiteral();
-      if (value.getValue().getValueType() == ValueType.STRING_ARRAY) {
-        for (int i = 0; i < 2 && i < value.getValue().getStringArrayCount(); i++) {
-          literals[i] =
-              LiteralConstant.newBuilder()
-                  .setValue(
-                      Value.newBuilder().setString(value.getValue().getStringArray(i)).build())
-                  .build();
-        }
+      if (value.getValue().getValueType() == ValueType.STRING_ARRAY
+          && value.getValue().getStringArrayCount() == 2) {
+        literals.set(0, value.getValue().getStringArray(0));
+        literals.set(1, value.getValue().getStringArray(1));
+      } else if (value.getValue().getValueType() == ValueType.STRING) {
+        literals.set(0, value.getValue().getString());
       } else {
         throw new IllegalArgumentException(
-            "operator CONTAINS_KEYVALUE supports "
-                + ValueType.STRING_ARRAY.name()
-                + " value type only");
+            "Unsupported arguments for CONTAINS_KEY / CONTAINS_KEYVALUE operator");
       }
     }
 
-    for (int i = 0; i < literals.length; i++) {
-      if (literals[i] == null) {
-        literals[i] =
-            LiteralConstant.newBuilder().setValue(Value.newBuilder().setString("").build()).build();
-      }
+    List<LiteralConstant> literalConstantList = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      literalConstantList.add(
+          LiteralConstant.newBuilder()
+              .setValue(Value.newBuilder().setString(literals.get(i)).build())
+              .build());
     }
 
-    return literals;
+    return literalConstantList;
   }
 
   /** TODO:Handle all types */

@@ -3,9 +3,9 @@ package org.hypertrace.core.query.service.prometheus;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
