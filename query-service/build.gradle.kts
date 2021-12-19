@@ -15,7 +15,7 @@ dependencies {
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("com.typesafe:config:1.4.1")
 
-  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.16.0")
+  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.17.0")
   runtimeOnly("io.grpc:grpc-netty:1.42.0")
   constraints {
     runtimeOnly("io.netty:netty-codec-http2:4.1.71.Final") {
