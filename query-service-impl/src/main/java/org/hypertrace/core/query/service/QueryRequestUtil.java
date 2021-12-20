@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service;
 
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.FUNCTION;
 
 import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
@@ -143,13 +144,25 @@ public class QueryRequestUtil {
   public static String getAlias(Expression expression) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
-        return expression.getColumnIdentifier().getAlias();
+        return expression.getColumnIdentifier().getAlias().isBlank()
+            ? getLogicalColumnName(expression)
+            : expression.getColumnIdentifier().getAlias();
       case ATTRIBUTE_EXPRESSION:
-        return expression.getAttributeExpression().getAlias();
+        return expression.getAttributeExpression().getAlias().isBlank()
+            ? getLogicalColumnName(expression)
+            : expression.getAttributeExpression().getAlias();
+      case FUNCTION:
+        // todo: handle recursive functions max(rollup(time,50)
+        // workaround is to use alias for now
+        return expression.getFunction().getAlias().isBlank()
+            ? expression.getFunction().getFunctionName()
+            : expression.getFunction().getAlias();
       default:
         throw new IllegalArgumentException(
             "Supports "
                 + ATTRIBUTE_EXPRESSION
+                + " , "
+                + FUNCTION
                 + " and "
                 + COLUMNIDENTIFIER
                 + " expression type only");

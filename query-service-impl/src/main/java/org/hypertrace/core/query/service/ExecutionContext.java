@@ -140,25 +140,8 @@ public class ExecutionContext {
     switch (valueCase) {
       case COLUMNIDENTIFIER:
       case ATTRIBUTE_EXPRESSION:
-        String alias = getAlias(expression);
-        if (alias != null && alias.trim().length() > 0) {
-          builder.setColumnName(alias);
-        } else {
-          builder.setColumnName(getLogicalColumnName(expression));
-        }
-        builder.setValueType(ValueType.STRING);
-        builder.setIsRepeated(false);
-        break;
       case FUNCTION:
-        Function function = expression.getFunction();
-        alias = function.getAlias();
-        if (alias != null && alias.trim().length() > 0) {
-          builder.setColumnName(alias);
-        } else {
-          // todo: handle recursive functions max(rollup(time,50)
-          // workaround is to use alias for now
-          builder.setColumnName(function.getFunctionName());
-        }
+        builder.setColumnName(getAlias(expression));
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
