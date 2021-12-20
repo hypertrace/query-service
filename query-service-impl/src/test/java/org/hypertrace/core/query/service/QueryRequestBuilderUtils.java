@@ -157,6 +157,13 @@ public class QueryRequestBuilderUtils {
     return createFilter(createSimpleAttributeExpression(column).build(), operator, expression);
   }
 
+  public static Filter createSimpleAttributeFilter(String column, Operator operator, String value) {
+    return createFilter(
+        createSimpleAttributeExpression(column).build(),
+        operator,
+        createStringLiteralValueExpression(value));
+  }
+
   public static Filter createFilter(
       Expression columnExpression, Operator operator, Expression expression) {
     return Filter.newBuilder()
