@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.pinot;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeColumnGroupByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -314,6 +315,78 @@ public class ExecutionContextTest {
             .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName("Trace.id"))
             .build(),
         selectionsIterator.next());
+    assertEquals(Expression.newBuilder().setFunction(avg).build(), selectionsIterator.next());
+    assertEquals(Expression.newBuilder().setFunction(count).build(), selectionsIterator.next());
+    assertEquals(
+        Expression.newBuilder().setFunction(minFunction).build(), selectionsIterator.next());
+  }
+
+  @Test
+  public void testSelectionsLinkedHashSetWithAttributeExpression() {
+    Builder builder = QueryRequest.newBuilder();
+    // agg function with alias
+    Function count =
+        Function.newBuilder()
+            .setFunctionName("Count")
+            .setAlias("myCountAlias")
+            .addArguments(createSimpleAttributeExpression("Trace.id"))
+            .build();
+    builder.addAggregation(Expression.newBuilder().setFunction(count));
+
+    // agg function without alias
+    Function minFunction =
+        Function.newBuilder()
+            .setFunctionName("MIN")
+            .addArguments(createSimpleAttributeExpression("Trace.duration"))
+            .build();
+    builder.addAggregation(Expression.newBuilder().setFunction(minFunction));
+
+    // Add some selections
+    builder.addSelection(createSimpleAttributeExpression("Trace.transaction_name"));
+    builder.addSelection(createSimpleAttributeExpression("Trace.id"));
+
+    // A function added into selections list is treated as a selection
+    Function avg =
+        Function.newBuilder()
+            .setFunctionName("AVG")
+            .setAlias("myAvgAlias")
+            .addArguments(createSimpleAttributeExpression("Trace.duration"))
+            .build();
+    builder.addSelection(Expression.newBuilder().setFunction(avg));
+
+    // Add some group bys
+    builder.addGroupBy(createSimpleAttributeExpression("Trace.api_name"));
+    builder.addGroupBy(createSimpleAttributeExpression("Trace.service_name"));
+    QueryRequest queryRequest = builder.build();
+
+    ExecutionContext context = new ExecutionContext("test", queryRequest);
+
+    // The order in resultSetMetadata.getColumnMetadataList() and selections is group bys,
+    // selections then aggregations
+    ResultSetMetadata resultSetMetadata = context.getResultSetMetadata();
+
+    assertNotNull(resultSetMetadata);
+    assertEquals(7, resultSetMetadata.getColumnMetadataCount());
+    assertEquals("Trace.api_name", resultSetMetadata.getColumnMetadata(0).getColumnName());
+    assertEquals("Trace.service_name", resultSetMetadata.getColumnMetadata(1).getColumnName());
+    assertEquals("Trace.transaction_name", resultSetMetadata.getColumnMetadata(2).getColumnName());
+    assertEquals("Trace.id", resultSetMetadata.getColumnMetadata(3).getColumnName());
+    assertEquals("myAvgAlias", resultSetMetadata.getColumnMetadata(4).getColumnName());
+    assertEquals("myCountAlias", resultSetMetadata.getColumnMetadata(5).getColumnName());
+    assertEquals("MIN", resultSetMetadata.getColumnMetadata(6).getColumnName());
+
+    // Selections should correspond in size and order to the
+    // resultSetMetadata.getColumnMetadataList()
+    assertEquals(7, context.getAllSelections().size());
+    Iterator<Expression> selectionsIterator = context.getAllSelections().iterator();
+    assertEquals(
+        createSimpleAttributeExpression("Trace.api_name").build(), selectionsIterator.next());
+    assertEquals(
+        createSimpleAttributeExpression("Trace.service_name").build(), selectionsIterator.next());
+    assertEquals(
+        createSimpleAttributeExpression("Trace.transaction_name").build(),
+        selectionsIterator.next());
+    assertEquals(createSimpleAttributeExpression("Trace.id").build(), selectionsIterator.next());
     assertEquals(Expression.newBuilder().setFunction(avg).build(), selectionsIterator.next());
     assertEquals(Expression.newBuilder().setFunction(count).build(), selectionsIterator.next());
     assertEquals(
