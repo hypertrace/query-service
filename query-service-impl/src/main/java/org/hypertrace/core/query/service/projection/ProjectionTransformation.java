@@ -30,6 +30,7 @@ import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
 import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTransformation;
+import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -79,6 +80,8 @@ final class ProjectionTransformation implements QueryTransformation {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
         return this.transformColumnIdentifier(expression.getColumnIdentifier());
+      case ATTRIBUTE_EXPRESSION:
+        return this.transformAttributeExpression(expression.getAttributeExpression());
       case FUNCTION:
         return this.transformFunction(expression.getFunction())
             .map(expression.toBuilder()::setFunction)
@@ -96,8 +99,17 @@ final class ProjectionTransformation implements QueryTransformation {
 
   private Single<Expression> transformColumnIdentifier(ColumnIdentifier columnIdentifier) {
     return this.projectAttributeIfPossible(columnIdentifier.getColumnName())
-        .map(expression -> this.aliasToMatchOriginal(columnIdentifier, expression))
+        .map(expression -> this.aliasToMatchOriginal(getOriginalKey(columnIdentifier), expression))
         .defaultIfEmpty(Expression.newBuilder().setColumnIdentifier(columnIdentifier).build());
+  }
+
+  private Single<Expression> transformAttributeExpression(AttributeExpression attributeExpression) {
+    return this.projectAttributeIfPossible(attributeExpression.getAttributeId())
+        .map(
+            expression ->
+                this.aliasToMatchOriginal(getOriginalKey(attributeExpression), expression))
+        .defaultIfEmpty(
+            Expression.newBuilder().setAttributeExpression(attributeExpression).build());
   }
 
   private Single<Function> transformFunction(Function function) {
@@ -267,14 +279,17 @@ final class ProjectionTransformation implements QueryTransformation {
     }
   }
 
-  private Expression aliasToMatchOriginal(ColumnIdentifier original, Expression newExpression) {
-    String originalKey =
-        original.getAlias().isEmpty() ? original.getColumnName() : original.getAlias();
+  private Expression aliasToMatchOriginal(String originalKey, Expression newExpression) {
     switch (newExpression.getValueCase()) {
       case COLUMNIDENTIFIER:
         return newExpression.toBuilder()
             .setColumnIdentifier(
                 newExpression.getColumnIdentifier().toBuilder().setAlias(originalKey))
+            .build();
+      case ATTRIBUTE_EXPRESSION:
+        return newExpression.toBuilder()
+            .setAttributeExpression(
+                newExpression.getAttributeExpression().toBuilder().setAlias(originalKey))
             .build();
       case FUNCTION:
         return newExpression.toBuilder()
@@ -416,5 +431,15 @@ final class ProjectionTransformation implements QueryTransformation {
         .map(Expression::getAttributeExpression)
         .map(QueryRequestUtil::createContainsKeyFilter)
         .collect(Collectors.toList());
+  }
+
+  private String getOriginalKey(AttributeExpression attributeExpression) {
+    String alias = attributeExpression.getAlias();
+    return alias.isEmpty() ? attributeExpression.getAttributeId() : alias;
+  }
+
+  private String getOriginalKey(ColumnIdentifier columnIdentifier) {
+    String alias = columnIdentifier.getAlias();
+    return alias.isEmpty() ? columnIdentifier.getColumnName() : alias;
   }
 }
