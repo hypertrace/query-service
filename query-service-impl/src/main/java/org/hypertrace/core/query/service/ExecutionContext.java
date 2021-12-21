@@ -224,13 +224,7 @@ public class ExecutionContext {
   }
 
   private boolean isMatchingFilter(Filter filter, String column, Collection<Operator> operators) {
-
-    Optional<String> logicalColumnName = getLogicalColumnName(filter.getLhs());
-    if (logicalColumnName.isEmpty()) {
-      return false;
-    }
-
-    return column.equals(logicalColumnName.get())
+    return getLogicalColumnName(filter.getLhs()).map(column::equals).orElse(false)
         && (operators.stream()
             .anyMatch(operator -> Objects.equals(operator, filter.getOperator())));
   }

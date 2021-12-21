@@ -278,12 +278,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
       return false;
     }
 
-    Optional<String> columnName = getLogicalColumnName(queryFilter.getLhs());
-    if (columnName.isEmpty()) {
-      return false;
-    }
-
-    ViewColumnFilter viewColumnFilter = viewFilterMap.get(columnName.get());
+    ViewColumnFilter viewColumnFilter =
+        viewFilterMap.get(getLogicalColumnName(queryFilter.getLhs()).orElse(null));
     if (viewColumnFilter == null) {
       return false;
     }

@@ -90,14 +90,14 @@ class QueryRequestEligibilityValidator {
     Set<String> selections =
         selectionList.stream()
             .map(QueryRequestUtil::getLogicalColumnName)
-            .map(Optional::get)
+            .map(Optional::orElseThrow)
             .collect(Collectors.toSet());
 
     Set<String> groupBys =
         groupByList.stream()
             .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
             .map(QueryRequestUtil::getLogicalColumnName)
-            .map(Optional::get)
+            .map(Optional::orElseThrow)
             .collect(Collectors.toSet());
     return !selections.equals(groupBys);
   }
