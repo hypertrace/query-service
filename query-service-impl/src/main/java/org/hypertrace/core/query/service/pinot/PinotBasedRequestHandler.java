@@ -273,17 +273,17 @@ public class PinotBasedRequestHandler implements RequestHandler {
    */
   private boolean doesSingleViewFilterMatchLeafQueryFilter(
       Map<String, ViewColumnFilter> viewFilterMap, Filter queryFilter) {
-    if (queryFilter.getLhs().getValueCase() != ValueCase.COLUMNIDENTIFIER
-        && queryFilter.getLhs().getValueCase() != ValueCase.ATTRIBUTE_EXPRESSION) {
-      return false;
-    }
+
     if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
       return false;
     }
 
-    String columnName =
-        getLogicalColumnName(queryFilter.getLhs()).orElseThrow(IllegalArgumentException::new);
-    ViewColumnFilter viewColumnFilter = viewFilterMap.get(columnName);
+    Optional<String> columnName = getLogicalColumnName(queryFilter.getLhs());
+    if (columnName.isEmpty()) {
+      return false;
+    }
+
+    ViewColumnFilter viewColumnFilter = viewFilterMap.get(columnName.get());
     if (viewColumnFilter == null) {
       return false;
     }
