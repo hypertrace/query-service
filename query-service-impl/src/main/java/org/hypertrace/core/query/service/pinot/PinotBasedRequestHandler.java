@@ -226,12 +226,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private boolean lhsIsStartTimeAttribute(Expression lhs) {
-    if (lhs.hasColumnIdentifier() || lhs.hasAttributeExpression()) {
-      return startTimeAttributeName
-          .map(attributeName -> attributeName.equals(getLogicalColumnName(lhs)))
-          .orElse(false);
-    }
-    return false;
+    return startTimeAttributeName.isPresent()
+        && startTimeAttributeName.equals(getLogicalColumnName(lhs));
   }
 
   private boolean rhsHasLongValue(Expression rhs) {
@@ -248,7 +244,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     // return it.
     if (filter.getChildFilterCount() == 0) {
       return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap, filter)
-          ? Set.of(getLogicalColumnName(filter.getLhs()))
+          ? Set.of(getLogicalColumnName(filter.getLhs()).orElseThrow(IllegalArgumentException::new))
           : Set.of();
     } else {
       // 2. Internal filter node. Recursively get the matching nodes from children.
@@ -285,7 +281,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
       return false;
     }
 
-    String columnName = getLogicalColumnName(queryFilter.getLhs());
+    String columnName =
+        getLogicalColumnName(queryFilter.getLhs()).orElseThrow(IllegalArgumentException::new);
     ViewColumnFilter viewColumnFilter = viewFilterMap.get(columnName);
     if (viewColumnFilter == null) {
       return false;
@@ -473,7 +470,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private Filter rewriteLeafFilter(
       Filter queryFilter, Map<String, ViewColumnFilter> columnFilterMap) {
     ViewColumnFilter viewColumnFilter =
-        columnFilterMap.get(getLogicalColumnName(queryFilter.getLhs()));
+        columnFilterMap.get(
+            getLogicalColumnName(queryFilter.getLhs()).orElseThrow(IllegalArgumentException::new));
     // If the RHS of both the view filter and query filter match, return empty filter.
     if (viewColumnFilter != null && isEquals(viewColumnFilter.getValues(), queryFilter.getRhs())) {
       return Filter.getDefaultInstance();

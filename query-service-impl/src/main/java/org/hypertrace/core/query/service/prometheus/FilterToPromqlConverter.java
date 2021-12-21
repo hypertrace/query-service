@@ -28,7 +28,8 @@ class FilterToPromqlConverter {
       }
     } else {
       if (QueryRequestUtil.isSimpleAttributeExpression(filter.getLhs())
-          && timeFilterColumn.equals(getLogicalColumnName(filter.getLhs()))) {
+          && timeFilterColumn.equals(
+              getLogicalColumnName(filter.getLhs()).orElseThrow(IllegalArgumentException::new))) {
         return;
       }
       StringBuilder builder = new StringBuilder();

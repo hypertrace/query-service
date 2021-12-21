@@ -211,7 +211,7 @@ class QueryRequestToPinotSQLConverter {
       return rhs;
     }
 
-    String lhsColumnName = getLogicalColumnName(lhs);
+    String lhsColumnName = getLogicalColumnName(lhs).orElseThrow(IllegalArgumentException::new);
     try {
       Value value =
           DestinationColumnValueConverter.INSTANCE.convert(
@@ -272,7 +272,8 @@ class QueryRequestToPinotSQLConverter {
       case COLUMNIDENTIFIER:
         // this takes care of the Map Type where it's split into 2 columns
         List<String> columnNames =
-            viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
+            viewDefinition.getPhysicalColumnNames(
+                getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new));
         return joiner.join(columnNames);
       case ATTRIBUTE_EXPRESSION:
         if (isAttributeExpressionWithSubpath(expression)) {
@@ -292,7 +293,9 @@ class QueryRequestToPinotSQLConverter {
               valCol);
         } else {
           // this takes care of the Map Type where it's split into 2 columns
-          columnNames = viewDefinition.getPhysicalColumnNames(getLogicalColumnName(expression));
+          columnNames =
+              viewDefinition.getPhysicalColumnNames(
+                  getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new));
           return joiner.join(columnNames);
         }
       case LITERAL:
@@ -313,7 +316,9 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapKeyColumn(Expression expression) {
-    String col = viewDefinition.getKeyColumnNameForMap(getLogicalColumnName(expression));
+    String col =
+        viewDefinition.getKeyColumnNameForMap(
+            getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new));
     if (col != null && col.length() > 0) {
       return col;
     }
@@ -321,7 +326,9 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private String convertExpressionToMapValueColumn(Expression expression) {
-    String col = viewDefinition.getValueColumnNameForMap(getLogicalColumnName(expression));
+    String col =
+        viewDefinition.getValueColumnNameForMap(
+            getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new));
     if (col != null && col.length() > 0) {
       return col;
     }

@@ -4,6 +4,7 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColum
 
 import com.google.common.base.Preconditions;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -89,12 +90,14 @@ class QueryRequestEligibilityValidator {
     Set<String> selections =
         selectionList.stream()
             .map(QueryRequestUtil::getLogicalColumnName)
+            .map(Optional::get)
             .collect(Collectors.toSet());
 
     Set<String> groupBys =
         groupByList.stream()
             .filter(Predicate.not(QueryRequestUtil::isDateTimeFunction))
             .map(QueryRequestUtil::getLogicalColumnName)
+            .map(Optional::get)
             .collect(Collectors.toSet());
     return !selections.equals(groupBys);
   }
@@ -113,7 +116,8 @@ class QueryRequestEligibilityValidator {
                 return true;
               }
               Expression functionArgument = function.getArgumentsList().get(0);
-              String attributeId = getLogicalColumnName(functionArgument);
+              String attributeId =
+                  getLogicalColumnName(functionArgument).orElseThrow(IllegalArgumentException::new);
               if (!PrometheusFunctionConverter.supportedFunctions.contains(
                   function.getFunctionName())) {
                 return true;

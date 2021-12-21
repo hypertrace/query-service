@@ -2,6 +2,9 @@ package org.hypertrace.core.query.service;
 
 import static org.hypertrace.core.query.service.QueryRequestUtil.getAlias;
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.FUNCTION;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -141,7 +144,8 @@ public class ExecutionContext {
       case COLUMNIDENTIFIER:
       case ATTRIBUTE_EXPRESSION:
       case FUNCTION:
-        builder.setColumnName(getAlias(expression));
+        String alias = getAlias(expression).orElseThrow(IllegalArgumentException::new);
+        builder.setColumnName(alias);
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
@@ -158,7 +162,9 @@ public class ExecutionContext {
     switch (valueCase) {
       case COLUMNIDENTIFIER:
       case ATTRIBUTE_EXPRESSION:
-        columns.add(getLogicalColumnName(expression));
+        String logicalColumnName =
+            getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new);
+        columns.add(logicalColumnName);
         break;
       case LITERAL:
         // no columns
@@ -219,12 +225,12 @@ public class ExecutionContext {
 
   private boolean isMatchingFilter(Filter filter, String column, Collection<Operator> operators) {
 
-    // if not leaf filter, then return false
-    if (!filter.hasLhs()) {
+    Optional<String> logicalColumnName = getLogicalColumnName(filter.getLhs());
+    if (logicalColumnName.isEmpty()) {
       return false;
     }
 
-    return column.equals(getLogicalColumnName(filter.getLhs()))
+    return column.equals(logicalColumnName.get())
         && (operators.stream()
             .anyMatch(operator -> Objects.equals(operator, filter.getOperator())));
   }
