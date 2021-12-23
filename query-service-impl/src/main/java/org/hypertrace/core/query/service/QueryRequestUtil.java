@@ -1,12 +1,9 @@
 package org.hypertrace.core.query.service;
 
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.FUNCTION;
 
 import java.util.Optional;
 import org.hypertrace.core.query.service.api.AttributeExpression;
-import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
 import org.hypertrace.core.query.service.api.Filter;
@@ -20,12 +17,6 @@ import org.hypertrace.core.query.service.api.ValueType;
  * selections and filters.
  */
 public class QueryRequestUtil {
-
-  public static Expression createColumnExpression(String columnName) {
-    return Expression.newBuilder()
-        .setColumnIdentifier(ColumnIdentifier.newBuilder().setColumnName(columnName))
-        .build();
-  }
 
   public static Expression createStringLiteralExpression(String value) {
     return Expression.newBuilder()
@@ -145,10 +136,7 @@ public class QueryRequestUtil {
                 ? getLogicalColumnName(expression).get()
                 : expression.getColumnIdentifier().getAlias());
       case ATTRIBUTE_EXPRESSION:
-        return Optional.of(
-            expression.getAttributeExpression().getAlias().isBlank()
-                ? getLogicalColumnName(expression).get()
-                : expression.getAttributeExpression().getAlias());
+        return Optional.of(getAlias(expression.getAttributeExpression()));
       case FUNCTION:
         // todo: handle recursive functions max(rollup(time,50)
         // workaround is to use alias for now
@@ -159,5 +147,11 @@ public class QueryRequestUtil {
       default:
         return Optional.empty();
     }
+  }
+
+  public static String getAlias(AttributeExpression attributeExpression) {
+    return attributeExpression.getAlias().isBlank()
+        ? attributeExpression.getAttributeId()
+        : attributeExpression.getAlias();
   }
 }
