@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service;
 
-import org.hypertrace.core.query.service.api.AttributeExpression;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -8,6 +9,7 @@ import org.hypertrace.core.query.service.api.Function;
 import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
+import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
@@ -103,10 +105,21 @@ public class QueryServiceTestUtils {
         .build();
   }
 
-  public static Expression.Builder createComplexAttributeExpression(
-      String attributeId, String subPath) {
-    return Expression.newBuilder()
-        .setAttributeExpression(
-            AttributeExpression.newBuilder().setAttributeId(attributeId).setSubpath(subPath));
+  public static QueryRequest getAttributeExpressionQuery(QueryRequest originalQueryRequest)
+      throws InvalidProtocolBufferException {
+    // Serialize into json.
+    String json =
+        JsonFormat.printer().omittingInsignificantWhitespace().print(originalQueryRequest);
+    System.out.println(json);
+
+    // Change for attribute Expression
+    json = json.replaceAll("columnIdentifier", "attributeExpression");
+    json = json.replaceAll("columnName", "attributeId");
+    System.out.println(json);
+
+    // Deserialize and return
+    QueryRequest.Builder newBuilder = QueryRequest.newBuilder();
+    JsonFormat.parser().merge(json, newBuilder);
+    return newBuilder.build();
   }
 }

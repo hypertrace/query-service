@@ -1,12 +1,14 @@
 package org.hypertrace.core.query.service.htqueries;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.getAttributeExpressionQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.ConfigFactory;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -34,6 +37,7 @@ import org.hypertrace.core.attribute.service.client.AttributeServiceClient;
 import org.hypertrace.core.attribute.service.v1.AttributeMetadataFilter;
 import org.hypertrace.core.datamodel.StructuredTrace;
 import org.hypertrace.core.kafkastreams.framework.serdes.AvroSerde;
+import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.client.QueryServiceClient;
@@ -42,6 +46,9 @@ import org.hypertrace.core.serviceframework.IntegrationTestServerUtil;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -313,11 +320,12 @@ public class HTPinotQueriesTest {
         });
   }
 
-  @Test
-  public void testServicesQueries() {
+  @ParameterizedTest
+  @MethodSource("provideQueryRequestForServiceQueries")
+  public void testServicesQueries(QueryRequest queryRequest) {
     LOG.info("Services queries");
     Iterator<ResultSetChunk> itr =
-        queryServiceClient.executeQuery(ServicesQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+        queryServiceClient.executeQuery(queryRequest, TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(4, rows.size());
@@ -369,11 +377,12 @@ public class HTPinotQueriesTest {
     validateRows(rows, 15);
   }
 
-  @Test
-  public void testBackendsQueries() {
+  @ParameterizedTest
+  @MethodSource("provideQueryRequestForBackendQueries")
+  public void testBackendsQueries(QueryRequest queryRequest) {
     LOG.info("Backends queries");
     Iterator<ResultSetChunk> itr =
-        queryServiceClient.executeQuery(BackendsQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+        queryServiceClient.executeQuery(queryRequest, TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(1, rows.size());
@@ -382,11 +391,12 @@ public class HTPinotQueriesTest {
     assertTrue(backendNames.isEmpty());
   }
 
-  @Test
-  public void testExplorerQueries() {
+  @ParameterizedTest
+  @MethodSource("provideQueryRequestForExplorerQueries")
+  public void testExplorerQueries(QueryRequest queryRequest) {
     LOG.info("Explorer queries");
     Iterator<ResultSetChunk> itr =
-        queryServiceClient.executeQuery(ExplorerQueries.buildQuery1(), TENANT_ID_MAP, 10000);
+        queryServiceClient.executeQuery(queryRequest, TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(1, rows.size());
@@ -394,14 +404,27 @@ public class HTPinotQueriesTest {
     assertEquals("13", rows.get(0).getColumn(1).getString());
   }
 
-  @Test
-  public void testExplorerQueriesForAttributeExpression() {
-    LOG.info("Explorer queries for attribute expression");
-    Iterator<ResultSetChunk> itr =
-        queryServiceClient.executeQuery(ExplorerQueries.buildQuery2(), TENANT_ID_MAP, 10000);
-    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
-    List<Row> rows = list.get(0).getRowList();
-    assertEquals(10, rows.size());
-    assertEquals("client", rows.get(0).getColumn(0).getString());
+  private static Stream<Arguments> provideQueryRequestForServiceQueries()
+      throws InvalidProtocolBufferException {
+    QueryRequest queryRequest1 = ServicesQueries.buildQuery1();
+    return Stream.of(
+        Arguments.arguments(queryRequest1),
+        Arguments.arguments(getAttributeExpressionQuery(queryRequest1)));
+  }
+
+  private static Stream<Arguments> provideQueryRequestForBackendQueries()
+      throws InvalidProtocolBufferException {
+    QueryRequest queryRequest1 = BackendsQueries.buildQuery1();
+    return Stream.of(
+        Arguments.arguments(queryRequest1),
+        Arguments.arguments(getAttributeExpressionQuery(queryRequest1)));
+  }
+
+  private static Stream<Arguments> provideQueryRequestForExplorerQueries()
+      throws InvalidProtocolBufferException {
+    QueryRequest queryRequest1 = ExplorerQueries.buildQuery1();
+    return Stream.of(
+        Arguments.arguments(queryRequest1),
+        Arguments.arguments(getAttributeExpressionQuery(queryRequest1)));
   }
 }
