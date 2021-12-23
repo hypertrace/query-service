@@ -241,6 +241,27 @@ class ProjectionTransformationTest {
   }
 
   @Test
+  void transQueryWithComplexAttributeExpression_SingleSelection() {
+    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
+
+    Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
+
+    QueryRequest originalRequest = QueryRequest.newBuilder().addSelection(spanTag).build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .addSelection(spanTag)
+            .setFilter(createContainsKeyFilter("Span.tags", "span.kind"))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
   void transQueryWithComplexAttributeExpression_SingleOrderBy() {
     this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
 

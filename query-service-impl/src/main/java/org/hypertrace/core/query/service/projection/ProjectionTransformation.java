@@ -17,6 +17,7 @@ import io.reactivex.rxjava3.core.Single;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 import org.hypertrace.core.attribute.service.projection.AttributeProjection;
@@ -344,7 +345,8 @@ final class ProjectionTransformation implements QueryTransformation {
       List<OrderByExpression> orderBys) {
 
     QueryRequest.Builder builder = original.toBuilder();
-    Filter updatedFilter = rebuildFilterForComplexAttributeExpression(originalFilter, orderBys);
+    Filter updatedFilter =
+        rebuildFilterForComplexAttributeExpression(originalFilter, orderBys, selections);
 
     if (Filter.getDefaultInstance().equals(updatedFilter)) {
       builder.clearFilter();
@@ -365,16 +367,20 @@ final class ProjectionTransformation implements QueryTransformation {
   }
 
   /*
-   * We need the CONTAINS_KEY filter in all filters and order bys dealing with complex
+   * We need the CONTAINS_KEY filter in all filters, selections and order bys dealing with complex
    * attribute expressions as Pinot gives error if particular key is absent. Rest all work fine.
-   * To handle order bys, we add the corresponding filter at the top and 'AND' it with the main filter.
+   * To handle order bys and selections, we add the corresponding filter at the top and 'AND' it with the main filter.
    * To handle filter, we modify each filter (say filter1) as : "CONTAINS_KEY AND filter1".
    */
   private Filter rebuildFilterForComplexAttributeExpression(
-      Filter originalFilter, List<OrderByExpression> orderBys) {
+      Filter originalFilter, List<OrderByExpression> orderBys, List<Expression> selections) {
 
     Filter updatedFilter = updateFilterForComplexAttributeExpressionFromFilter(originalFilter);
-    List<Filter> filterList = createFilterForComplexAttributeExpressionFromOrderBy(orderBys);
+    List<Filter> filterList =
+        Stream.concat(
+                createFilterForComplexAttributeExpressionFromOrderBy(orderBys),
+                createFilterForComplexAttributeExpressionFromSelection(selections))
+            .collect(Collectors.toList());
 
     if (filterList.isEmpty()) {
       return updatedFilter;
@@ -423,14 +429,31 @@ final class ProjectionTransformation implements QueryTransformation {
     }
   }
 
-  private List<Filter> createFilterForComplexAttributeExpressionFromOrderBy(
+  private Stream<Filter> createFilterForComplexAttributeExpressionFromOrderBy(
       List<OrderByExpression> orderByExpressionList) {
     return orderByExpressionList.stream()
         .map(OrderByExpression::getExpression)
         .filter(QueryRequestUtil::isAttributeExpressionWithSubpath)
         .map(Expression::getAttributeExpression)
-        .map(QueryRequestUtil::createContainsKeyFilter)
-        .collect(Collectors.toList());
+        .map(QueryRequestUtil::createContainsKeyFilter);
+  }
+
+  private Stream<Filter> createFilterForComplexAttributeExpressionFromSelection(
+      List<Expression> selections) {
+    return selections.stream()
+        .flatMap(this::getAnyAttributeExpression)
+        .map(QueryRequestUtil::createContainsKeyFilter);
+  }
+
+  private Stream<AttributeExpression> getAnyAttributeExpression(Expression selection) {
+    if (selection.hasFunction()) {
+      return selection.getFunction().getArgumentsList().stream()
+          .flatMap(this::getAnyAttributeExpression);
+    } else {
+      return Stream.of(selection)
+          .filter(QueryRequestUtil::isAttributeExpressionWithSubpath)
+          .map(Expression::getAttributeExpression);
+    }
   }
 
   private String getOriginalKey(AttributeExpression attributeExpression) {
