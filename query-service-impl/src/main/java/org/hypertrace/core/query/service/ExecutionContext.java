@@ -1,5 +1,11 @@
 package org.hypertrace.core.query.service;
 
+import static org.hypertrace.core.query.service.QueryRequestUtil.getAlias;
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.FUNCTION;
+
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.time.Duration;
@@ -15,7 +21,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.ColumnMetadata;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Expression.ValueCase;
@@ -137,26 +142,10 @@ public class ExecutionContext {
     ValueCase valueCase = expression.getValueCase();
     switch (valueCase) {
       case COLUMNIDENTIFIER:
-        ColumnIdentifier columnIdentifier = expression.getColumnIdentifier();
-        String alias = columnIdentifier.getAlias();
-        if (alias != null && alias.trim().length() > 0) {
-          builder.setColumnName(alias);
-        } else {
-          builder.setColumnName(columnIdentifier.getColumnName());
-        }
-        builder.setValueType(ValueType.STRING);
-        builder.setIsRepeated(false);
-        break;
+      case ATTRIBUTE_EXPRESSION:
       case FUNCTION:
-        Function function = expression.getFunction();
-        alias = function.getAlias();
-        if (alias != null && alias.trim().length() > 0) {
-          builder.setColumnName(alias);
-        } else {
-          // todo: handle recursive functions max(rollup(time,50)
-          // workaround is to use alias for now
-          builder.setColumnName(function.getFunctionName());
-        }
+        String alias = getAlias(expression).orElseThrow(IllegalArgumentException::new);
+        builder.setColumnName(alias);
         builder.setValueType(ValueType.STRING);
         builder.setIsRepeated(false);
         break;
@@ -172,8 +161,10 @@ public class ExecutionContext {
     ValueCase valueCase = expression.getValueCase();
     switch (valueCase) {
       case COLUMNIDENTIFIER:
-        ColumnIdentifier columnIdentifier = expression.getColumnIdentifier();
-        columns.add(columnIdentifier.getColumnName());
+      case ATTRIBUTE_EXPRESSION:
+        String logicalColumnName =
+            getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new);
+        columns.add(logicalColumnName);
         break;
       case LITERAL:
         // no columns
@@ -233,7 +224,7 @@ public class ExecutionContext {
   }
 
   private boolean isMatchingFilter(Filter filter, String column, Collection<Operator> operators) {
-    return column.equals(filter.getLhs().getColumnIdentifier().getColumnName())
+    return getLogicalColumnName(filter.getLhs()).map(column::equals).orElse(false)
         && (operators.stream()
             .anyMatch(operator -> Objects.equals(operator, filter.getOperator())));
   }

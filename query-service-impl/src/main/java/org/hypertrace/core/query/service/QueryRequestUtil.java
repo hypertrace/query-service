@@ -2,7 +2,9 @@ package org.hypertrace.core.query.service;
 
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.FUNCTION;
 
+import java.util.Optional;
 import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -124,19 +126,38 @@ public class QueryRequestUtil {
         && expression.getFunction().getFunctionName().equals("dateTimeConvert");
   }
 
-  public static String getLogicalColumnName(Expression expression) {
+  public static Optional<String> getLogicalColumnName(Expression expression) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
-        return expression.getColumnIdentifier().getColumnName();
+        return Optional.of(expression.getColumnIdentifier().getColumnName());
       case ATTRIBUTE_EXPRESSION:
-        return expression.getAttributeExpression().getAttributeId();
+        return Optional.of(expression.getAttributeExpression().getAttributeId());
       default:
-        throw new IllegalArgumentException(
-            "Supports "
-                + ATTRIBUTE_EXPRESSION
-                + " and "
-                + COLUMNIDENTIFIER
-                + " expression type only");
+        return Optional.empty();
+    }
+  }
+
+  public static Optional<String> getAlias(Expression expression) {
+    switch (expression.getValueCase()) {
+      case COLUMNIDENTIFIER:
+        return Optional.of(
+            expression.getColumnIdentifier().getAlias().isBlank()
+                ? getLogicalColumnName(expression).get()
+                : expression.getColumnIdentifier().getAlias());
+      case ATTRIBUTE_EXPRESSION:
+        return Optional.of(
+            expression.getAttributeExpression().getAlias().isBlank()
+                ? getLogicalColumnName(expression).get()
+                : expression.getAttributeExpression().getAlias());
+      case FUNCTION:
+        // todo: handle recursive functions max(rollup(time,50)
+        // workaround is to use alias for now
+        return Optional.of(
+            expression.getFunction().getAlias().isBlank()
+                ? expression.getFunction().getFunctionName()
+                : expression.getFunction().getAlias());
+      default:
+        return Optional.empty();
     }
   }
 }

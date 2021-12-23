@@ -1,0 +1,49 @@
+{
+  "filter": {
+    "childFilter": [{
+      "lhs": {
+        "attributeExpression": {
+          "attributeId": "EVENT.spanTags"
+        }
+      },
+      "operator": "CONTAINS_KEY",
+      "rhs": {
+        "literal": {
+          "value": {
+            "string": "span.kind"
+          }
+        }
+      }
+    }, {
+      "lhs": {
+        "attributeExpression": {
+          "attributeId": "EVENT.spanTags",
+          "subpath": "span.kind"
+        }
+      },
+      "operator": "GE",
+      "rhs": {
+        "literal": {
+          "value": {
+            "string": "client"
+          }
+        }
+      }
+    }]
+  },
+  "selection": [{
+    "attributeExpression": {
+      "attributeId": "EVENT.spanTags",
+      "subpath": "span.kind"
+    }
+  }],
+  "orderBy": [{
+    "expression": {
+      "attributeExpression": {
+        "attributeId": "EVENT.spanTags",
+        "subpath": "span.kind"
+      }
+    },
+    "order": "DESC"
+  }]
+}

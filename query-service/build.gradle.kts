@@ -26,6 +26,7 @@ dependencies {
     }
   }
 
+  integrationTestImplementation("com.google.protobuf:protobuf-java-util:3.17.3")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-params:5.7.1")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-engine:5.7.1")

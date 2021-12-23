@@ -81,6 +81,7 @@ class ProjectionTransformationTest {
   @Test
   void transQueryWithComplexAttributeExpression_SingleFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
 
     Expression spanTags = createComplexAttributeExpression("Span.tags", "span.kind").build();
     Filter filter =
@@ -112,6 +113,7 @@ class ProjectionTransformationTest {
   void transQueryWithComplexAttributeExpression_MultipleFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
     this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
 
     Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
     Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
@@ -155,6 +157,7 @@ class ProjectionTransformationTest {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
     this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
     this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
+    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
 
     Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
     Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
@@ -202,6 +205,8 @@ class ProjectionTransformationTest {
   @Test
   void transQueryWithComplexAttributeExpression_OrderByAndFilter() {
     this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
+    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
+
     Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
 
     Filter filter =
@@ -236,7 +241,30 @@ class ProjectionTransformationTest {
   }
 
   @Test
+  void transQueryWithComplexAttributeExpression_SingleSelection() {
+    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
+
+    Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
+
+    QueryRequest originalRequest = QueryRequest.newBuilder().addSelection(spanTag).build();
+
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .addSelection(spanTag)
+            .setFilter(createContainsKeyFilter("Span.tags", "span.kind"))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
   void transQueryWithComplexAttributeExpression_SingleOrderBy() {
+    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
+
     Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
 
     QueryRequest originalRequest =
@@ -259,6 +287,8 @@ class ProjectionTransformationTest {
 
   @Test
   void transQueryWithComplexAttributeExpression_MultipleOrderBy() {
+    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
+
     Expression.Builder spanTag1 = createComplexAttributeExpression("Span.tags", "span.kind");
     Expression.Builder spanTag2 = createComplexAttributeExpression("Span.tags", "FLAGS");
 

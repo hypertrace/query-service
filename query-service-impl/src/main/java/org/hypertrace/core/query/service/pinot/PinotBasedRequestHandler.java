@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static org.hypertrace.core.query.service.ConfigUtils.optionallyGet;
+import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -225,10 +226,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private boolean lhsIsStartTimeAttribute(Expression lhs) {
-    return lhs.hasColumnIdentifier()
-        && startTimeAttributeName
-            .map(attributeName -> attributeName.equals(lhs.getColumnIdentifier().getColumnName()))
-            .orElse(false);
+    return startTimeAttributeName.isPresent()
+        && startTimeAttributeName.equals(getLogicalColumnName(lhs));
   }
 
   private boolean rhsHasLongValue(Expression rhs) {
@@ -245,7 +244,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     // return it.
     if (filter.getChildFilterCount() == 0) {
       return doesSingleViewFilterMatchLeafQueryFilter(viewFilterMap, filter)
-          ? Set.of(filter.getLhs().getColumnIdentifier().getColumnName())
+          ? Set.of(getLogicalColumnName(filter.getLhs()).orElseThrow(IllegalArgumentException::new))
           : Set.of();
     } else {
       // 2. Internal filter node. Recursively get the matching nodes from children.
@@ -274,15 +273,13 @@ public class PinotBasedRequestHandler implements RequestHandler {
    */
   private boolean doesSingleViewFilterMatchLeafQueryFilter(
       Map<String, ViewColumnFilter> viewFilterMap, Filter queryFilter) {
-    if (queryFilter.getLhs().getValueCase() != ValueCase.COLUMNIDENTIFIER) {
-      return false;
-    }
+
     if (queryFilter.getOperator() != Operator.IN && queryFilter.getOperator() != Operator.EQ) {
       return false;
     }
 
-    String columnName = queryFilter.getLhs().getColumnIdentifier().getColumnName();
-    ViewColumnFilter viewColumnFilter = viewFilterMap.get(columnName);
+    ViewColumnFilter viewColumnFilter =
+        viewFilterMap.get(getLogicalColumnName(queryFilter.getLhs()).orElse(null));
     if (viewColumnFilter == null) {
       return false;
     }
@@ -469,7 +466,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private Filter rewriteLeafFilter(
       Filter queryFilter, Map<String, ViewColumnFilter> columnFilterMap) {
     ViewColumnFilter viewColumnFilter =
-        columnFilterMap.get(queryFilter.getLhs().getColumnIdentifier().getColumnName());
+        columnFilterMap.get(
+            getLogicalColumnName(queryFilter.getLhs()).orElseThrow(IllegalArgumentException::new));
     // If the RHS of both the view filter and query filter match, return empty filter.
     if (viewColumnFilter != null && isEquals(viewColumnFilter.getValues(), queryFilter.getRhs())) {
       return Filter.getDefaultInstance();

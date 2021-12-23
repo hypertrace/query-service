@@ -1,6 +1,10 @@
 package org.hypertrace.core.query.service.pinot;
 
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createIntLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createBooleanLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createSimpleAttributeExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -461,6 +465,236 @@ public class PinotBasedRequestHandlerTest {
                 .build();
         context = new ExecutionContext("__default", request);
         QueryCost negativeCost = handler.canHandle(request, context);
+        Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
+      }
+    }
+  }
+
+  @Test
+  public void testCanHandleWithMultipleViewFiltersWithAttributeExpression() {
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      // Verify that the entry span view handler can handle the query which has the filter
+      // on the column which has a view filter.
+      if (config.getString("name").equals("error-entry-span-view-handler")) {
+        // Positive case, straight forward.
+        QueryRequest request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .setFilter(
+                    Filter.newBuilder()
+                        .setOperator(Operator.AND)
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.isEntrySpan", Operator.EQ, "true"))
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.statusCode", Operator.EQ, "401")))
+                .build();
+
+        ExecutionContext executionContext = new ExecutionContext("__default", request);
+        QueryCost cost = handler.canHandle(request, executionContext);
+        Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Positive case but the filters are AND'ed in two different child filters.
+        Filter filter =
+            Filter.newBuilder()
+                .setOperator(Operator.AND)
+                .addChildFilter(
+                    QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                        "EVENT.isEntrySpan", Operator.EQ, "true"))
+                .addChildFilter(
+                    QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                        "EVENT.startTime",
+                        Operator.GT,
+                        QueryRequestBuilderUtils.createLongLiteralValueExpression(
+                            System.currentTimeMillis())))
+                .build();
+        request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .setFilter(
+                    Filter.newBuilder()
+                        .setOperator(Operator.AND)
+                        .addChildFilter(filter)
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.statusCode",
+                                Operator.EQ,
+                                createIntLiteralValueExpression(401))))
+                .build();
+
+        executionContext = new ExecutionContext("__default", request);
+
+        cost = handler.canHandle(request, executionContext);
+        Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Query has only one leaf filter and it matches only one of the view
+        // filters
+        request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .setFilter(
+                    QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                        "EVENT.isEntrySpan", Operator.EQ, createBooleanLiteralExpression(true)))
+                .build();
+
+        executionContext = new ExecutionContext("__default", request);
+        cost = handler.canHandle(request, executionContext);
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Only one view filter is present in the query filters
+        request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .setFilter(
+                    Filter.newBuilder()
+                        .setOperator(Operator.AND)
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.isEntrySpan",
+                                Operator.EQ,
+                                createBooleanLiteralExpression(true)))
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.startTime",
+                                Operator.GT,
+                                QueryRequestBuilderUtils.createLongLiteralValueExpression(
+                                    System.currentTimeMillis())))
+                        .build())
+                .build();
+
+        executionContext = new ExecutionContext("__default", request);
+        cost = handler.canHandle(request, executionContext);
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case with correct filters but 'OR' operation.
+        request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .setFilter(
+                    Filter.newBuilder()
+                        .setOperator(Operator.OR)
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.isEntrySpan",
+                                Operator.EQ,
+                                createBooleanLiteralExpression(true)))
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.statusCode",
+                                Operator.EQ,
+                                createLongLiteralValueExpression(401L))))
+                .build();
+
+        executionContext = new ExecutionContext("__default", request);
+        cost = handler.canHandle(request, executionContext);
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case with a complex filter but 'OR' at the root level, hence shouldn't match.
+        filter =
+            Filter.newBuilder()
+                .setOperator(Operator.AND)
+                .addChildFilter(
+                    QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                        "EVENT.isEntrySpan", Operator.EQ, createBooleanLiteralExpression(true)))
+                .addChildFilter(
+                    QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                        "EVENT.statusCode", Operator.EQ, "401"))
+                .build();
+        request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .setFilter(
+                    Filter.newBuilder()
+                        .setOperator(Operator.OR)
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.isEntrySpan",
+                                Operator.EQ,
+                                createBooleanLiteralExpression(true)))
+                        .addChildFilter(filter))
+                .build();
+
+        executionContext = new ExecutionContext("__default", request);
+        cost = handler.canHandle(request, executionContext);
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Value in query filter is different from the value in view filter
+        request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .setFilter(
+                    Filter.newBuilder()
+                        .setOperator(Operator.AND)
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.isEntrySpan", Operator.EQ, "true"))
+                        .addChildFilter(
+                            QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                                "EVENT.statusCode", Operator.EQ, "200")))
+                .build();
+
+        executionContext = new ExecutionContext("__default", request);
+        cost = handler.canHandle(request, executionContext);
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Unsupported operator in the query filter.
+        request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .setFilter(
+                    QueryRequestBuilderUtils.createSimpleAttributeFilter(
+                        "EVENT.isEntrySpan",
+                        Operator.IN,
+                        QueryRequestUtil.createStringLiteralValueExpression("dummy")))
+                .build();
+
+        executionContext = new ExecutionContext("__default", request);
+        cost = handler.canHandle(request, executionContext);
+        Assertions.assertFalse(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+
+        // Negative case. Any query without filter should not be handled.
+        request =
+            QueryRequest.newBuilder()
+                .setDistinctSelections(true)
+                .addSelection(createSimpleAttributeExpression("EVENT.startTime"))
+                .addSelection(createSimpleAttributeExpression("EVENT.id"))
+                .addSelection(createSimpleAttributeExpression("EVENT.traceId"))
+                .build();
+        executionContext = new ExecutionContext("__default", request);
+        QueryCost negativeCost = handler.canHandle(request, executionContext);
         Assertions.assertFalse(negativeCost.getCost() >= 0.0d && negativeCost.getCost() < 1.0d);
       }
     }
@@ -1205,6 +1439,61 @@ public class PinotBasedRequestHandlerTest {
             .addGroupBy(QueryRequestBuilderUtils.createColumnExpression("col3"))
             .addAggregation(
                 QueryRequestBuilderUtils.createAliasedFunctionExpression(
+                    "AVG", "duration", "avg_duration"))
+            .build();
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pinotBasedRequestHandler
+                .handleRequest(request3, new ExecutionContext("test-tenant-id", request3))
+                .blockingSubscribe());
+  }
+
+  @Test
+  public void
+      testGroupBysAndAggregationsMixedWithSelectionsThrowsExceptionWhenDistinctSelectionIsSpecifiedWithAttributeExpression() {
+    // Setting distinct selections and mixing selections and group bys should throw exception
+    QueryRequest request =
+        QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(createSimpleAttributeExpression("col1"))
+            .addSelection(createSimpleAttributeExpression("col2"))
+            .addGroupBy(createSimpleAttributeExpression("col3"))
+            .build();
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pinotBasedRequestHandler
+                .handleRequest(request, new ExecutionContext("test-tenant-id", request))
+                .blockingSubscribe());
+
+    // Setting distinct selections and mixing selections and aggregations should throw exception
+    QueryRequest request2 =
+        QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(createSimpleAttributeExpression("col1"))
+            .addSelection(createSimpleAttributeExpression("col2"))
+            .addAggregation(
+                QueryRequestBuilderUtils.createAliasedFunctionExpressionWithSimpleAttribute(
+                    "AVG", "duration", "avg_duration"))
+            .build();
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pinotBasedRequestHandler
+                .handleRequest(request2, new ExecutionContext("test-tenant-id", request2))
+                .blockingSubscribe());
+
+    // Setting distinct selections and mixing selections, group bys and aggregations should throw
+    // exception
+    QueryRequest request3 =
+        QueryRequest.newBuilder()
+            .setDistinctSelections(true)
+            .addSelection(createSimpleAttributeExpression("col1"))
+            .addSelection(createSimpleAttributeExpression("col2"))
+            .addGroupBy(createSimpleAttributeExpression("col3"))
+            .addAggregation(
+                QueryRequestBuilderUtils.createAliasedFunctionExpressionWithSimpleAttribute(
                     "AVG", "duration", "avg_duration"))
             .build();
     Assertions.assertThrows(
