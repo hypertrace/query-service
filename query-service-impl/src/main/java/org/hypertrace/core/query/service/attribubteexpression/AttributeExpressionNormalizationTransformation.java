@@ -9,7 +9,7 @@ import org.hypertrace.core.query.service.api.Expression;
 import org.slf4j.Logger;
 
 @Slf4j
-final class AttributeNormalizationTransformation extends AbstractQueryTransformation {
+final class AttributeExpressionNormalizationTransformation extends AbstractQueryTransformation {
 
   @Override
   public int getPriority() {

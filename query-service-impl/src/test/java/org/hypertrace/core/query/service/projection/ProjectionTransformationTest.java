@@ -10,23 +10,18 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_HASH;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_STRINGEQUALS;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
-import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullNumberLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createNullStringLiteralExpression;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import io.reactivex.rxjava3.core.Single;
@@ -42,8 +37,6 @@ import org.hypertrace.core.attribute.service.v1.Projection;
 import org.hypertrace.core.attribute.service.v1.ProjectionExpression;
 import org.hypertrace.core.attribute.service.v1.ProjectionOperator;
 import org.hypertrace.core.query.service.QueryTransformation.QueryTransformationContext;
-import org.hypertrace.core.query.service.api.Expression;
-import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
@@ -79,255 +72,17 @@ class ProjectionTransformationTest {
   }
 
   @Test
-  void transQueryWithComplexAttributeExpression_SingleFilter() {
-    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
-    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
-
-    Expression spanTags = createComplexAttributeExpression("Span.tags", "span.kind").build();
-    Filter filter =
-        Filter.newBuilder()
-            .setLhs(spanTags)
-            .setOperator(Operator.EQ)
-            .setRhs(createColumnExpression("server"))
-            .build();
-    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
-
-    QueryRequest expectedTransform =
-        QueryRequest.newBuilder()
-            .setFilter(
-                Filter.newBuilder()
-                    .setOperator(Operator.AND)
-                    .addAllChildFilter(
-                        List.of(filter, createContainsKeyFilter(spanTags.getAttributeExpression())))
-                    .build())
-            .build();
-
-    assertEquals(
-        expectedTransform,
-        this.projectionTransformation
-            .transform(originalRequest, mockTransformationContext)
-            .blockingGet());
-  }
-
-  @Test
-  void transQueryWithComplexAttributeExpression_MultipleFilter() {
-    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
-    this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
-    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
-
-    Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
-    Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
-
-    Filter childFilter1 =
-        Filter.newBuilder()
-            .setLhs(spanTags1)
-            .setOperator(Operator.EQ)
-            .setRhs(createColumnExpression("0"))
-            .build();
-    Filter childFilter2 =
-        Filter.newBuilder()
-            .setLhs(spanTags2)
-            .setOperator(Operator.EQ)
-            .setRhs(createColumnExpression("server"))
-            .build();
-
-    Filter.Builder filter = createCompositeFilter(Operator.AND, childFilter1, childFilter2);
-    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
-
-    QueryRequest expectedTransform =
-        this.projectionTransformation
-            .transform(originalRequest, mockTransformationContext)
-            .blockingGet();
-    List<Filter> childFilterList = expectedTransform.getFilter().getChildFilterList();
-
-    assertTrue(
-        childFilterList
-            .get(0)
-            .getChildFilterList()
-            .contains(createContainsKeyFilter(spanTags1.getAttributeExpression())));
-    assertTrue(
-        childFilterList
-            .get(1)
-            .getChildFilterList()
-            .contains(createContainsKeyFilter(spanTags2.getAttributeExpression())));
-  }
-
-  @Test
-  void transQueryWithComplexAttributeExpression_HierarchicalFilter() {
-    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
-    this.mockAttribute("0", AttributeMetadata.getDefaultInstance());
-    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
-    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
-
-    Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
-    Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
-
-    Filter filter1 =
-        Filter.newBuilder()
-            .setLhs(spanTags1)
-            .setOperator(Operator.EQ)
-            .setRhs(createColumnExpression("0"))
-            .build();
-    Filter filter2 =
-        Filter.newBuilder()
-            .setLhs(spanTags2)
-            .setOperator(Operator.EQ)
-            .setRhs(createColumnExpression("server"))
-            .build();
-    Filter filter =
-        createCompositeFilter(
-                Operator.AND,
-                createEqualsFilter(SIMPLE_ATTRIBUTE_ID, "otherValue"),
-                createCompositeFilter(Operator.AND, filter1, filter2).build())
-            .build();
-
-    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
-
-    QueryRequest expectedTransform =
-        this.projectionTransformation
-            .transform(originalRequest, mockTransformationContext)
-            .blockingGet();
-    List<Filter> childFilterList =
-        expectedTransform.getFilter().getChildFilterList().get(1).getChildFilterList();
-
-    assertTrue(
-        childFilterList
-            .get(0)
-            .getChildFilterList()
-            .contains(createContainsKeyFilter(spanTags1.getAttributeExpression())));
-    assertTrue(
-        childFilterList
-            .get(1)
-            .getChildFilterList()
-            .contains(createContainsKeyFilter(spanTags2.getAttributeExpression())));
-  }
-
-  @Test
-  void transQueryWithComplexAttributeExpression_OrderByAndFilter() {
-    this.mockAttribute("server", AttributeMetadata.getDefaultInstance());
-    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
-
-    Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
-
-    Filter filter =
-        Filter.newBuilder()
-            .setLhs(spanTag)
-            .setOperator(Operator.EQ)
-            .setRhs(createColumnExpression("server"))
-            .build();
-    Filter containsKeyFilter = createContainsKeyFilter("Span.tags", "span.kind");
-
-    QueryRequest originalRequest =
-        QueryRequest.newBuilder()
-            .setFilter(filter)
-            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
-            .build();
-
-    QueryRequest expectedTransform =
-        QueryRequest.newBuilder()
-            .setFilter(
-                createCompositeFilter(
-                    Operator.AND,
-                    createCompositeFilter(Operator.AND, filter, containsKeyFilter).build(),
-                    containsKeyFilter))
-            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
-            .build();
-
-    assertEquals(
-        expectedTransform,
-        this.projectionTransformation
-            .transform(originalRequest, mockTransformationContext)
-            .blockingGet());
-  }
-
-  @Test
-  void transQueryWithComplexAttributeExpression_SingleSelection() {
-    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
-
-    Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
-
-    QueryRequest originalRequest = QueryRequest.newBuilder().addSelection(spanTag).build();
-
-    QueryRequest expectedTransform =
-        QueryRequest.newBuilder()
-            .addSelection(spanTag)
-            .setFilter(createContainsKeyFilter("Span.tags", "span.kind"))
-            .build();
-
-    assertEquals(
-        expectedTransform,
-        this.projectionTransformation
-            .transform(originalRequest, mockTransformationContext)
-            .blockingGet());
-  }
-
-  @Test
-  void transQueryWithComplexAttributeExpression_SingleOrderBy() {
-    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
-
-    Expression.Builder spanTag = createComplexAttributeExpression("Span.tags", "span.kind");
-
-    QueryRequest originalRequest =
-        QueryRequest.newBuilder()
-            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
-            .build();
-
-    QueryRequest expectedTransform =
-        QueryRequest.newBuilder()
-            .setFilter(createContainsKeyFilter("Span.tags", "span.kind"))
-            .addOrderBy(createOrderByExpression(spanTag, SortOrder.ASC))
-            .build();
-
-    assertEquals(
-        expectedTransform,
-        this.projectionTransformation
-            .transform(originalRequest, mockTransformationContext)
-            .blockingGet());
-  }
-
-  @Test
-  void transQueryWithComplexAttributeExpression_MultipleOrderBy() {
-    this.mockAttribute("Span.tags", AttributeMetadata.getDefaultInstance());
-
-    Expression.Builder spanTag1 = createComplexAttributeExpression("Span.tags", "span.kind");
-    Expression.Builder spanTag2 = createComplexAttributeExpression("Span.tags", "FLAGS");
-
-    QueryRequest originalRequest =
-        QueryRequest.newBuilder()
-            .addOrderBy(createOrderByExpression(spanTag1, SortOrder.ASC))
-            .addOrderBy(createOrderByExpression(spanTag2, SortOrder.ASC))
-            .build();
-
-    QueryRequest expectedTransform =
-        QueryRequest.newBuilder()
-            .setFilter(
-                createCompositeFilter(
-                    Operator.AND,
-                    createContainsKeyFilter("Span.tags", "span.kind"),
-                    createContainsKeyFilter("Span.tags", "FLAGS")))
-            .addOrderBy(createOrderByExpression(spanTag1, SortOrder.ASC))
-            .addOrderBy(createOrderByExpression(spanTag2, SortOrder.ASC))
-            .build();
-
-    assertEquals(
-        expectedTransform,
-        this.projectionTransformation
-            .transform(originalRequest, mockTransformationContext)
-            .blockingGet());
-  }
-
-  @Test
   void transformsBasicAliasProjection() {
     this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
     this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .build();
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
+                createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
             .build();
 
     assertEquals(
@@ -357,7 +112,7 @@ class ProjectionTransformationTest {
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .build();
 
     QueryRequest expectedTransform =
@@ -367,7 +122,8 @@ class ProjectionTransformationTest {
                     QUERY_FUNCTION_CONCAT,
                     PROJECTED_ATTRIBUTE_ID,
                     createFunctionExpression(
-                        QUERY_FUNCTION_HASH, createColumnExpression(SIMPLE_ATTRIBUTE_ID).build()),
+                        QUERY_FUNCTION_HASH,
+                        createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID).build()),
                     createStringLiteralValueExpression("projectionLiteral")))
             .build();
 
@@ -405,7 +161,7 @@ class ProjectionTransformationTest {
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .build();
 
     QueryRequest expectedTransform =
@@ -416,10 +172,11 @@ class ProjectionTransformationTest {
                     PROJECTED_ATTRIBUTE_ID,
                     createFunctionExpression(
                         QUERY_FUNCTION_STRINGEQUALS,
-                        createColumnExpression(SIMPLE_ATTRIBUTE_ID).build(),
+                        createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID).build(),
                         createStringLiteralValueExpression("foo")),
                     createFunctionExpression(
-                        QUERY_FUNCTION_HASH, createColumnExpression(SIMPLE_ATTRIBUTE_ID).build()),
+                        QUERY_FUNCTION_HASH,
+                        createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID).build()),
                     createStringLiteralValueExpression("projectionLiteral")))
             .build();
 
@@ -440,7 +197,7 @@ class ProjectionTransformationTest {
                 createAliasedFunctionExpression(
                     QUERY_FUNCTION_AVG,
                     "myAlias",
-                    createColumnExpression(PROJECTED_ATTRIBUTE_ID).build()))
+                    createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID).build()))
             .build();
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
@@ -448,7 +205,7 @@ class ProjectionTransformationTest {
                 createAliasedFunctionExpression(
                     QUERY_FUNCTION_AVG,
                     "myAlias",
-                    createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)))
+                    createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)))
             .build();
 
     assertEquals(
@@ -464,18 +221,18 @@ class ProjectionTransformationTest {
     this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .addOrderBy(
                 createOrderByExpression(
-                    createColumnExpression(PROJECTED_ATTRIBUTE_ID), SortOrder.DESC))
+                    createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID), SortOrder.DESC))
             .build();
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
+                createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
             .addOrderBy(
                 createOrderByExpression(
-                    createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)
+                    createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)
                         .toBuilder(),
                     SortOrder.DESC))
             .build();
@@ -493,26 +250,36 @@ class ProjectionTransformationTest {
     this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .setFilter(
                 createCompositeFilter(
                     Operator.OR,
-                    createInFilter(PROJECTED_ATTRIBUTE_ID, List.of("foo", "bar")),
-                    createEqualsFilter(SIMPLE_ATTRIBUTE_ID, "otherValue")))
+                    createFilter(
+                        createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID).build(),
+                        Operator.IN,
+                        createStringArrayLiteralValueExpression(List.of("foo", "bar"))),
+                    createFilter(
+                        createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID).build(),
+                        Operator.EQ,
+                        createStringLiteralValueExpression("otherValue"))))
             .build();
 
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(
-                createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
+                createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
             .setFilter(
                 createCompositeFilter(
                     Operator.OR,
                     createFilter(
-                        createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID),
+                        createAliasedAttributeExpression(
+                            SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID),
                         Operator.IN,
                         createStringArrayLiteralValueExpression(List.of("foo", "bar"))),
-                    createEqualsFilter(SIMPLE_ATTRIBUTE_ID, "otherValue")))
+                    createFilter(
+                        createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID).build(),
+                        Operator.EQ,
+                        createStringLiteralValueExpression("otherValue"))))
             .build();
 
     assertEquals(
@@ -530,16 +297,18 @@ class ProjectionTransformationTest {
         QueryRequest.newBuilder()
             .addAggregation(
                 createFunctionExpression(
-                    QUERY_FUNCTION_AVG, createColumnExpression(PROJECTED_ATTRIBUTE_ID).build()))
-            .addGroupBy(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+                    QUERY_FUNCTION_AVG,
+                    createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID).build()))
+            .addGroupBy(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .build();
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addAggregation(
                 createFunctionExpression(
                     QUERY_FUNCTION_AVG,
-                    createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)))
-            .addGroupBy(createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
+                    createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)))
+            .addGroupBy(
+                createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
             .build();
 
     assertEquals(
@@ -562,16 +331,16 @@ class ProjectionTransformationTest {
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression("slow"))
-            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression("slow"))
+            .addSelection(createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .build();
     QueryRequest expected =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression("slow"))
-            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression("slow"))
+            .addSelection(createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID))
             .addSelection(
-                createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
+                createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
             .build();
     assertEquals(
         expected,
@@ -593,17 +362,19 @@ class ProjectionTransformationTest {
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addOrderBy(createOrderByExpression(createColumnExpression("slow"), SortOrder.ASC))
+            .addOrderBy(
+                createOrderByExpression(createSimpleAttributeExpression("slow"), SortOrder.ASC))
             .addOrderBy(
                 createOrderByExpression(
-                    createColumnExpression(PROJECTED_ATTRIBUTE_ID), SortOrder.DESC))
+                    createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID), SortOrder.DESC))
             .build();
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
-            .addOrderBy(createOrderByExpression(createColumnExpression("slow"), SortOrder.ASC))
+            .addOrderBy(
+                createOrderByExpression(createSimpleAttributeExpression("slow"), SortOrder.ASC))
             .addOrderBy(
                 createOrderByExpression(
-                    createAliasedColumnExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)
+                    createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID)
                         .toBuilder(),
                     SortOrder.DESC))
             .build();
@@ -628,14 +399,14 @@ class ProjectionTransformationTest {
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
-            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID))
             .build();
 
     QueryRequest expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(createNullStringLiteralExpression())
-            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID))
             .build();
 
     assertEquals(
@@ -656,7 +427,7 @@ class ProjectionTransformationTest {
     expectedTransform =
         QueryRequest.newBuilder()
             .addSelection(createNullNumberLiteralExpression())
-            .addSelection(createColumnExpression(SIMPLE_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID))
             .build();
 
     assertEquals(
@@ -687,7 +458,7 @@ class ProjectionTransformationTest {
 
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .build();
 
     QueryRequest expectedTransform =
@@ -697,7 +468,7 @@ class ProjectionTransformationTest {
                     QUERY_FUNCTION_CONDITIONAL,
                     PROJECTED_ATTRIBUTE_ID,
                     createStringLiteralValueExpression("true"),
-                    createColumnExpression(SIMPLE_ATTRIBUTE_ID).build(),
+                    createSimpleAttributeExpression(SIMPLE_ATTRIBUTE_ID).build(),
                     createNullStringLiteralExpression()))
             .build();
 
@@ -714,7 +485,7 @@ class ProjectionTransformationTest {
         PROJECTED_ATTRIBUTE_ID, this.attributeMetadata.toBuilder().setMaterialized(true).build());
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression(PROJECTED_ATTRIBUTE_ID))
+            .addSelection(createSimpleAttributeExpression(PROJECTED_ATTRIBUTE_ID))
             .build();
 
     assertEquals(

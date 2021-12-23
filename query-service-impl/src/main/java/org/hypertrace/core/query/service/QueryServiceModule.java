@@ -6,7 +6,7 @@ import com.typesafe.config.Config;
 import javax.inject.Singleton;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
 import org.hypertrace.core.query.service.api.QueryServiceGrpc.QueryServiceImplBase;
-import org.hypertrace.core.query.service.attribubteexpression.ExpressionModule;
+import org.hypertrace.core.query.service.attribubteexpression.AttributeExpressionModule;
 import org.hypertrace.core.query.service.pinot.PinotModule;
 import org.hypertrace.core.query.service.projection.ProjectionModule;
 import org.hypertrace.core.query.service.prometheus.PrometheusModule;
@@ -34,6 +34,6 @@ class QueryServiceModule extends AbstractModule {
     install(new PinotModule());
     install(new ProjectionModule());
     install(new PrometheusModule());
-    install(new ExpressionModule());
+    install(new AttributeExpressionModule());
   }
 }

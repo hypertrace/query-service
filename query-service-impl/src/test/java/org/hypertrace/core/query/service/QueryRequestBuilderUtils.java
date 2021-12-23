@@ -37,6 +37,13 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
+  public static Expression createAliasedAttributeExpression(String columnName, String alias) {
+    return Expression.newBuilder()
+        .setAttributeExpression(
+            AttributeExpression.newBuilder().setAttributeId(columnName).setAlias(alias))
+        .build();
+  }
+
   public static Expression createCountByColumnSelection(String columnNames) {
     return createFunctionExpression("Count", createColumnExpression(columnNames).build());
   }

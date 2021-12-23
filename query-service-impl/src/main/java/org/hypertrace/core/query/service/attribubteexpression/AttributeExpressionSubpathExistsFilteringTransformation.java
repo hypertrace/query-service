@@ -22,7 +22,8 @@ import org.hypertrace.core.query.service.api.QueryRequest;
 import org.slf4j.Logger;
 
 @Slf4j
-final class AttributeSubpathExistsFilteringTransformation extends AbstractQueryTransformation {
+final class AttributeExpressionSubpathExistsFilteringTransformation
+    extends AbstractQueryTransformation {
 
   @Override
   protected Logger getLogger() {
@@ -62,7 +63,7 @@ final class AttributeSubpathExistsFilteringTransformation extends AbstractQueryT
             .build()
             .stream()
             .filter(Predicate.not(Filter.getDefaultInstance()::equals))
-            .collect(Collectors.toUnmodifiableSet());
+            .collect(ImmutableSet.toImmutableSet());
 
     if (rootFilters.isEmpty()) {
       return Optional.empty();

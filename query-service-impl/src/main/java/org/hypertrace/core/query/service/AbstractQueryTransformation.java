@@ -42,7 +42,15 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
       List<Expression> groupBys,
       List<OrderByExpression> orderBys) {
 
-    return original.toBuilder()
+    QueryRequest.Builder builder = original.toBuilder();
+
+    if (Filter.getDefaultInstance().equals(filter)) {
+      builder.clearFilter();
+    } else {
+      builder.setFilter(filter);
+    }
+
+    return builder
         .clearSelection()
         .addAllSelection(selections)
         .clearAggregation()
@@ -51,7 +59,6 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
         .addAllGroupBy(groupBys)
         .clearOrderBy()
         .addAllOrderBy(orderBys)
-        .setFilter(filter)
         .build();
   }
 

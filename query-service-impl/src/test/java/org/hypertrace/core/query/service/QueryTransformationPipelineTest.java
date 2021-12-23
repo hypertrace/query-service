@@ -44,10 +44,14 @@ class QueryTransformationPipelineTest {
     when(secondTransformation.transform(same(firstResult), any(QueryTransformationContext.class)))
         .thenReturn(Single.just(secondResult));
 
+    when(firstTransformation.compareTo(any())).thenCallRealMethod();
+    when(firstTransformation.getPriority()).thenReturn(1);
+    when(secondTransformation.getPriority()).thenReturn(10);
+    // purposely flip order to make sure sorted
     assertSame(
         secondResult,
         new QueryTransformationPipeline(
-                new LinkedHashSet<>(List.of(firstTransformation, secondTransformation)))
+                new LinkedHashSet<>(List.of(secondTransformation, firstTransformation)))
             .transform(this.originalRequest, TEST_TENANT_ID)
             .blockingGet());
   }
