@@ -279,7 +279,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     }
 
     ViewColumnFilter viewColumnFilter =
-        viewFilterMap.get(getLogicalColumnName(queryFilter.getLhs()).orElse(null));
+        getLogicalColumnName(queryFilter.getLhs()).map(viewFilterMap::get).orElse(null);
     if (viewColumnFilter == null) {
       return false;
     }
