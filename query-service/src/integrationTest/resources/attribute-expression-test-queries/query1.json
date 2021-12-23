@@ -3,7 +3,7 @@
     "childFilter": [{
       "lhs": {
         "attributeExpression": {
-          "attributeId": "Span.tags"
+          "attributeId": "EVENT.spanTags"
         }
       },
       "operator": "CONTAINS_KEY",
@@ -17,7 +17,7 @@
     }, {
       "lhs": {
         "attributeExpression": {
-          "attributeId": "Span.tags",
+          "attributeId": "EVENT.spanTags",
           "subpath": "span.kind"
         }
       },
@@ -33,14 +33,14 @@
   },
   "selection": [{
     "attributeExpression": {
-      "attributeId": "Span.tags",
+      "attributeId": "EVENT.spanTags",
       "subpath": "span.kind"
     }
   }],
   "orderBy": [{
     "expression": {
       "attributeExpression": {
-        "attributeId": "Span.tags",
+        "attributeId": "EVENT.spanTags",
         "subpath": "span.kind"
       }
     },

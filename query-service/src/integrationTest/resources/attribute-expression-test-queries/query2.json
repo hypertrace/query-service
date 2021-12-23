@@ -3,7 +3,7 @@
     "childFilter": [{
       "lhs": {
         "attributeExpression": {
-          "attributeId": "Span.start_time_millis"
+          "attributeId": "EVENT.startTime"
         }
       },
       "operator": "GT",
@@ -18,7 +18,7 @@
     }, {
       "lhs": {
         "attributeExpression": {
-          "attributeId": "Span.start_time_millis"
+          "attributeId": "EVENT.startTime"
         }
       },
       "operator": "LT",
@@ -26,14 +26,14 @@
         "literal": {
           "value": {
             "valueType": "LONG",
-            "long": "1570744906673"
+            "long": "2570744906673"
           }
         }
       }
     }, {
       "lhs": {
         "attributeExpression": {
-          "attributeId": "Span.tags"
+          "attributeId": "EVENT.spanTags"
         }
       },
       "operator": "CONTAINS_KEY",
@@ -47,7 +47,7 @@
     }, {
       "lhs": {
         "attributeExpression": {
-          "attributeId": "Span.tags",
+          "attributeId": "EVENT.spanTags",
           "subpath": "span.kind"
         }
       },
@@ -65,20 +65,20 @@
       "functionName": "AVG",
       "arguments": [{
         "attributeExpression": {
-          "attributeId": "Span.duration_millis"
+          "attributeId": "EVENT.duration"
         }
       }],
       "alias": "avg_duration"
     }
   }, {
     "attributeExpression": {
-      "attributeId": "Span.tags",
+      "attributeId": "EVENT.spanTags",
       "subpath": "span.kind"
     }
   }],
   "groupBy": [{
     "attributeExpression": {
-      "attributeId": "Span.tags",
+      "attributeId": "EVENT.spanTags",
       "subpath": "span.kind"
     }
   }]

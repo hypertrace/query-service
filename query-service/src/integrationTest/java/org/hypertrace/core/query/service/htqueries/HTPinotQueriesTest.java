@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.htqueries;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.buildQueryFromJsonFile;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.getAttributeExpressionQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -13,6 +14,7 @@ import com.typesafe.config.ConfigFactory;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -404,6 +406,19 @@ public class HTPinotQueriesTest {
     assertEquals("13", rows.get(0).getColumn(1).getString());
   }
 
+  @ParameterizedTest
+  @MethodSource("provideQueryRequestForAttributeExpressionQueries")
+  public void testAttributeExpressionQueries(
+      QueryRequest queryRequest, int rowSize, String expectedValue) {
+    LOG.info("Attribute Expression queries");
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(queryRequest, TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(rowSize, rows.size());
+    assertEquals(expectedValue, rows.get(0).getColumn(0).getString());
+  }
+
   private static Stream<Arguments> provideQueryRequestForServiceQueries()
       throws InvalidProtocolBufferException {
     QueryRequest queryRequest1 = ServicesQueries.buildQuery1();
@@ -426,5 +441,12 @@ public class HTPinotQueriesTest {
     return Stream.of(
         Arguments.arguments(queryRequest1),
         Arguments.arguments(getAttributeExpressionQuery(queryRequest1)));
+  }
+
+  private static Stream<Arguments> provideQueryRequestForAttributeExpressionQueries()
+      throws IOException {
+    return Stream.of(
+        Arguments.arguments(buildQueryFromJsonFile("query1.json"), 10, "server"),
+        Arguments.arguments(buildQueryFromJsonFile("query2.json"), 2, "server"));
   }
 }
