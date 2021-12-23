@@ -2,89 +2,48 @@
   "filter": {
     "childFilter": [{
       "lhs": {
-        "columnIdentifier": {
-          "columnName": "SERVICE.startTime"
+        "attributeExpression": {
+          "attributeId": "Span.tags"
+        }
+      },
+      "operator": "CONTAINS_KEY",
+      "rhs": {
+        "literal": {
+          "value": {
+            "string": "span.kind"
+          }
+        }
+      }
+    }, {
+      "lhs": {
+        "attributeExpression": {
+          "attributeId": "Span.tags",
+          "subpath": "span.kind"
         }
       },
       "operator": "GE",
       "rhs": {
         "literal": {
           "value": {
-            "valueType": "LONG",
-            "long": "1640231115416"
-          }
-        }
-      }
-    }, {
-      "lhs": {
-        "columnIdentifier": {
-          "columnName": "SERVICE.startTime"
-        }
-      },
-      "operator": "LT",
-      "rhs": {
-        "literal": {
-          "value": {
-            "valueType": "LONG",
-            "long": "1640234717266"
-          }
-        }
-      }
-    }, {
-      "lhs": {
-        "columnIdentifier": {
-          "columnName": "SERVICE.id"
-        }
-      },
-      "operator": "NEQ",
-      "rhs": {
-        "literal": {
-          "value": {
-            "valueType": "NULL_STRING"
+            "string": "client"
           }
         }
       }
     }]
   },
   "selection": [{
-    "columnIdentifier": {
-      "columnName": "SERVICE.id"
-    }
-  }, {
-    "columnIdentifier": {
-      "columnName": "SERVICE.name"
-    }
-  }, {
-    "function": {
-      "functionName": "COUNT",
-      "arguments": [{
-        "columnIdentifier": {
-          "columnName": "SERVICE.id"
-        }
-      }]
-    }
-  }],
-  "groupBy": [{
-    "columnIdentifier": {
-      "columnName": "SERVICE.id"
-    }
-  }, {
-    "columnIdentifier": {
-      "columnName": "SERVICE.name"
+    "attributeExpression": {
+      "attributeId": "Span.tags",
+      "subpath": "span.kind"
     }
   }],
   "orderBy": [{
     "expression": {
-      "function": {
-        "functionName": "PERCENTILE99",
-        "arguments": [{
-          "columnIdentifier": {
-            "columnName": "SERVICE.duration"
-          }
-        }]
+      "attributeExpression": {
+        "attributeId": "Span.tags",
+        "subpath": "span.kind"
       }
     },
     "order": "DESC"
-  }],
-  "limit": 10000
+  }]
 }

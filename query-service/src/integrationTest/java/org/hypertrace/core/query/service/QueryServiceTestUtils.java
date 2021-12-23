@@ -2,6 +2,12 @@ package org.hypertrace.core.query.service;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import org.apache.kafka.common.requests.RequestContext;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -15,6 +21,8 @@ import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
 public class QueryServiceTestUtils {
+
+  private static final String REQUESTS_DIR = "attribute-expression-test-queries";
 
   public static Filter createFilter(
       String columnName, Operator op, ValueType valueType, Object valueObject) {
@@ -121,5 +129,22 @@ public class QueryServiceTestUtils {
     QueryRequest.Builder newBuilder = QueryRequest.newBuilder();
     JsonFormat.parser().merge(json, newBuilder);
     return newBuilder.build();
+  }
+
+  public static QueryRequest buildQueryFromJsonFile(String filename) throws IOException {
+    String resourceFileName = REQUESTS_DIR + "/" + filename;
+    Reader requestJsonStr = readResourceFile(resourceFileName);
+    QueryRequest.Builder builder = QueryRequest.newBuilder();
+    try {
+      JsonFormat.parser().merge(requestJsonStr, builder);
+    } catch (InvalidProtocolBufferException e) {
+      e.printStackTrace();
+    }
+    return builder.build();
+  }
+
+  private static Reader readResourceFile(String fileName) {
+    InputStream in = RequestContext.class.getClassLoader().getResourceAsStream(fileName);
+    return new BufferedReader(new InputStreamReader(in));
   }
 }
