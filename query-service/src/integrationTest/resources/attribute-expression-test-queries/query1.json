@@ -1,0 +1,90 @@
+{
+  "filter": {
+    "childFilter": [{
+      "lhs": {
+        "columnIdentifier": {
+          "columnName": "SERVICE.startTime"
+        }
+      },
+      "operator": "GE",
+      "rhs": {
+        "literal": {
+          "value": {
+            "valueType": "LONG",
+            "long": "1640231115416"
+          }
+        }
+      }
+    }, {
+      "lhs": {
+        "columnIdentifier": {
+          "columnName": "SERVICE.startTime"
+        }
+      },
+      "operator": "LT",
+      "rhs": {
+        "literal": {
+          "value": {
+            "valueType": "LONG",
+            "long": "1640234717266"
+          }
+        }
+      }
+    }, {
+      "lhs": {
+        "columnIdentifier": {
+          "columnName": "SERVICE.id"
+        }
+      },
+      "operator": "NEQ",
+      "rhs": {
+        "literal": {
+          "value": {
+            "valueType": "NULL_STRING"
+          }
+        }
+      }
+    }]
+  },
+  "selection": [{
+    "columnIdentifier": {
+      "columnName": "SERVICE.id"
+    }
+  }, {
+    "columnIdentifier": {
+      "columnName": "SERVICE.name"
+    }
+  }, {
+    "function": {
+      "functionName": "COUNT",
+      "arguments": [{
+        "columnIdentifier": {
+          "columnName": "SERVICE.id"
+        }
+      }]
+    }
+  }],
+  "groupBy": [{
+    "columnIdentifier": {
+      "columnName": "SERVICE.id"
+    }
+  }, {
+    "columnIdentifier": {
+      "columnName": "SERVICE.name"
+    }
+  }],
+  "orderBy": [{
+    "expression": {
+      "function": {
+        "functionName": "PERCENTILE99",
+        "arguments": [{
+          "columnIdentifier": {
+            "columnName": "SERVICE.duration"
+          }
+        }]
+      }
+    },
+    "order": "DESC"
+  }],
+  "limit": 10000
+}
