@@ -28,7 +28,7 @@ class AttributeExpressionNormalizationTransformationTest {
       new AttributeExpressionNormalizationTransformation();
 
   @Test
-  void columnInAllPositions() {
+  void transformColumnInAllPositions() {
     QueryRequest originalRequest =
         QueryRequest.newBuilder()
             .addSelection(createAliasedColumnExpression("select-col", "select-alias"))
