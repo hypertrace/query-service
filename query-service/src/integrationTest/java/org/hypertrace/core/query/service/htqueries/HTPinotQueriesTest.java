@@ -419,6 +419,19 @@ public class HTPinotQueriesTest {
     assertEquals(expectedValue, rows.get(0).getColumn(0).getString());
   }
 
+  @Test
+  public void testNotContainsKeyQuery() throws IOException {
+    LOG.info("Not contains key query");
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(
+            buildQueryFromJsonFile("query4.json"), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(10, rows.size());
+    assertEquals(
+        "\"http.status_code\":\"200\"", rows.get(0).getColumn(0).getString().split(",")[1]);
+  }
+
   private static Stream<Arguments> provideQueryRequestForServiceQueries()
       throws InvalidProtocolBufferException {
     QueryRequest queryRequest1 = ServicesQueries.buildQuery1();
@@ -448,10 +461,6 @@ public class HTPinotQueriesTest {
     return Stream.of(
         Arguments.arguments(buildQueryFromJsonFile("query1.json"), 10, "server"),
         Arguments.arguments(buildQueryFromJsonFile("query2.json"), 2, "server"),
-        Arguments.arguments(buildQueryFromJsonFile("query3.json"), 1, "0.0"),
-        Arguments.arguments(
-            buildQueryFromJsonFile("query4.json"),
-            10,
-            "{\"internal.span.format\":\"jaeger\",\"http.status_code\":\"200\",\"component\":\"net/http\",\"span.kind\":\"server\",\"sampler.type\":\"const\",\"sampler.param\":\"1\",\"http.url\":\"/dispatch?customer=392&nonse=0.2664909002836733\",\"servicename\":\"frontend\",\"http.method\":\"GET\"}"));
+        Arguments.arguments(buildQueryFromJsonFile("query3.json"), 1, "0.0"));
   }
 }
