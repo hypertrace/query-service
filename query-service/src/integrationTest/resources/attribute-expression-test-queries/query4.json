@@ -1,4 +1,19 @@
 {
+  "filter": {
+    "lhs": {
+      "attributeExpression": {
+        "attributeId": "EVENT.spanTags"
+      }
+    },
+    "operator": "NOT_CONTAINS_KEY",
+    "rhs": {
+      "literal": {
+        "value": {
+          "string": "Flags"
+        }
+      }
+    }
+  },
   "selection": [{
     "attributeExpression": {
       "attributeId": "EVENT.spanTags"
