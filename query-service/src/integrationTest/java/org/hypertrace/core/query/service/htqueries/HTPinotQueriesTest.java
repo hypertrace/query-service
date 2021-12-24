@@ -447,6 +447,11 @@ public class HTPinotQueriesTest {
       throws IOException {
     return Stream.of(
         Arguments.arguments(buildQueryFromJsonFile("query1.json"), 10, "server"),
-        Arguments.arguments(buildQueryFromJsonFile("query2.json"), 2, "server"));
+        Arguments.arguments(buildQueryFromJsonFile("query2.json"), 2, "server"),
+        Arguments.arguments(buildQueryFromJsonFile("query3.json"), 1, "0.0"),
+        Arguments.arguments(
+            buildQueryFromJsonFile("query4.json"),
+            10,
+            "{\"internal.span.format\":\"jaeger\",\"http.status_code\":\"200\",\"component\":\"net/http\",\"span.kind\":\"server\",\"sampler.type\":\"const\",\"sampler.param\":\"1\",\"http.url\":\"/dispatch?customer=392&nonse=0.2664909002836733\",\"servicename\":\"frontend\",\"http.method\":\"GET\"}"));
   }
 }
