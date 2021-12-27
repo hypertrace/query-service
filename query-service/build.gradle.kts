@@ -10,29 +10,20 @@ plugins {
 
 dependencies {
   implementation(project(":query-service-impl"))
-  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.6.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.7.0")
   implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.28")
   implementation("org.slf4j:slf4j-api:1.7.30")
   implementation("com.typesafe:config:1.4.1")
 
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.17.0")
-  runtimeOnly("io.grpc:grpc-netty:1.42.0")
-  constraints {
-    runtimeOnly("io.netty:netty-codec-http2:4.1.71.Final") {
-      because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1089809")
-    }
-    runtimeOnly("io.netty:netty-handler-proxy:4.1.71.Final") {
-      because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-1089809")
-    }
-  }
-
+  runtimeOnly("io.grpc:grpc-netty")
   integrationTestImplementation("com.google.protobuf:protobuf-java-util:3.17.3")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-params:5.7.1")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter-engine:5.7.1")
-  integrationTestImplementation("org.testcontainers:testcontainers:1.15.2")
-  integrationTestImplementation("org.testcontainers:junit-jupiter:1.15.2")
-  integrationTestImplementation("org.testcontainers:kafka:1.15.2")
+  integrationTestImplementation("org.testcontainers:testcontainers:1.16.2")
+  integrationTestImplementation("org.testcontainers:junit-jupiter:1.16.2")
+  integrationTestImplementation("org.testcontainers:kafka:1.16.2")
   integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.28")
   integrationTestImplementation("com.github.stefanbirkner:system-lambda:1.2.0")
 
