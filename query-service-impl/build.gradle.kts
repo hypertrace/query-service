@@ -31,15 +31,15 @@ dependencies {
   implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.12.3")
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.12.3")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.12.3")
-  implementation("org.hypertrace.core.serviceframework:service-framework-spi:0.1.28")
+  implementation("org.hypertrace.core.serviceframework:service-framework-spi:0.1.33")
   implementation("com.google.inject:guice:5.0.1")
   implementation("org.apache.pinot:pinot-java-client:0.6.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
     exclude("org.slf4j", "slf4j-log4j12")
   }
-  implementation("org.slf4j:slf4j-api:1.7.30")
+  implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("commons-codec:commons-codec:1.15")
-  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.28")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.33")
   implementation("com.google.protobuf:protobuf-java-util:3.15.6")
   implementation("com.google.guava:guava:30.1.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
