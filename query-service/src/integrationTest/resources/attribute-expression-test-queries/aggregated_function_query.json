@@ -1,0 +1,13 @@
+{
+  "selection": [{
+    "function": {
+      "functionName": "sum",
+      "arguments": [{
+        "attributeExpression": {
+          "attributeId": "EVENT.spanTags",
+          "subpath": "otel.status_code"
+        }
+      }]
+    }
+  }]
+}

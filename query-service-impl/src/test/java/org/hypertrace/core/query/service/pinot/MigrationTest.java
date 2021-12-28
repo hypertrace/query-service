@@ -92,6 +92,27 @@ public class MigrationTest {
   }
 
   @Test
+  public void testQuerySelectionUsingAggregateFunctionUsingMapAttribute() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(
+        createFunctionExpression(
+            "sum", createComplexAttributeExpression("Span.tags", "otel.status_code").build()));
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "Select sum(mapValue(tags__KEYS,'otel.status_code',tags__VALUES)) FROM SpanEventView "
+            + "where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
   public void testQuerySelectionUsingMapAttributeWithSubPath() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createComplexAttributeExpression("Span.tags", "span.kind"));
