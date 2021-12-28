@@ -424,7 +424,7 @@ public class HTPinotQueriesTest {
     LOG.info("Not contains key query");
     Iterator<ResultSetChunk> itr =
         queryServiceClient.executeQuery(
-            buildQueryFromJsonFile("query4.json"), TENANT_ID_MAP, 10000);
+            buildQueryFromJsonFile("not_contains_key_query.json"), TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(10, rows.size());
@@ -459,8 +459,8 @@ public class HTPinotQueriesTest {
   private static Stream<Arguments> provideQueryRequestForAttributeExpressionQueries()
       throws IOException {
     return Stream.of(
-        Arguments.arguments(buildQueryFromJsonFile("query1.json"), 10, "server"),
-        Arguments.arguments(buildQueryFromJsonFile("query2.json"), 2, "server"),
-        Arguments.arguments(buildQueryFromJsonFile("query3.json"), 1, "0.0"));
+        Arguments.arguments(buildQueryFromJsonFile("order_by_query.json"), 10, "server"),
+        Arguments.arguments(buildQueryFromJsonFile("group_by_query.json"), 2, "server"),
+        Arguments.arguments(buildQueryFromJsonFile("aggregated_function_query.json"), 1, "0.0"));
   }
 }
