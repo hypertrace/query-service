@@ -24,6 +24,7 @@ class QueryTransformationPipeline {
     QueryTransformationContext transformationContext =
         new DefaultQueryTransformationContext(tenantId);
     return Observable.fromIterable(transformations)
+        .sorted()
         .reduce(
             Single.just(originalRequest),
             (requestSingle, transformation) ->

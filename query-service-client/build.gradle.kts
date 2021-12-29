@@ -7,10 +7,10 @@ plugins {
 
 dependencies {
   api(project(":query-service-api"))
-  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.6.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.7.0")
 
   // Logging
-  implementation("org.slf4j:slf4j-api:1.7.30")
+  implementation("org.slf4j:slf4j-api:1.7.32")
   // Config
   implementation("com.typesafe:config:1.4.1")
 }

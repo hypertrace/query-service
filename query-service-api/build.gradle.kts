@@ -23,7 +23,7 @@ protobuf {
     // the identifier, which can be referred to in the "plugins"
     // container of the "generateProtoTasks" closure.
     id("grpc_java") {
-      artifact = "io.grpc:protoc-gen-grpc-java:1.42.0"
+      artifact = "io.grpc:protoc-gen-grpc-java:1.43.1"
     }
 
     if (generateLocalGoGrpcFiles) {
@@ -66,8 +66,9 @@ tasks.test {
 }
 
 dependencies {
-  api("io.grpc:grpc-protobuf:1.42.0")
-  api("io.grpc:grpc-stub:1.42.0")
+  api(platform("io.grpc:grpc-bom:1.43.1"))
+  api("io.grpc:grpc-protobuf")
+  api("io.grpc:grpc-stub")
   api("javax.annotation:javax.annotation-api:1.3.2")
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
