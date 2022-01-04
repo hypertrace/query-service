@@ -15,7 +15,7 @@ dependencies {
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("com.typesafe:config:1.4.1")
 
-  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.17.0")
+  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
   runtimeOnly("io.grpc:grpc-netty")
   integrationTestImplementation("com.google.protobuf:protobuf-java-util:3.17.3")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter:5.7.1")

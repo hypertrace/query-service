@@ -30,6 +30,16 @@ public class QueryRequestBuilderUtils {
             AttributeExpression.newBuilder().setAttributeId(attributeId).setSubpath(subPath));
   }
 
+  public static Expression.Builder createAliasedComplexAttributeExpression(
+      String attributeId, String subPath, String alias) {
+    return Expression.newBuilder()
+        .setAttributeExpression(
+            AttributeExpression.newBuilder()
+                .setAttributeId(attributeId)
+                .setSubpath(subPath)
+                .setAlias(alias));
+  }
+
   public static Expression createAliasedColumnExpression(String columnName, String alias) {
     return Expression.newBuilder()
         .setColumnIdentifier(

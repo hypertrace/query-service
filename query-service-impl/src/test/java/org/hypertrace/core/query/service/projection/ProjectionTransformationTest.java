@@ -11,6 +11,7 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_HASH;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_STRINGEQUALS;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFilter;
@@ -83,6 +84,30 @@ class ProjectionTransformationTest {
         QueryRequest.newBuilder()
             .addSelection(
                 createAliasedAttributeExpression(SIMPLE_ATTRIBUTE_ID, PROJECTED_ATTRIBUTE_ID))
+            .build();
+
+    assertEquals(
+        expectedTransform,
+        this.projectionTransformation
+            .transform(originalRequest, mockTransformationContext)
+            .blockingGet());
+  }
+
+  @Test
+  void transformsBasicAliasProjectionWithSubpath() {
+    this.mockAttribute(PROJECTED_ATTRIBUTE_ID, this.attributeMetadata);
+    this.mockAttribute(SIMPLE_ATTRIBUTE_ID, AttributeMetadata.getDefaultInstance());
+    QueryRequest originalRequest =
+        QueryRequest.newBuilder()
+            .addSelection(
+                createAliasedComplexAttributeExpression(
+                    PROJECTED_ATTRIBUTE_ID, "test-sub-path", "my-alias"))
+            .build();
+    QueryRequest expectedTransform =
+        QueryRequest.newBuilder()
+            .addSelection(
+                createAliasedComplexAttributeExpression(
+                    SIMPLE_ATTRIBUTE_ID, "test-sub-path", "my-alias"))
             .build();
 
     assertEquals(
