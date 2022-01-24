@@ -416,10 +416,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
                 if (requestTimeMs > slowQueryThreshold) {
                   try {
                     LOG.warn(
-                        "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}",
+                        "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}, executionStats: {}",
                         requestTimeMs,
                         pql.getKey(),
-                        protoJsonPrinter.print(request));
+                        protoJsonPrinter.print(request),
+                        resultSetGroup.getExecutionStats());
                   } catch (InvalidProtocolBufferException ignore) {
                   }
                 }
