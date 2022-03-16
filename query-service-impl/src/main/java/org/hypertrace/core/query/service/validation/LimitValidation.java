@@ -36,10 +36,9 @@ class LimitValidation implements QueryValidation {
         if (isInvalidLimit(queryRequest.getLimit())) {
           log.warn(
               generateErrorMessageForLimit(queryRequest.getLimit())
-                  + ". Allowing due to warn mode.",
-              queryRequest.getLimit(),
-              config.getMin(),
-              config.getMax());
+                  + ". Allowing due to warn mode.{}{}",
+              System.lineSeparator(),
+              queryRequest);
         }
         return Completable.complete();
       case DISABLED:
