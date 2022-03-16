@@ -12,6 +12,11 @@ data:
         host = {{ .Values.queryServiceConfig.data.attributeClient.host }}
         port = {{ .Values.queryServiceConfig.data.attributeClient.port }}
       }
+      validation.limit = {
+        min = {{ .Values.queryServiceConfig.data.validation.limit.min }}
+        max = {{ .Values.queryServiceConfig.data.validation.limit.max }}
+        mode = {{ .Values.queryServiceConfig.data.validation.limit.mode }}
+      }
       clients = [
         {
           type = zookeeper

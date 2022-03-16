@@ -69,6 +69,11 @@ queryServiceConfig:
     attributeClient:
       host: attribute-service
       port: 9012
+    validation:
+      limit:
+        min: 1
+        max: 10000
+        mode: WARN
 handlers: []
 
 extraHandlers: []

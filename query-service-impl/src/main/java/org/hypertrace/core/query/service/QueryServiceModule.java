@@ -10,6 +10,7 @@ import org.hypertrace.core.query.service.attribubteexpression.AttributeExpressio
 import org.hypertrace.core.query.service.pinot.PinotModule;
 import org.hypertrace.core.query.service.projection.ProjectionModule;
 import org.hypertrace.core.query.service.prometheus.PrometheusModule;
+import org.hypertrace.core.query.service.validation.QueryValidationModule;
 import org.hypertrace.core.serviceframework.spi.PlatformServiceLifecycle;
 
 class QueryServiceModule extends AbstractModule {
@@ -35,5 +36,6 @@ class QueryServiceModule extends AbstractModule {
     install(new ProjectionModule());
     install(new PrometheusModule());
     install(new AttributeExpressionModule());
+    install(new QueryValidationModule());
   }
 }
