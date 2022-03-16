@@ -71,6 +71,12 @@ dependencies {
   api("io.grpc:grpc-stub")
   api("javax.annotation:javax.annotation-api:1.3.2")
 
+  constraints {
+    implementation("com.google.protobuf:protobuf-java:3.19.2") {
+      because("https://snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-2331703")
+    }
+  }
+
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
   testImplementation("com.google.protobuf:protobuf-java-util:3.19.2")
 }
