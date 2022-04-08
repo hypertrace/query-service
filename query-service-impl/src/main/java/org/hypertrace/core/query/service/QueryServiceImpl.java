@@ -29,6 +29,7 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
   private final QueryValidator queryValidator;
 
   private Counter serviceResponseErrorCounter;
+  private Counter serviceResponseSuccessCounter;
 
   class QueryServiceObserver<T> extends ServerCallStreamRxObserver<T> {
 
@@ -40,6 +41,12 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
     public void onError(Throwable th) {
       serviceResponseErrorCounter.increment();
       super.onError(th);
+    }
+
+    @Override
+    public void onComplete() {
+      serviceResponseSuccessCounter.increment();
+      super.onComplete();
     }
 
   }
@@ -55,12 +62,17 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
     initMetrics();
   }
 
-  private static final String COUNTER_NAME = "hypertrace.query-service.response.errors";
+  private static final String ERROR_COUNTER_NAME = "hypertrace.query-service.response.errors";
+  private static final String SUCCESS_COUNTER_NAME = "hypertrace.query-service.response.success";
 
   private void initMetrics() {
     serviceResponseErrorCounter =
             PlatformMetricsRegistry.registerCounter(
-                    COUNTER_NAME, ImmutableMap.of());
+                    ERROR_COUNTER_NAME, ImmutableMap.of());
+
+    serviceResponseSuccessCounter =
+            PlatformMetricsRegistry.registerCounter(
+                    SUCCESS_COUNTER_NAME, ImmutableMap.of());
   }
 
   @Override
