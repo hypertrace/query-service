@@ -30,6 +30,8 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
 
   private Counter serviceResponseErrorCounter;
   private Counter serviceResponseSuccessCounter;
+  private static final String ERROR_COUNTER_NAME = "hypertrace.query-service.response.errors";
+  private static final String SUCCESS_COUNTER_NAME = "hypertrace.query-service.response.success";
 
   class QueryServiceObserver<T> extends ServerCallStreamRxObserver<T> {
 
@@ -48,7 +50,6 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
       serviceResponseSuccessCounter.increment();
       super.onComplete();
     }
-
   }
 
   @Inject
@@ -62,17 +63,12 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
     initMetrics();
   }
 
-  private static final String ERROR_COUNTER_NAME = "hypertrace.query-service.response.errors";
-  private static final String SUCCESS_COUNTER_NAME = "hypertrace.query-service.response.success";
-
   private void initMetrics() {
     serviceResponseErrorCounter =
-            PlatformMetricsRegistry.registerCounter(
-                    ERROR_COUNTER_NAME, ImmutableMap.of());
+        PlatformMetricsRegistry.registerCounter(ERROR_COUNTER_NAME, ImmutableMap.of());
 
     serviceResponseSuccessCounter =
-            PlatformMetricsRegistry.registerCounter(
-                    SUCCESS_COUNTER_NAME, ImmutableMap.of());
+        PlatformMetricsRegistry.registerCounter(SUCCESS_COUNTER_NAME, ImmutableMap.of());
   }
 
   @Override
