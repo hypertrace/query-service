@@ -28,29 +28,10 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
   private final QueryTransformationPipeline queryTransformationPipeline;
   private final QueryValidator queryValidator;
 
-  private Counter serviceResponseErrorCounter;
-  private Counter serviceResponseSuccessCounter;
-  private static final String ERROR_COUNTER_NAME = "hypertrace.query-service.response.errors";
-  private static final String SUCCESS_COUNTER_NAME = "hypertrace.query-service.response.success";
-
-  class QueryServiceObserver<T> extends ServerCallStreamRxObserver<T> {
-
-    public QueryServiceObserver(StreamObserver<T> serverCallStreamObserver) {
-      super(serverCallStreamObserver);
-    }
-
-    @Override
-    public void onError(Throwable th) {
-      serviceResponseErrorCounter.increment();
-      super.onError(th);
-    }
-
-    @Override
-    public void onComplete() {
-      serviceResponseSuccessCounter.increment();
-      super.onComplete();
-    }
-  }
+  private Counter requestStatusErrorCounter;
+  private Counter requestStatusSuccessCounter;
+  private static final String SERVICE_REQUESTS_STATUS_COUNTER =
+      "hypertrace.query.service.requests.status";
 
   @Inject
   public QueryServiceImpl(
@@ -64,11 +45,13 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
   }
 
   private void initMetrics() {
-    serviceResponseErrorCounter =
-        PlatformMetricsRegistry.registerCounter(ERROR_COUNTER_NAME, ImmutableMap.of());
+    requestStatusErrorCounter =
+        PlatformMetricsRegistry.registerCounter(
+            SERVICE_REQUESTS_STATUS_COUNTER, ImmutableMap.of("error", "true"));
 
-    serviceResponseSuccessCounter =
-        PlatformMetricsRegistry.registerCounter(SUCCESS_COUNTER_NAME, ImmutableMap.of());
+    requestStatusSuccessCounter =
+        PlatformMetricsRegistry.registerCounter(
+            SERVICE_REQUESTS_STATUS_COUNTER, ImmutableMap.of("error", "false"));
   }
 
   @Override
@@ -82,9 +65,14 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
                 () ->
                     this.transformAndExecute(
                         originalRequest, requestContext.getTenantId().orElseThrow())))
-        .doOnError(error -> log.error("Query failed: {}", originalRequest, error))
+        .doOnError(
+            error -> {
+              log.error("Query failed: {}", originalRequest, error);
+              requestStatusErrorCounter.increment();
+            })
+        .doOnComplete(() -> requestStatusSuccessCounter.increment())
         .subscribe(
-            new QueryServiceObserver<>(
+            new ServerCallStreamRxObserver<>(
                 (ServerCallStreamObserver<ResultSetChunk>) callStreamObserver));
   }
 
