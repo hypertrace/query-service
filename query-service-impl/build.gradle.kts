@@ -28,12 +28,6 @@ dependencies {
           "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10"
       )
     }
-    testImplementation("junit:junit:4.13.1") {
-      because(
-        "Information Exposure [Low Severity][https://snyk.io/vuln/SNYK-JAVA-JUNIT-1017047] " +
-          "in junit:junit@4.13"
-      )
-    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
