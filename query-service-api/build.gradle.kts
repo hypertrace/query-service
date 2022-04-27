@@ -78,5 +78,5 @@ dependencies {
   }
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
-  testImplementation("com.google.protobuf:protobuf-java-util:3.19.2")
+  testImplementation("com.google.protobuf:protobuf-java-util:3.20.1")
 }
