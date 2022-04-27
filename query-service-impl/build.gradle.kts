@@ -22,13 +22,6 @@ dependencies {
     implementation("io.netty:netty-handler:4.1.71.Final") {
       because("Multiple vulnerabilities")
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.2.2") {
-      because(
-        "Denial of Service (DoS) [High Severity]" +
-          "[https://snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-2421244] " +
-          "in com.fasterxml.jackson.core:jackson-databind@2.13.1"
-      )
-    }
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.6.0") {
       because(
         "Improper Locking [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-ORGJETBRAINSKOTLIN-2628385] " +
