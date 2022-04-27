@@ -23,7 +23,7 @@ protobuf {
     // the identifier, which can be referred to in the "plugins"
     // container of the "generateProtoTasks" closure.
     id("grpc_java") {
-      artifact = "io.grpc:protoc-gen-grpc-java:1.43.1"
+      artifact = "io.grpc:protoc-gen-grpc-java:1.45.1"
     }
 
     if (generateLocalGoGrpcFiles) {
@@ -66,17 +66,11 @@ tasks.test {
 }
 
 dependencies {
-  api(platform("io.grpc:grpc-bom:1.43.1"))
+  api(platform("io.grpc:grpc-bom:1.45.1"))
   api("io.grpc:grpc-protobuf")
   api("io.grpc:grpc-stub")
   api("javax.annotation:javax.annotation-api:1.3.2")
 
-  constraints {
-    implementation("com.google.protobuf:protobuf-java:3.19.2") {
-      because("https://snyk.io/vuln/SNYK-JAVA-COMGOOGLEPROTOBUF-2331703")
-    }
-  }
-
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
-  testImplementation("com.google.protobuf:protobuf-java-util:3.19.2")
+  testImplementation("com.google.protobuf:protobuf-java-util:3.20.1")
 }

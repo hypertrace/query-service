@@ -10,14 +10,14 @@ plugins {
 
 dependencies {
   implementation(project(":query-service-impl"))
-  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.7.0")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.7.2")
   implementation("org.hypertrace.core.serviceframework:platform-service-framework:0.1.33")
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("com.typesafe:config:1.4.1")
 
   runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
   runtimeOnly("io.grpc:grpc-netty")
-  integrationTestImplementation("com.google.protobuf:protobuf-java-util:3.19.2")
+  integrationTestImplementation("com.google.protobuf:protobuf-java-util:3.20.1")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
   integrationTestImplementation("org.testcontainers:testcontainers:1.16.2")
   integrationTestImplementation("org.testcontainers:junit-jupiter:1.16.2")
@@ -28,7 +28,7 @@ dependencies {
   integrationTestImplementation("org.apache.kafka:kafka-clients:5.5.1-ccs")
   integrationTestImplementation("org.apache.kafka:kafka-streams:5.5.1-ccs")
   integrationTestImplementation("org.apache.avro:avro:1.11.0")
-  integrationTestImplementation("com.google.guava:guava:30.1.1-jre")
+  integrationTestImplementation("com.google.guava:guava:31.1-jre")
   integrationTestImplementation("org.hypertrace.core.datamodel:data-model:0.1.12")
   integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.1.13")
 
