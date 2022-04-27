@@ -48,7 +48,7 @@ dependencies {
   implementation("commons-codec:commons-codec:1.15")
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.33")
   implementation("com.google.protobuf:protobuf-java-util:3.20.1")
-  implementation("com.google.guava:guava:30.1.1-jre")
+  implementation("com.google.guava:guava:31.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.6")
   annotationProcessor("org.projectlombok:lombok:1.18.20")
