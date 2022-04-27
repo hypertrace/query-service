@@ -29,6 +29,18 @@ dependencies {
           "in com.fasterxml.jackson.core:jackson-databind@2.13.1"
       )
     }
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.6.0") {
+      because(
+        "Improper Locking [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-ORGJETBRAINSKOTLIN-2628385] " +
+          "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10"
+      )
+    }
+    testImplementation("junit:junit:4.13.1") {
+      because(
+        "Information Exposure [Low Severity][https://snyk.io/vuln/SNYK-JAVA-JUNIT-1017047] " +
+          "in junit:junit@4.13"
+      )
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
@@ -50,7 +62,7 @@ dependencies {
   implementation("com.google.protobuf:protobuf-java-util:3.20.1")
   implementation("com.google.guava:guava:31.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
-  implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.6")
+  implementation("com.squareup.okhttp3:okhttp:4.9.3")
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
 
@@ -59,5 +71,5 @@ dependencies {
   testImplementation("org.mockito:mockito-core:3.8.0")
   testImplementation("org.mockito:mockito-junit-jupiter:3.8.0")
   testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
-  testImplementation("com.squareup.okhttp3:mockwebserver:5.0.0-alpha.6")
+  testImplementation("com.squareup.okhttp3:mockwebserver:4.9.3")
 }
