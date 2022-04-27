@@ -23,9 +23,11 @@ dependencies {
       because("Multiple vulnerabilities")
     }
     implementation("com.fasterxml.jackson.core:jackson-databind:2.13.2.2") {
-      because("Denial of Service (DoS) [High Severity]" +
+      because(
+        "Denial of Service (DoS) [High Severity]" +
           "[https://snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-2421244] " +
-          "in com.fasterxml.jackson.core:jackson-databind@2.13.1")
+          "in com.fasterxml.jackson.core:jackson-databind@2.13.1"
+      )
     }
   }
   api(project(":query-service-api"))
