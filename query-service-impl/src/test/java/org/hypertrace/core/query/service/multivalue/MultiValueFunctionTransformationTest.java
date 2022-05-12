@@ -1,7 +1,7 @@
-package org.hypertrace.core.query.service.function;
+package org.hypertrace.core.query.service.multivalue;
 
-import static org.hypertrace.core.query.service.function.DistinctCountFunctionTransformation.DISTINCT_COUNT;
-import static org.hypertrace.core.query.service.function.DistinctCountFunctionTransformation.DISTINCT_COUNT_MV;
+import static org.hypertrace.core.query.service.multivalue.FunctionTransformation.DISTINCT_COUNT;
+import static org.hypertrace.core.query.service.multivalue.FunctionTransformation.DISTINCT_COUNT_MV;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -20,15 +20,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class DistinctCountTransformationTest {
+public class MultiValueFunctionTransformationTest {
   private static final String ID = "id";
   private CachingAttributeClient attributeClient;
-  private DistinctCountFunctionTransformation transformation;
+  private MultiValueTransformation transformation;
 
   @BeforeEach
   void setUp() {
     this.attributeClient = mock(CachingAttributeClient.class);
-    this.transformation = new DistinctCountFunctionTransformation(attributeClient);
+    FunctionTransformation transformation = new FunctionTransformation(attributeClient);
+    this.transformation = new MultiValueTransformation(transformation);
   }
 
   @Test
