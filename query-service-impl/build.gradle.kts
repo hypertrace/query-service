@@ -10,7 +10,10 @@ tasks.test {
 
 dependencies {
   constraints {
-    implementation("io.netty:netty:4.1.77.Final") {
+    implementation("io.netty:netty:3.10.6.Final") {
+      because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-30430")
+    }
+    implementation("io.netty:netty-common@4.1.71.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-2812456")
     }
     implementation("org.apache.zookeeper:zookeeper:3.6.2") {
