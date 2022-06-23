@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.pinot.converters;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVGRATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_DISTINCTCOUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_PERCENTILE;
 
 import java.time.Duration;
@@ -18,28 +19,17 @@ import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 
 public class PinotFunctionConverter {
-  /**
-   * Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster and
-   * reasonably accurate, hence use that as the default.
-   *
-   * <p>AVGRATE not supported directly in Pinot. So AVG_RATE is computed by summing over all values
-   * and then dividing by a constant.
-   */
-  private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
-
   private static final String PINOT_CONCAT_FUNCTION = "CONCATSKIPNULL";
+
   private static final String DEFAULT_AVG_RATE_SIZE = "PT1S";
+  private final PinotFunctionConverterConfig config;
 
-  private final String percentileAggFunction;
-
-  public PinotFunctionConverter(String configuredPercentileFunction) {
-    this.percentileAggFunction =
-        Optional.ofNullable(configuredPercentileFunction)
-            .orElse(DEFAULT_PERCENTILE_AGGREGATION_FUNCTION);
+  public PinotFunctionConverter(PinotFunctionConverterConfig config) {
+    this.config = config;
   }
 
   public PinotFunctionConverter() {
-    this.percentileAggFunction = DEFAULT_PERCENTILE_AGGREGATION_FUNCTION;
+    this(new PinotFunctionConverterConfig());
   }
 
   public String convert(
@@ -50,10 +40,16 @@ public class PinotFunctionConverter {
       case QUERY_FUNCTION_COUNT:
         return this.convertCount();
       case QUERY_FUNCTION_PERCENTILE:
+        // Computing PERCENTILE in Pinot is resource intensive. T-Digest calculation is much faster
+        // and reasonably accurate, so support selecting the implementation to use
         return this.functionToString(this.toPinotPercentile(function), argumentConverter);
+      case QUERY_FUNCTION_DISTINCTCOUNT:
+        return this.functionToString(this.toPinotDistinctCount(function), argumentConverter);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
       case QUERY_FUNCTION_AVGRATE:
+        // AVGRATE not supported directly in Pinot. So AVG_RATE is computed by summing over all
+        // values and then dividing by a constant.
         return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
       default:
         // TODO remove once pinot-specific logic removed from gateway - this normalization reverts
@@ -70,7 +66,7 @@ public class PinotFunctionConverter {
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     String argumentString =
         function.getArgumentsList().stream()
-            .map(argumentConverter::apply)
+            .map(argumentConverter)
             .collect(Collectors.joining(","));
 
     return function.getFunctionName() + "(" + argumentString + ")";
@@ -88,15 +84,14 @@ public class PinotFunctionConverter {
             : DEFAULT_AVG_RATE_SIZE;
     long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
     long aggregateIntervalInSeconds =
-        (executionContext
-                .getTimeSeriesPeriod()
-                .or(executionContext::getTimeRangeDuration)
-                .orElseThrow())
+        executionContext
+            .getTimeSeriesPeriod()
+            .or(executionContext::getTimeRangeDuration)
+            .orElseThrow()
             .getSeconds();
 
     return String.format(
-        "SUM(DIV(%s, %s))",
-        columnName, (double) aggregateIntervalInSeconds / rateIntervalInSeconds);
+        "(%s / %s)", columnName, (double) aggregateIntervalInSeconds / rateIntervalInSeconds);
   }
 
   private String convertCount() {
@@ -114,7 +109,7 @@ public class PinotFunctionConverter {
                             QUERY_FUNCTION_PERCENTILE, function.getArguments(0))));
     return Function.newBuilder(function)
         .removeArguments(0)
-        .setFunctionName(this.percentileAggFunction + percentileValue)
+        .setFunctionName(this.config.getPercentileAggregationFunction() + percentileValue)
         .build();
   }
 
@@ -122,6 +117,12 @@ public class PinotFunctionConverter {
     // We don't want to use pinot's built in concat, it has different null behavior.
     // Instead, use our custom UDF.
     return Function.newBuilder(function).setFunctionName(PINOT_CONCAT_FUNCTION).build();
+  }
+
+  private Function toPinotDistinctCount(Function function) {
+    return Function.newBuilder(function)
+        .setFunctionName(this.config.getDistinctCountAggregationFunction())
+        .build();
   }
 
   private boolean isHardcodedPercentile(Function function) {
@@ -178,8 +179,7 @@ public class PinotFunctionConverter {
 
   private static long isoDurationToSeconds(String duration) {
     try {
-      Duration d = java.time.Duration.parse(duration);
-      return d.get(ChronoUnit.SECONDS);
+      return Duration.parse(duration).get(ChronoUnit.SECONDS);
     } catch (DateTimeParseException ex) {
       throw new IllegalArgumentException(
           String.format(

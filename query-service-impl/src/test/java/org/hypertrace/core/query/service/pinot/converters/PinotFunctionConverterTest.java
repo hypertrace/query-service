@@ -104,7 +104,7 @@ class PinotFunctionConverterTest {
 
     assertEquals(
         expected,
-        new PinotFunctionConverter("CUSTOMPERCENTILE")
+        new PinotFunctionConverter(new PinotFunctionConverterConfig("CUSTOMPERCENTILE", null))
             .convert(mockingExecutionContext, percentileFunction, this.mockArgumentConverter));
   }
 
@@ -211,7 +211,7 @@ class PinotFunctionConverterTest {
         .thenReturn(Optional.of(Duration.ofSeconds(10)));
 
     assertEquals(
-        "SUM(DIV(foo, 2.0))",
+        "(foo / 2.0)",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
@@ -223,11 +223,34 @@ class PinotFunctionConverterTest {
         .thenReturn(Optional.of(Duration.ofSeconds(20)));
 
     assertEquals(
-        "SUM(DIV(foo, 4.0))",
+        "(foo / 4.0)",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
                 buildFunction(QUERY_FUNCTION_AVGRATE, column1.toBuilder(), column2.toBuilder()),
+                this.mockArgumentConverter));
+  }
+
+  @Test
+  void convertsDistinctCountFunction() {
+    Expression column = createColumnExpression("foo").build();
+
+    when(this.mockArgumentConverter.apply(column)).thenReturn("foo");
+
+    assertEquals(
+        "DISTINCTCOUNT(foo)",
+        new PinotFunctionConverter()
+            .convert(
+                mockingExecutionContext,
+                buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column.toBuilder()),
+                this.mockArgumentConverter));
+
+    assertEquals(
+        "CUSTOM_DC(foo)",
+        new PinotFunctionConverter(new PinotFunctionConverterConfig(null, "CUSTOM_DC"))
+            .convert(
+                mockingExecutionContext,
+                buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column.toBuilder()),
                 this.mockArgumentConverter));
   }
 
