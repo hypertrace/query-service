@@ -914,7 +914,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + "' "
             + "and ( start_time_millis >= 1637297304041 and start_time_millis < 1637300904041 and service_id != 'null' ) "
             + "group by service_id, service_name "
-            + "order by (error_count / 3600.0) "
+            + "order by SUM(error_count / 3600.0) "
             + "limit 10000",
         viewDefinition,
         executionContext);
