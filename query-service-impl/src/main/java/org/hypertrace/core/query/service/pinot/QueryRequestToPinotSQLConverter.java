@@ -357,7 +357,7 @@ class QueryRequestToPinotSQLConverter {
         literals.set(0, value.getValue().getString());
       } else {
         throw new IllegalArgumentException(
-            "Unsupported arguments for CONTAINS_KEY / CONTAINS_KEYVALUE operator");
+            "Unsupported arguments for CONTAINS_KEY / CONTAINS_KEYVALUE / CONTAINS_KEY_LIKE operator");
       }
     }
 
