@@ -149,13 +149,8 @@ class QueryRequestToPinotSQLConverter {
               handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(operator);
           builder.append("(");
-          if (isMapColumnName(filter.getLhs())) {
-            // supports Like operator on map key column
-            builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
-          } else {
-            builder.append(
-                convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
-          }
+          builder.append(
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(",");
           builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
           builder.append(")");
@@ -445,9 +440,5 @@ class QueryRequestToPinotSQLConverter {
         break;
     }
     return ret;
-  }
-
-  private boolean isMapColumnName(Expression expression) {
-    return getLogicalColumnName(expression).map(viewDefinition::isMap).orElse(false);
   }
 }
