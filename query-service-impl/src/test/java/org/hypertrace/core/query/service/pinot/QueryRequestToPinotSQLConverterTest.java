@@ -598,6 +598,37 @@ public class QueryRequestToPinotSQLConverterTest {
   }
 
   @Test
+  void testQueryWithContainsKeyLikeOperator() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanTag = createColumnExpression("Span.tags").build();
+    builder.addSelection(spanTag);
+
+    Expression tag = createStringLiteralValueExpression("my_tag_name.*");
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.CONTAINS_KEY_LIKE)
+            .setLhs(spanTag)
+            .setRhs(tag)
+            .build();
+    builder.setFilter(likeFilter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT tags__keys, tags__values FROM SpanEventView "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND REGEXP_LIKE(tags__keys,'my_tag_name.*')",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
   public void testQueryWithBytesColumnWithValidId() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
