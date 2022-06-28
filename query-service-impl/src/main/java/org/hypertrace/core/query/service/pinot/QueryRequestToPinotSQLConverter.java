@@ -186,6 +186,15 @@ class QueryRequestToPinotSQLConverter {
           builder.append(") = ");
           builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder));
           break;
+        case CONTAINS_KEY_LIKE:
+          kvp = convertExpressionToMapLiterals(filter.getRhs());
+          builder.append(operator);
+          builder.append("(");
+          builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
+          builder.append(",");
+          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
+          builder.append(")");
+          break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(
@@ -255,6 +264,7 @@ class QueryRequestToPinotSQLConverter {
       case LE:
         return "<=";
       case LIKE:
+      case CONTAINS_KEY_LIKE:
         return REGEX_OPERATOR;
       case CONTAINS_KEYVALUE:
         return MAP_VALUE;
@@ -347,7 +357,7 @@ class QueryRequestToPinotSQLConverter {
         literals.set(0, value.getValue().getString());
       } else {
         throw new IllegalArgumentException(
-            "Unsupported arguments for CONTAINS_KEY / CONTAINS_KEYVALUE operator");
+            "Unsupported arguments for CONTAINS_KEY / CONTAINS_KEYVALUE / CONTAINS_KEY_LIKE operator");
       }
     }
 

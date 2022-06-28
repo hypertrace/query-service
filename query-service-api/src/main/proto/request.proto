@@ -56,6 +56,7 @@ enum Operator {
   CONTAINS_KEY = 13;
   CONTAINS_KEYVALUE = 14;
   NOT_CONTAINS_KEY = 15;
+  CONTAINS_KEY_LIKE = 16;
 }
 
 
