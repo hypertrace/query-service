@@ -91,7 +91,7 @@ public class PinotFunctionConverter {
             .getSeconds();
 
     return String.format(
-        "SUM(%s / %s)", columnName, (double) aggregateIntervalInSeconds / rateIntervalInSeconds);
+        "SUM(%s) / %s", columnName, (double) aggregateIntervalInSeconds / rateIntervalInSeconds);
   }
 
   private String convertCount() {
