@@ -211,7 +211,7 @@ class PinotFunctionConverterTest {
         .thenReturn(Optional.of(Duration.ofSeconds(10)));
 
     assertEquals(
-        "SUM(foo / 2.0)",
+        "SUM(foo) / 2.0",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
@@ -223,7 +223,7 @@ class PinotFunctionConverterTest {
         .thenReturn(Optional.of(Duration.ofSeconds(20)));
 
     assertEquals(
-        "SUM(foo / 4.0)",
+        "SUM(foo) / 4.0",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
