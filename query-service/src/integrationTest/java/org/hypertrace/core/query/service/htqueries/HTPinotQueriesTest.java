@@ -267,7 +267,7 @@ public class HTPinotQueriesTest {
             "service-call-view-events", 27L,
             "span-event-view", 50L,
             "log-event-view", 0L);
-    int retry = 0, maxRetries = 20;
+    int retry = 0, maxRetries = 50;
     while (!areMessagesConsumed(endOffSetMap) && retry++ < maxRetries) {
       Thread.sleep(6000); // max 2 min wait time
     }
