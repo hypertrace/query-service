@@ -23,14 +23,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupsResult;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -279,15 +276,18 @@ public class HTPinotQueriesTest {
 
   private static boolean areMessagesConsumed(Map<String, Long> endOffSetMap) throws Exception {
     ListConsumerGroupsResult listConsumerGroups = adminClient.listConsumerGroups();
-    List<String> groupIds = listConsumerGroups.all().get().stream()
-        .filter(consumerGroupListing -> consumerGroupListing.isSimpleConsumerGroup())
-        .map(consumerGroupListing -> consumerGroupListing.groupId())
-        .collect(Collectors.toUnmodifiableList());
+    List<String> groupIds =
+        listConsumerGroups.all().get().stream()
+            .filter(consumerGroupListing -> consumerGroupListing.isSimpleConsumerGroup())
+            .map(consumerGroupListing -> consumerGroupListing.groupId())
+            .collect(Collectors.toUnmodifiableList());
 
     Map<TopicPartition, OffsetAndMetadata> offsetAndMetadataMap = new HashMap<>();
-    for(String groupId : groupIds) {
-      ListConsumerGroupOffsetsResult listConsumerGroupOffsetsResult = adminClient.listConsumerGroupOffsets(groupId);
-      Map<TopicPartition, OffsetAndMetadata> metadataMap = listConsumerGroupOffsetsResult.partitionsToOffsetAndMetadata().get();
+    for (String groupId : groupIds) {
+      ListConsumerGroupOffsetsResult listConsumerGroupOffsetsResult =
+          adminClient.listConsumerGroupOffsets(groupId);
+      Map<TopicPartition, OffsetAndMetadata> metadataMap =
+          listConsumerGroupOffsetsResult.partitionsToOffsetAndMetadata().get();
       metadataMap.forEach((k, v) -> offsetAndMetadataMap.putIfAbsent(k, v));
     }
 
