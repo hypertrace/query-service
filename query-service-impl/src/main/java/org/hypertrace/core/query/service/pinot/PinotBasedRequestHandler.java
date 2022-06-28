@@ -1,6 +1,5 @@
 package org.hypertrace.core.query.service.pinot;
 
-import static org.hypertrace.core.query.service.ConfigUtils.optionallyGet;
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 
 import com.google.common.base.Preconditions;
@@ -43,6 +42,7 @@ import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
+import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverterConfig;
 import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +56,6 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private static final String TENANT_COLUMN_NAME_CONFIG_KEY = "tenantColumnName";
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
-  private static final String PERCENTILE_AGGREGATION_FUNCTION_CONFIG = "percentileAggFunction";
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
@@ -132,19 +131,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
             ? Optional.of(config.getString(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY))
             : Optional.empty();
 
-    Optional<String> customPercentileFunction =
-        optionallyGet(() -> config.getString(PERCENTILE_AGGREGATION_FUNCTION_CONFIG));
-
-    customPercentileFunction.ifPresent(
-        function ->
-            LOG.info(
-                "Using {} function for percentile aggregations of handler: {}", function, name));
-    PinotFunctionConverter functionConverter =
-        customPercentileFunction
-            .map(PinotFunctionConverter::new)
-            .orElseGet(PinotFunctionConverter::new);
     this.request2PinotSqlConverter =
-        new QueryRequestToPinotSQLConverter(viewDefinition, functionConverter);
+        new QueryRequestToPinotSQLConverter(
+            viewDefinition, new PinotFunctionConverter(new PinotFunctionConverterConfig(config)));
 
     if (config.hasPath(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
       this.slowQueryThreshold = config.getInt(SLOW_QUERY_THRESHOLD_MS_CONFIG);
