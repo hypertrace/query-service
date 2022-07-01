@@ -2,36 +2,31 @@ package org.hypertrace.core.query.service;
 
 import static org.hypertrace.core.grpcutils.client.RequestContextClientCallCredsProviderFactory.getClientCallCredsProvider;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.Channel;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import org.hypertrace.core.attribute.service.cachingclient.CachingAttributeClient;
-import org.hypertrace.core.serviceframework.spi.PlatformServiceLifecycle;
+import org.hypertrace.core.grpcutils.client.GrpcChannelRegistry;
 
 final class AttributeClientProvider implements Provider<CachingAttributeClient> {
 
   private final QueryServiceConfig config;
-  private final PlatformServiceLifecycle serviceLifecycle;
+  private final GrpcChannelRegistry grpcChannelRegistry;
 
   @Inject
-  AttributeClientProvider(QueryServiceConfig config, PlatformServiceLifecycle serviceLifecycle) {
+  AttributeClientProvider(QueryServiceConfig config, GrpcChannelRegistry grpcChannelRegistry) {
     this.config = config;
-    this.serviceLifecycle = serviceLifecycle;
+    this.grpcChannelRegistry = grpcChannelRegistry;
   }
 
   @Override
   public CachingAttributeClient get() {
-    ManagedChannel channel =
-        ManagedChannelBuilder.forAddress(
-                config.getAttributeClientConfig().getHost(),
-                config.getAttributeClientConfig().getPort())
-            .usePlaintext()
-            .build();
-
-    this.serviceLifecycle.shutdownComplete().thenRun(channel::shutdown);
+    Channel channel =
+        grpcChannelRegistry.forPlaintextAddress(
+            config.getAttributeClientConfig().getHost(),
+            config.getAttributeClientConfig().getPort());
 
     return CachingAttributeClient.builder(channel)
         .withCallCredentials(getClientCallCredsProvider().get())
