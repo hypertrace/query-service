@@ -8,7 +8,7 @@ import com.google.inject.Guice;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.File;
-import org.hypertrace.core.serviceframework.spi.PlatformServiceLifecycle;
+import org.hypertrace.core.grpcutils.client.GrpcChannelRegistry;
 import org.junit.jupiter.api.Test;
 
 class QueryServiceModuleTest {
@@ -25,8 +25,7 @@ class QueryServiceModuleTest {
             .getConfig("service.config");
     assertDoesNotThrow(
         () ->
-            Guice.createInjector(
-                    new QueryServiceModule(config, mock(PlatformServiceLifecycle.class)))
+            Guice.createInjector(new QueryServiceModule(config, mock(GrpcChannelRegistry.class)))
                 .getAllBindings());
   }
 }
