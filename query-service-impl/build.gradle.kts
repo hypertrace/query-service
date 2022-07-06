@@ -47,7 +47,7 @@ dependencies {
   }
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("commons-codec:commons-codec:1.15")
-  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.35")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.36")
   implementation("com.google.protobuf:protobuf-java-util:3.20.1")
   implementation("com.google.guava:guava:31.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
