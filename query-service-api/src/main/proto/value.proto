@@ -26,6 +26,7 @@ enum ValueType {
   STRING_MAP = 15;
   NULL_STRING = 16;
   NULL_NUMBER = 17;
+  TDIGEST = 18;
 }
 
 message Value {

@@ -9,6 +9,7 @@ import org.hypertrace.core.query.service.api.QueryServiceGrpc.QueryServiceImplBa
 import org.hypertrace.core.query.service.attribubteexpression.AttributeExpressionModule;
 import org.hypertrace.core.query.service.multivalue.MutliValueModule;
 import org.hypertrace.core.query.service.pinot.PinotModule;
+import org.hypertrace.core.query.service.postgres.PostgresModule;
 import org.hypertrace.core.query.service.projection.ProjectionModule;
 import org.hypertrace.core.query.service.prometheus.PrometheusModule;
 import org.hypertrace.core.query.service.validation.QueryValidationModule;
@@ -34,6 +35,7 @@ class QueryServiceModule extends AbstractModule {
         .toProvider(AttributeClientProvider.class)
         .in(Singleton.class);
     install(new PinotModule());
+    install(new PostgresModule());
     install(new ProjectionModule());
     install(new MutliValueModule());
     install(new PrometheusModule());
