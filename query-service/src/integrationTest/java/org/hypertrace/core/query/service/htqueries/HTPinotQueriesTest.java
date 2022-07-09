@@ -15,6 +15,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupsResult;
@@ -55,11 +57,13 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
@@ -68,8 +72,7 @@ public class HTPinotQueriesTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(HTPinotQueriesTest.class);
   private static final Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(LOG);
-  private static final Map<String, String> TENANT_ID_MAP =
-      Map.of("x-tenant-id", "3e761879-c77b-4d8f-a075-62ff28e8fa8a");
+  private static final Map<String, String> TENANT_ID_MAP = Map.of("x-tenant-id", "__default");
   private static final int CONTAINER_STARTUP_ATTEMPTS = 5;
 
   private static AdminClient adminClient;
@@ -80,6 +83,7 @@ public class HTPinotQueriesTest {
   private static GenericContainer<?> attributeService;
   private static KafkaContainer kafkaZk;
   private static GenericContainer<?> pinotServiceManager;
+  private static GenericContainer<?> postgresqlService;
 
   private static QueryServiceClient queryServiceClient;
 
@@ -128,6 +132,26 @@ public class HTPinotQueriesTest {
     attributeService.start();
     attributeService.followOutput(logConsumer);
 
+    postgresqlService =
+        new GenericContainer<>(DockerImageName.parse("bitnami/postgresql:latest"))
+            .withNetwork(network)
+            .withNetworkAliases("postgresql")
+            .withEnv(
+                Map.of(
+                    "POSTGRES_USER",
+                    "postgres",
+                    "POSTGRES_PASSWORD",
+                    "postgres",
+                    "PGPASSWORD",
+                    "postgres"))
+            .withExposedPorts(5432)
+            .withStartupAttempts(CONTAINER_STARTUP_ATTEMPTS)
+            .waitingFor(
+                Wait.forLogMessage(".*database system is ready to accept connections.*", 1));
+    postgresqlService.start();
+    postgresqlService.followOutput(logConsumer);
+    runSqlInPostgresDb("sql/raw-service-view-events.sql", "sql/raw-service-view-events-insert.sql");
+
     List<String> topicsNames =
         List.of(
             "enriched-structured-traces",
@@ -153,6 +177,11 @@ public class HTPinotQueriesTest {
 
     withEnvironmentVariable("PINOT_CONNECTION_TYPE", "broker")
         .and("ZK_CONNECT_STR", "localhost:" + pinotServiceManager.getMappedPort(8099).toString())
+        .and(
+            "POSTGRES_CONNECT_STR",
+            "jdbc:postgresql://localhost:"
+                + postgresqlService.getMappedPort(5432).toString()
+                + "/postgres?user=postgres&password=postgres")
         .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
         .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
         .execute(() -> IntegrationTestServerUtil.startServices(new String[] {"query-service"}));
@@ -162,6 +191,34 @@ public class HTPinotQueriesTest {
     map.put("port", 8090);
     QueryServiceConfig queryServiceConfig = new QueryServiceConfig(ConfigFactory.parseMap(map));
     queryServiceClient = new QueryServiceClient(queryServiceConfig);
+  }
+
+  private static void runSqlInPostgresDb(String... sqlFileNames)
+      throws IOException, InterruptedException {
+    int count = 0;
+    for (String sqlFileName : sqlFileNames) {
+      count++;
+      byte[] resourceBytes;
+      try (InputStream resourceAsStream =
+          HTPinotQueriesTest.class.getClassLoader().getResourceAsStream(sqlFileName)) {
+        resourceBytes = IOUtils.toByteArray(resourceAsStream);
+      }
+      if (resourceBytes != null) {
+        postgresqlService.copyFileToContainer(
+            Transferable.of(resourceBytes), "/tmp/" + count + ".sql");
+        Container.ExecResult execResult =
+            postgresqlService.execInContainer(
+                "/opt/bitnami/postgresql/bin/psql",
+                "-U",
+                "postgres",
+                "-f",
+                "/tmp/" + count + ".sql",
+                "-q",
+                "-d",
+                "postgres");
+        LOG.info("sql command output : {}", execResult);
+      }
+    }
   }
 
   @AfterAll
@@ -348,11 +405,11 @@ public class HTPinotQueriesTest {
         queryServiceClient.executeQuery(queryRequest, TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
-    assertEquals(21, rows.size());
-    // List<String> serviceNames =
-    //     new ArrayList<>(Arrays.asList("frontend", "driver", "route", "customer"));
-    // rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
-    // assertTrue(serviceNames.isEmpty());
+    assertEquals(4, rows.size());
+    List<String> serviceNames =
+        new ArrayList<>(Arrays.asList("frontend", "driver", "route", "customer"));
+    rows.forEach(row -> serviceNames.remove(row.getColumn(1).getString()));
+    assertTrue(serviceNames.isEmpty());
   }
 
   @Test

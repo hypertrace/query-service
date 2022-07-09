@@ -48,7 +48,7 @@ public class PostgresFunctionConverter {
         // Computing PERCENTILE in Postgres is resource intensive. T-Digest calculation is much
         // faster
         // and reasonably accurate, so support selecting the implementation to use
-        return this.functionToString(this.toPostgresPercentile(function), argumentConverter);
+        return this.toPostgresPercentile(function, argumentConverter);
       case QUERY_FUNCTION_DISTINCTCOUNT:
         return this.functionToString(this.toPostgresDistinctCount(function), argumentConverter);
       case QUERY_FUNCTION_CONCAT:
@@ -109,7 +109,8 @@ public class PostgresFunctionConverter {
     }
   }
 
-  private Function toPostgresPercentile(Function function) {
+  private String toPostgresPercentile(
+      Function function, java.util.function.Function<Expression, String> argumentConverter) {
     int percentileValue =
         this.getPercentileValueFromFunction(function)
             .orElseThrow(
@@ -118,24 +119,30 @@ public class PostgresFunctionConverter {
                         String.format(
                             "%s must include an integer convertible value as its first argument. Got: %s",
                             QUERY_FUNCTION_PERCENTILE, function.getArguments(0))));
-    return Function.newBuilder(function)
-        .removeArguments(0)
-        .setFunctionName(this.config.getPercentileAggregationFunction(isTdigest(function)))
-        .addArguments(literalDouble((double) percentileValue / 100))
-        .build();
-  }
-
-  private boolean isTdigest(Function function) {
-    Optional<Expression> attributeExpression =
-        function.getArgumentsList().stream().filter(Expression::hasAttributeExpression).findFirst();
-    return attributeExpression
-        .map(
-            expr ->
-                tableDefinition
-                    .getColumnType(expr.getAttributeExpression().getAttributeId())
-                    .equals(ValueType.TDIGEST))
-        .orElseThrow(
-            () -> new IllegalArgumentException("Attribute expression not found : " + function));
+    Expression expr =
+        function.getArgumentsList().stream()
+            .filter(Expression::hasAttributeExpression)
+            .findFirst()
+            .orElseThrow(
+                () -> new IllegalArgumentException("Attribute expression not found : " + function));
+    boolean isTdigest =
+        tableDefinition
+            .getColumnType(expr.getAttributeExpression().getAttributeId())
+            .equals(ValueType.TDIGEST);
+    if (isTdigest) {
+      return this.functionToString(
+          Function.newBuilder(function)
+              .removeArguments(0)
+              .setFunctionName(this.config.getTdigestPercentileAggregationFunction())
+              .addArguments(literalDouble((double) percentileValue / 100))
+              .build(),
+          argumentConverter);
+    } else {
+      return String.format(
+          this.config.getPercentileAggregationFunction(),
+          (double) percentileValue / 100,
+          argumentConverter.apply(expr));
+    }
   }
 
   private Function toPostgresConcat(Function function) {
