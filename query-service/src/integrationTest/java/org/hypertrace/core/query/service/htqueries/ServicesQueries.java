@@ -41,7 +41,7 @@ class ServicesQueries {
             "SERVICE.startTime",
             Operator.GE,
             ValueType.LONG,
-            System.currentTimeMillis() - Duration.ofDays(7).toMillis());
+            System.currentTimeMillis() - Duration.ofHours(1).toMillis());
     Filter filter2 =
         createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, System.currentTimeMillis());
     Filter filter3 = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");

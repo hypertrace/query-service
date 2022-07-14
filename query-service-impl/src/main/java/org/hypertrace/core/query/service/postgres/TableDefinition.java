@@ -1,6 +1,5 @@
 package org.hypertrace.core.query.service.postgres;
 
-import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigUtil;
 import com.typesafe.config.ConfigValue;
@@ -11,15 +10,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.hypertrace.core.query.service.api.ValueType;
 
 /** Class holding the configuration for a Postgres view/table. */
 public class TableDefinition {
-
-  static final String MAP_KEYS_SUFFIX = "__KEYS";
-  static final String MAP_VALUES_SUFFIX = "__VALUES";
 
   private static final String TABLE_NAME_CONFIG_KEY = "tableName";
   private static final String RETENTION_TIME_CONFIG_KEY = "retentionTimeMillis";
@@ -120,22 +115,16 @@ public class TableDefinition {
     for (Entry<String, String> entry : fieldMap.entrySet()) {
       String logicalName = entry.getKey();
       String physName = entry.getValue();
-      PostgresColumnSpec spec = new PostgresColumnSpec();
+      PostgresColumnSpec spec;
       // todo: replace this with call to attribute service
       if (mapFields.contains(physName)) {
-        spec.setType(ValueType.STRING_MAP);
-        // split them to 2 automatically here
-        spec.addColumnName(physName + MAP_KEYS_SUFFIX);
-        spec.addColumnName(physName + MAP_VALUES_SUFFIX);
+        spec = new PostgresColumnSpec(physName, ValueType.STRING_MAP);
       } else if (bytesFields.contains(physName)) {
-        spec.addColumnName(physName);
-        spec.setType(ValueType.BYTES);
+        spec = new PostgresColumnSpec(physName, ValueType.BYTES);
       } else if (tdigestFields.contains(physName)) {
-        spec.addColumnName(physName);
-        spec.setType(ValueType.TDIGEST);
+        spec = new PostgresColumnSpec(physName, ValueType.TDIGEST);
       } else {
-        spec.addColumnName(physName);
-        spec.setType(ValueType.STRING);
+        spec = new PostgresColumnSpec(physName, ValueType.STRING);
       }
       columnSpecMap.put(logicalName, spec);
     }
@@ -185,34 +174,20 @@ public class TableDefinition {
         || columnFilterMap.containsKey(referencedColumn);
   }
 
-  public List<String> getPhysicalColumnNames(String logicalColumnName) {
-    return columnSpecMap.get(logicalColumnName).getColumnNames();
+  public String getPhysicalColumnName(String logicalColumnName) {
+    return columnSpecMap.get(logicalColumnName).getColumnName();
   }
 
   public boolean isMap(String logicalName) {
     return (ValueType.STRING_MAP.equals(columnSpecMap.get(logicalName).getType()));
   }
 
+  public boolean isBytes(String logicalName) {
+    return (ValueType.BYTES.equals(columnSpecMap.get(logicalName).getType()));
+  }
+
   public ValueType getColumnType(String logicalName) {
     return columnSpecMap.get(logicalName).getType();
-  }
-
-  public String getKeyColumnNameForMap(String logicalName) {
-    List<String> keys = findPhysicalNameWithSuffix(logicalName, MAP_KEYS_SUFFIX);
-    Preconditions.checkArgument(keys.size() <= 1);
-    return keys.isEmpty() ? null : keys.get(0);
-  }
-
-  public String getValueColumnNameForMap(String logicalName) {
-    List<String> keys = findPhysicalNameWithSuffix(logicalName, MAP_VALUES_SUFFIX);
-    Preconditions.checkArgument(keys.size() <= 1);
-    return keys.isEmpty() ? null : keys.get(0);
-  }
-
-  private List<String> findPhysicalNameWithSuffix(String logicalName, String suffix) {
-    return columnSpecMap.get(logicalName).getColumnNames().stream()
-        .filter(e -> e.toUpperCase().endsWith(suffix))
-        .collect(Collectors.toList());
   }
 
   @Nonnull

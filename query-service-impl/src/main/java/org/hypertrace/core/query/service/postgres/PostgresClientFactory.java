@@ -36,6 +36,10 @@ public class PostgresClientFactory {
     return get().getPostgresClient(postgresCluster);
   }
 
+  public static PostgresClient createPostgresClient(Connection connection) {
+    return new PostgresClient(connection);
+  }
+
   public static PostgresClientFactory get() {
     return INSTANCE;
   }
@@ -60,6 +64,10 @@ public class PostgresClientFactory {
       LOG.info(
           "Trying to create a Postgres client connected to postgres server using url: {}", url);
       this.connection = DriverManager.getConnection(url);
+    }
+
+    private PostgresClient(Connection connection) {
+      this.connection = connection;
     }
 
     public ResultSet executeQuery(String statement, Params params) throws SQLException {
@@ -113,7 +121,7 @@ public class PostgresClientFactory {
       }
       String statement = sb.toString();
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Resolved PQL statement: [{}]", statement);
+        LOG.debug("Resolved SQL statement: [{}]", statement);
       }
       return statement;
     }

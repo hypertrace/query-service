@@ -11,7 +11,6 @@ import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import io.reactivex.rxjava3.core.Observable;
-import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -573,26 +572,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
       ResultSetMetaData metaData = resultSet.getMetaData();
       for (int colIdx = 1; colIdx <= metaData.getColumnCount(); colIdx++) {
-        if (metaData.getColumnName(colIdx).endsWith(TableDefinition.MAP_KEYS_SUFFIX)) {
-          // Read the key and value column values. The columns should be side by side. That's how
-          // the Postgres query
-          // is structured
-          String mapKeys = resultSet.getString(colIdx);
-          String mapVals = resultSet.getString(colIdx + 1);
-          try {
-            builder.addColumn(
-                Value.newBuilder().setString(postgresMapConverter.merge(mapKeys, mapVals)).build());
-          } catch (IOException ex) {
-            LOG.error("An error occurred while merging mapKeys and mapVals", ex);
-            throw new RuntimeException(
-                "An error occurred while parsing the Postgres Table format response", ex);
-          }
-          // advance colIdx by 1 since we have read 2 columns
-          colIdx++;
-        } else {
-          String val = resultSet.getString(colIdx);
-          builder.addColumn(Value.newBuilder().setString(val).build());
-        }
+        String val = resultSet.getString(colIdx);
+        builder.addColumn(Value.newBuilder().setString(val).build());
       }
     } while (resultSet.next());
   }

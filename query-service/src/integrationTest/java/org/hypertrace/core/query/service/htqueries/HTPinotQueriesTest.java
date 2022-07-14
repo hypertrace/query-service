@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.codec.binary.StringUtils;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
@@ -150,7 +151,6 @@ public class HTPinotQueriesTest {
                 Wait.forLogMessage(".*database system is ready to accept connections.*", 1));
     postgresqlService.start();
     postgresqlService.followOutput(logConsumer);
-    runSqlInPostgresDb("sql/raw-service-view-events.sql", "sql/raw-service-view-events-insert.sql");
 
     List<String> topicsNames =
         List.of(
@@ -174,6 +174,10 @@ public class HTPinotQueriesTest {
     LOG.info("Bootstrap Complete");
     assertTrue(generateData());
     LOG.info("Generate Data Complete");
+    runSqlInPostgresDb(
+        "sql/functions.sql",
+        "sql/raw-service-view-events.sql",
+        "sql/raw-service-view-events-insert.sql");
 
     withEnvironmentVariable("PINOT_CONNECTION_TYPE", "broker")
         .and("ZK_CONNECT_STR", "localhost:" + pinotServiceManager.getMappedPort(8099).toString())
@@ -196,12 +200,16 @@ public class HTPinotQueriesTest {
   private static void runSqlInPostgresDb(String... sqlFileNames)
       throws IOException, InterruptedException {
     int count = 0;
+    long currentTimeMillis = System.currentTimeMillis();
     for (String sqlFileName : sqlFileNames) {
       count++;
       byte[] resourceBytes;
       try (InputStream resourceAsStream =
           HTPinotQueriesTest.class.getClassLoader().getResourceAsStream(sqlFileName)) {
-        resourceBytes = IOUtils.toByteArray(resourceAsStream);
+        resourceBytes =
+            StringUtils.getBytesUtf8(
+                StringUtils.newStringUtf8(IOUtils.toByteArray(resourceAsStream))
+                    .replaceAll("START_TIME_MIILIS", String.valueOf(currentTimeMillis)));
       }
       if (resourceBytes != null) {
         postgresqlService.copyFileToContainer(
@@ -269,10 +277,6 @@ public class HTPinotQueriesTest {
   }
 
   private static boolean generateData() throws Exception {
-    return true;
-  }
-
-  private static boolean generateData1() throws Exception {
     // start view-gen service
     GenericContainer<?> viewGen =
         new GenericContainer(DockerImageName.parse("hypertrace/hypertrace-view-generator:main"))

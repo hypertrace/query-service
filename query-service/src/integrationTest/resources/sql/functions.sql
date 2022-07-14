@@ -1,0 +1,1 @@
+CREATE OR REPLACE FUNCTION dataTimeConvert (bigint, bigint) RETURNS bigint AS $$ select ((($1 + $2 - 1)/$2)*$2) $$ LANGUAGE SQL;

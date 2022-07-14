@@ -5,7 +5,6 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpr
 import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
-import com.google.common.base.Joiner;
 import com.google.protobuf.ByteString;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -35,14 +34,11 @@ class QueryRequestToPostgresSQLConverter {
       LoggerFactory.getLogger(QueryRequestToPostgresSQLConverter.class);
 
   private static final String QUESTION_MARK = "?";
-  private static final String REGEX_OPERATOR = "REGEXP_LIKE";
+  private static final String REGEX_OPERATOR = "LIKE";
   private static final String MAP_VALUE = "mapValue";
-  private static final int MAP_KEY_INDEX = 0;
-  private static final int MAP_VALUE_INDEX = 1;
 
   private final TableDefinition tableDefinition;
   private final PostgresFunctionConverter functionConverter;
-  private final Joiner joiner = Joiner.on(", ").skipNulls();
 
   QueryRequestToPostgresSQLConverter(
       TableDefinition tableDefinition, PostgresFunctionConverter functionConverter) {
@@ -142,58 +138,20 @@ class QueryRequestToPostgresSQLConverter {
       }
       builder.append(")");
     } else {
+      Expression rhs;
       switch (filter.getOperator()) {
         case LIKE:
-          // The like operation in PQL looks like `regexp_like(lhs, rhs)`
-          Expression rhs =
-              handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          builder.append(operator);
-          builder.append("(");
-          builder.append(
-              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
-          builder.append(",");
-          builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
-          builder.append(")");
-          break;
         case CONTAINS_KEY:
         case NOT_CONTAINS_KEY:
-          List<LiteralConstant> kvp = convertExpressionToMapLiterals(filter.getRhs());
-          builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
-          builder.append(" ");
-          builder.append(operator);
-          builder.append(" ");
-          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
-          break;
         case CONTAINS_KEYVALUE:
-          kvp = convertExpressionToMapLiterals(filter.getRhs());
-          String keyCol = convertExpressionToMapKeyColumn(filter.getLhs());
-          String valCol = convertExpressionToMapValueColumn(filter.getLhs());
-          builder.append(keyCol);
-          builder.append(" = ");
-          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
-          builder.append(" AND ");
-          builder.append(valCol);
-          builder.append(" = ");
-          builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder));
-          builder.append(" AND ");
-          builder.append(MAP_VALUE);
-          builder.append("(");
-          builder.append(keyCol);
-          builder.append(",");
-          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
-          builder.append(",");
-          builder.append(valCol);
-          builder.append(") = ");
-          builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder));
-          break;
         case CONTAINS_KEY_LIKE:
-          kvp = convertExpressionToMapLiterals(filter.getRhs());
+          builder.append(
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
+          builder.append(" ");
           builder.append(operator);
-          builder.append("(");
-          builder.append(convertExpressionToMapKeyColumn(filter.getLhs()));
-          builder.append(",");
-          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
-          builder.append(")");
+          builder.append(" ");
+          builder.append(
+              convertExpressionToString(filter.getRhs(), paramsBuilder, executionContext));
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
@@ -232,8 +190,7 @@ class QueryRequestToPostgresSQLConverter {
       throw new IllegalArgumentException(
           String.format(
               "Invalid input:{ %s } for bytes column:{ %s }",
-              rhs.getLiteral().getValue(),
-              tableDefinition.getPhysicalColumnNames(lhsColumnName).get(0)));
+              rhs.getLiteral().getValue(), tableDefinition.getPhysicalColumnName(lhsColumnName)));
     }
   }
 
@@ -280,15 +237,18 @@ class QueryRequestToPostgresSQLConverter {
       Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
-        // this takes care of the Map Type where it's split into 2 columns
-        List<String> columnNames =
-            tableDefinition.getPhysicalColumnNames(
-                getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new));
-        return joiner.join(columnNames);
+        String logicalColumnName =
+            getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new);
+        String columnName = tableDefinition.getPhysicalColumnName(logicalColumnName);
+        if (tableDefinition.isBytes(logicalColumnName)) {
+          return String.format("encode(%s, 'hex')", columnName);
+        } else if (tableDefinition.isBytes(logicalColumnName)) {
+          return String.format("CAST(%s as text)", columnName);
+        } else {
+          return columnName;
+        }
       case ATTRIBUTE_EXPRESSION:
         if (isAttributeExpressionWithSubpath(expression)) {
-          String keyCol = convertExpressionToMapKeyColumn(expression);
-          String valCol = convertExpressionToMapValueColumn(expression);
           String pathExpression = expression.getAttributeExpression().getSubpath();
           LiteralConstant pathExpressionLiteral =
               LiteralConstant.newBuilder()
@@ -298,15 +258,14 @@ class QueryRequestToPostgresSQLConverter {
           return String.format(
               "%s(%s,%s,%s)",
               MAP_VALUE,
-              keyCol,
+              "keyCol",
               convertLiteralToString(pathExpressionLiteral, paramsBuilder),
-              valCol);
+              "valCol");
         } else {
-          // this takes care of the Map Type where it's split into 2 columns
-          columnNames =
-              tableDefinition.getPhysicalColumnNames(
-                  getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new));
-          return joiner.join(columnNames);
+          String logColumnName =
+              getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new);
+          columnName = tableDefinition.getPhysicalColumnName(logColumnName);
+          return columnName;
         }
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
@@ -323,26 +282,6 @@ class QueryRequestToPostgresSQLConverter {
         break;
     }
     return "";
-  }
-
-  private String convertExpressionToMapKeyColumn(Expression expression) {
-    String col =
-        tableDefinition.getKeyColumnNameForMap(
-            getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new));
-    if (col != null && col.length() > 0) {
-      return col;
-    }
-    throw new IllegalArgumentException("operator supports multi value column only");
-  }
-
-  private String convertExpressionToMapValueColumn(Expression expression) {
-    String col =
-        tableDefinition.getValueColumnNameForMap(
-            getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new));
-    if (col != null && col.length() > 0) {
-      return col;
-    }
-    throw new IllegalArgumentException("operator supports multi value column only");
   }
 
   private List<LiteralConstant> convertExpressionToMapLiterals(Expression expression) {

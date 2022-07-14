@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.postgres.converters;
 
+import static org.hypertrace.core.query.service.QueryFunctionConstants.DATA_TIME_CONVERT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVGRATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
@@ -9,7 +10,9 @@ import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUN
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -50,13 +53,15 @@ public class PostgresFunctionConverter {
         // and reasonably accurate, so support selecting the implementation to use
         return this.toPostgresPercentile(function, argumentConverter);
       case QUERY_FUNCTION_DISTINCTCOUNT:
-        return this.functionToString(this.toPostgresDistinctCount(function), argumentConverter);
+        return this.toPostgresDistinctCount(function, argumentConverter);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPostgresConcat(function), argumentConverter);
       case QUERY_FUNCTION_AVGRATE:
         // AVGRATE not supported directly in Postgres. So AVG_RATE is computed by summing over all
         // values and then dividing by a constant.
         return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
+      case DATA_TIME_CONVERT:
+        return this.functionToDateTimeConvert(function, argumentConverter, executionContext);
       default:
         // TODO remove once postgres-specific logic removed from gateway - this normalization
         // reverts
@@ -66,6 +71,40 @@ public class PostgresFunctionConverter {
               executionContext, this.normalizeHardcodedPercentile(function), argumentConverter);
         }
         return this.functionToString(function, argumentConverter);
+    }
+  }
+
+  private String functionToDateTimeConvert(
+      Function function,
+      java.util.function.Function<Expression, String> argumentConverter,
+      ExecutionContext executionContext) {
+    List<Expression> argumentsList = function.getArgumentsList();
+    if (argumentsList.size() < 4) {
+      throw new IllegalArgumentException("Expected four arguments : " + function);
+    }
+    return String.format(
+        "%s(%s, %d)",
+        config.getDataTimeConvertFunction(),
+        argumentConverter.apply(argumentsList.get(0)),
+        getTimeInMillis(argumentsList.get(3).getLiteral().getValue().getString()));
+  }
+
+  private long getTimeInMillis(String period) {
+    int index = period.indexOf(":");
+    if (index == -1) {
+      throw new IllegalArgumentException("Unable to parse period : " + period);
+    }
+    int periodValue = Integer.parseInt(period.substring(0, index));
+    String timeUnit = period.substring(index + 1);
+    switch (timeUnit.toUpperCase()) {
+      case "SECONDS":
+        return TimeUnit.SECONDS.toMillis(periodValue);
+      case "MINUTES":
+        return TimeUnit.MINUTES.toMillis(periodValue);
+      case "HOURS":
+        return TimeUnit.HOURS.toMillis(periodValue);
+      default:
+        throw new UnsupportedOperationException("Unsupported time unit : " + timeUnit);
     }
   }
 
@@ -151,10 +190,11 @@ public class PostgresFunctionConverter {
     return Function.newBuilder(function).setFunctionName(POSTGRES_CONCAT_FUNCTION).build();
   }
 
-  private Function toPostgresDistinctCount(Function function) {
-    return Function.newBuilder(function)
-        .setFunctionName(this.config.getDistinctCountAggregationFunction())
-        .build();
+  private String toPostgresDistinctCount(
+      Function function, java.util.function.Function<Expression, String> argumentConverter) {
+    return String.format(
+        this.config.getDistinctCountAggregationFunction(),
+        argumentConverter.apply(function.getArgumentsList().get(0)));
   }
 
   private boolean isHardcodedPercentile(Function function) {
