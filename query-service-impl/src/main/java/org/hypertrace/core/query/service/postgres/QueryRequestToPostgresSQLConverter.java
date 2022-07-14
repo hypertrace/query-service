@@ -50,6 +50,7 @@ class QueryRequestToPostgresSQLConverter {
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
+    Context context = new Context();
     Builder paramsBuilder = Params.newBuilder();
     StringBuilder pqlBuilder = new StringBuilder("Select ");
     String delim = "";
@@ -59,16 +60,19 @@ class QueryRequestToPostgresSQLConverter {
       pqlBuilder.append("DISTINCT ");
     }
 
+    context.setSelect(true);
     // allSelections contain all the various expressions in QueryRequest that we want selections on.
     // Group bys, selections and aggregations in that order. See RequestAnalyzer#analyze() to see
     // how it is created.
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
-      pqlBuilder.append(convertExpressionToString(expr, paramsBuilder, executionContext));
+      pqlBuilder.append(convertExpressionToString(expr, paramsBuilder, executionContext, context));
       delim = ", ";
     }
 
     pqlBuilder.append(" FROM public.\"").append(tableDefinition.getTableName()).append("\"");
+
+    context.setSelect(false);
 
     // Add the tenantId filter
     pqlBuilder.append(" WHERE ").append(tableDefinition.getTenantIdColumn()).append(" = ?");
@@ -77,7 +81,7 @@ class QueryRequestToPostgresSQLConverter {
     if (request.hasFilter()) {
       pqlBuilder.append(" AND ");
       String filterClause =
-          convertFilterToString(request.getFilter(), paramsBuilder, executionContext);
+          convertFilterToString(request.getFilter(), paramsBuilder, executionContext, context);
       pqlBuilder.append(filterClause);
     }
 
@@ -87,7 +91,7 @@ class QueryRequestToPostgresSQLConverter {
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
         pqlBuilder.append(
-            convertExpressionToString(groupByExpression, paramsBuilder, executionContext));
+            convertExpressionToString(groupByExpression, paramsBuilder, executionContext, context));
         delim = ", ";
       }
     }
@@ -98,7 +102,7 @@ class QueryRequestToPostgresSQLConverter {
         pqlBuilder.append(delim);
         pqlBuilder.append(
             convertExpressionToString(
-                orderByExpression.getExpression(), paramsBuilder, executionContext));
+                orderByExpression.getExpression(), paramsBuilder, executionContext, context));
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
           pqlBuilder.append(" desc ");
         }
@@ -124,7 +128,7 @@ class QueryRequestToPostgresSQLConverter {
   }
 
   private String convertFilterToString(
-      Filter filter, Builder paramsBuilder, ExecutionContext executionContext) {
+      Filter filter, Builder paramsBuilder, ExecutionContext executionContext, Context context) {
     StringBuilder builder = new StringBuilder();
     String operator = convertOperatorToString(filter.getOperator());
     if (filter.getChildFilterCount() > 0) {
@@ -132,7 +136,8 @@ class QueryRequestToPostgresSQLConverter {
       builder.append("( ");
       for (Filter childFilter : filter.getChildFilterList()) {
         builder.append(delim);
-        builder.append(convertFilterToString(childFilter, paramsBuilder, executionContext));
+        builder.append(
+            convertFilterToString(childFilter, paramsBuilder, executionContext, context));
         builder.append(" ");
         delim = operator + " ";
       }
@@ -146,21 +151,21 @@ class QueryRequestToPostgresSQLConverter {
         case CONTAINS_KEYVALUE:
         case CONTAINS_KEY_LIKE:
           builder.append(
-              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext, context));
           builder.append(" ");
           builder.append(operator);
           builder.append(" ");
           builder.append(
-              convertExpressionToString(filter.getRhs(), paramsBuilder, executionContext));
+              convertExpressionToString(filter.getRhs(), paramsBuilder, executionContext, context));
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
           builder.append(
-              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext, context));
           builder.append(" ");
           builder.append(operator);
           builder.append(" ");
-          builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext));
+          builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext, context));
       }
     }
     return builder.toString();
@@ -234,15 +239,19 @@ class QueryRequestToPostgresSQLConverter {
   }
 
   private String convertExpressionToString(
-      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
+      Expression expression,
+      Builder paramsBuilder,
+      ExecutionContext executionContext,
+      Context context) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:
         String logicalColumnName =
             getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new);
         String columnName = tableDefinition.getPhysicalColumnName(logicalColumnName);
-        if (tableDefinition.isBytes(logicalColumnName)) {
+        context.setColumnValueType(tableDefinition.getColumnType(logicalColumnName));
+        if (context.isSelect() && context.isBytesColumnType()) {
           return String.format("encode(%s, 'hex')", columnName);
-        } else if (tableDefinition.isBytes(logicalColumnName)) {
+        } else if (context.isSelect() && context.isMapColumnType()) {
           return String.format("CAST(%s as text)", columnName);
         } else {
           return columnName;
@@ -259,7 +268,7 @@ class QueryRequestToPostgresSQLConverter {
               "%s(%s,%s,%s)",
               MAP_VALUE,
               "keyCol",
-              convertLiteralToString(pathExpressionLiteral, paramsBuilder),
+              convertLiteralToString(pathExpressionLiteral, paramsBuilder, context),
               "valCol");
         } else {
           String logColumnName =
@@ -268,16 +277,17 @@ class QueryRequestToPostgresSQLConverter {
           return columnName;
         }
       case LITERAL:
-        return convertLiteralToString(expression.getLiteral(), paramsBuilder);
+        return convertLiteralToString(expression.getLiteral(), paramsBuilder, context);
       case FUNCTION:
         return this.functionConverter.convert(
             executionContext,
             expression.getFunction(),
             argExpression ->
-                convertExpressionToString(argExpression, paramsBuilder, executionContext));
+                convertExpressionToString(argExpression, paramsBuilder, executionContext, context));
       case ORDERBY:
         OrderByExpression orderBy = expression.getOrderBy();
-        return convertExpressionToString(orderBy.getExpression(), paramsBuilder, executionContext);
+        return convertExpressionToString(
+            orderBy.getExpression(), paramsBuilder, executionContext, context);
       case VALUE_NOT_SET:
         break;
     }
@@ -312,8 +322,10 @@ class QueryRequestToPostgresSQLConverter {
   }
 
   /** TODO:Handle all types */
-  private String convertLiteralToString(LiteralConstant literal, Builder paramsBuilder) {
+  private String convertLiteralToString(
+      LiteralConstant literal, Builder paramsBuilder, Context context) {
     Value value = literal.getValue();
+    boolean isEmpty = false;
     String ret = null;
     switch (value.getValueType()) {
       case STRING_ARRAY:
@@ -363,6 +375,7 @@ class QueryRequestToPostgresSQLConverter {
       case BYTES:
         ret = QUESTION_MARK;
         paramsBuilder.addByteStringParam(value.getBytes());
+        isEmpty = value.getBytes().isEmpty();
         break;
       case BOOL:
         ret = QUESTION_MARK;
@@ -388,6 +401,34 @@ class QueryRequestToPostgresSQLConverter {
       case UNRECOGNIZED:
         break;
     }
+    if (ret != null && context.isBytesColumnType() && !isEmpty) {
+      ret = ret.replace("?", "decode(?, 'hex')");
+    }
     return ret;
+  }
+
+  class Context {
+    private boolean select;
+    private ValueType columnValueType;
+
+    public void setSelect(boolean select) {
+      this.select = select;
+    }
+
+    public void setColumnValueType(ValueType columnValueType) {
+      this.columnValueType = columnValueType;
+    }
+
+    boolean isSelect() {
+      return select;
+    }
+
+    boolean isBytesColumnType() {
+      return columnValueType != null && columnValueType.equals(ValueType.BYTES);
+    }
+
+    boolean isMapColumnType() {
+      return columnValueType != null && columnValueType.equals(ValueType.STRING_MAP);
+    }
   }
 }

@@ -92,7 +92,7 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "select encode(span_id, 'hex'), tags, request_headers "
+        "select encode(span_id, 'hex'), cast(tags as text), cast(request_headers as text) "
             + "FROM public.\"span-event-view\" "
             + "where "
             + tableDefinition.getTenantIdColumn()
@@ -455,7 +455,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
-            + " group by encode(span_id, 'hex') order by count(distinct encode(span_id, 'hex')) limit 15",
+            + " group by span_id order by count(distinct span_id) limit 15",
         tableDefinition,
         executionContext);
   }
@@ -481,11 +481,13 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND encode(span_id, 'hex') IN ('"
+            + "AND span_id IN ("
+            + "decode('"
             + spanId1
-            + "', '"
+            + "', 'hex'), "
+            + "decode('"
             + spanId2
-            + "')",
+            + "', 'hex'))",
         tableDefinition,
         executionContext);
   }
@@ -540,7 +542,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND encode(span_id, 'hex') LIKE '042e5523ff6b2506'",
+            + "AND span_id like decode('042e5523ff6b2506', 'hex')",
         tableDefinition,
         executionContext);
   }
@@ -556,7 +558,7 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT tags FROM public.\"span-event-view\" "
+        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -587,7 +589,7 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT tags FROM public.\"span-event-view\" "
+        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -618,7 +620,7 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT tags FROM public.\"span-event-view\" "
+        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -653,7 +655,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( encode(parent_span_id, 'hex') = '042e5523ff6b2506' ) limit 5",
+            + "AND ( parent_span_id = decode('042e5523ff6b2506', 'hex') ) limit 5",
         tableDefinition,
         executionContext);
   }
@@ -700,7 +702,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( encode(parent_span_id, 'hex') != '' ) limit 5",
+            + "AND ( parent_span_id != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
@@ -728,7 +730,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( encode(parent_span_id, 'hex') != '' ) limit 5",
+            + "AND ( parent_span_id != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
@@ -752,7 +754,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND encode(span_id, 'hex') IN ('042e5523ff6b2506')",
+            + "AND span_id in (decode('042e5523ff6b2506', 'hex'))",
         tableDefinition,
         executionContext);
   }
@@ -780,7 +782,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( encode(span_id, 'hex') != '' ) limit 5",
+            + "AND ( span_id != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
@@ -918,17 +920,8 @@ class QueryRequestToPostgresSQLConverterTest {
     TableDefinition tableDefinition = getDefaultTableDefinition();
     defaultMockingForExecutionContext();
 
-    assertSQLQuery(
-        queryRequest,
-        "select conditional('true',encode(span_id, 'hex'),'null'), conditional('true',duration_millis,0)"
-            + " FROM public.\"span-event-view\""
-            + " where "
-            + tableDefinition.getTenantIdColumn()
-            + " = '"
-            + TENANT_ID
-            + "' limit 15",
-        tableDefinition,
-        executionContext);
+    assertExceptionOnSQLQuery(
+        queryRequest, UnsupportedOperationException.class, "Unsupported function");
   }
 
   @Test
