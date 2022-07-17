@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -24,6 +25,7 @@ import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.postgres.Params.Builder;
 import org.hypertrace.core.query.service.postgres.converters.DestinationColumnValueConverter;
 import org.hypertrace.core.query.service.postgres.converters.PostgresFunctionConverter;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +37,8 @@ class QueryRequestToPostgresSQLConverter {
 
   private static final String QUESTION_MARK = "?";
   private static final String REGEX_OPERATOR = "LIKE";
-  private static final String MAP_VALUE = "mapValue";
+  private static final int MAP_KEY_INDEX = 0;
+  private static final int MAP_VALUE_INDEX = 1;
 
   private final TableDefinition tableDefinition;
   private final PostgresFunctionConverter functionConverter;
@@ -146,10 +149,6 @@ class QueryRequestToPostgresSQLConverter {
       Expression rhs;
       switch (filter.getOperator()) {
         case LIKE:
-        case CONTAINS_KEY:
-        case NOT_CONTAINS_KEY:
-        case CONTAINS_KEYVALUE:
-        case CONTAINS_KEY_LIKE:
           builder.append(
               convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext, context));
           builder.append(" ");
@@ -157,6 +156,44 @@ class QueryRequestToPostgresSQLConverter {
           builder.append(" ");
           builder.append(
               convertExpressionToString(filter.getRhs(), paramsBuilder, executionContext, context));
+          break;
+        case CONTAINS_KEY:
+          builder.append(
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext, context));
+          builder.append("->>");
+          builder.append(
+              convertLiteralToString(
+                  convertMapKeyExpressionToLiterals(filter.getRhs()), paramsBuilder, context));
+          builder.append(" IS NOT NULL");
+          break;
+        case NOT_CONTAINS_KEY:
+          builder.append(
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext, context));
+          builder.append("->>");
+          builder.append(
+              convertLiteralToString(
+                  convertMapKeyExpressionToLiterals(filter.getRhs()), paramsBuilder, context));
+          builder.append(" IS NULL");
+          break;
+        case CONTAINS_KEYVALUE:
+          List<LiteralConstant> kvp = convertMapKeyValueExpressionToLiterals(filter.getRhs());
+          builder.append(
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext, context));
+          builder.append("->>");
+          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder, context));
+          builder.append(" = ");
+          builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder, context));
+          break;
+        case CONTAINS_KEY_LIKE:
+          builder.append(
+              convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext, context));
+          builder.append("::jsonb::text");
+          builder.append(" ");
+          builder.append(operator);
+          builder.append(" ");
+          builder.append(
+              convertLiteralToString(
+                  convertMapLikeExpressionToLiterals(filter.getRhs()), paramsBuilder, context));
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
@@ -209,6 +246,7 @@ class QueryRequestToPostgresSQLConverter {
         return "NOT";
       case EQ:
       case CONTAINS_KEY:
+      case CONTAINS_KEYVALUE:
         return "=";
       case NEQ:
       case NOT_CONTAINS_KEY:
@@ -228,8 +266,6 @@ class QueryRequestToPostgresSQLConverter {
       case LIKE:
       case CONTAINS_KEY_LIKE:
         return REGEX_OPERATOR;
-      case CONTAINS_KEYVALUE:
-        return MAP_VALUE;
       case RANGE:
         throw new UnsupportedOperationException("RANGE NOT supported use >= and <=");
       case UNRECOGNIZED:
@@ -266,7 +302,7 @@ class QueryRequestToPostgresSQLConverter {
 
           return String.format(
               "%s(%s,%s,%s)",
-              MAP_VALUE,
+              "MAP_VALUE",
               "keyCol",
               convertLiteralToString(pathExpressionLiteral, paramsBuilder, context),
               "valCol");
@@ -294,31 +330,56 @@ class QueryRequestToPostgresSQLConverter {
     return "";
   }
 
-  private List<LiteralConstant> convertExpressionToMapLiterals(Expression expression) {
-    List<String> literals = new ArrayList<>(List.of("", ""));
+  private LiteralConstant convertMapKeyExpressionToLiterals(Expression expression) {
+    List<String> literals = new ArrayList<>(1);
+    if (expression.getValueCase() == LITERAL) {
+      LiteralConstant value = expression.getLiteral();
+      if (value.getValue().getValueType() == ValueType.STRING) {
+        literals.add(value.getValue().getString());
+      } else {
+        throw new IllegalArgumentException("Unsupported arguments for CONTAINS_KEY operator");
+      }
+    }
+    return getLiteralConstants(literals).get(0);
+  }
+
+  private List<LiteralConstant> convertMapKeyValueExpressionToLiterals(Expression expression) {
+    List<String> literals = new ArrayList<>(2);
     if (expression.getValueCase() == LITERAL) {
       LiteralConstant value = expression.getLiteral();
       if (value.getValue().getValueType() == ValueType.STRING_ARRAY
           && value.getValue().getStringArrayCount() == 2) {
-        literals.set(0, value.getValue().getStringArray(0));
-        literals.set(1, value.getValue().getStringArray(1));
-      } else if (value.getValue().getValueType() == ValueType.STRING) {
-        literals.set(0, value.getValue().getString());
+        literals.add(value.getValue().getStringArray(MAP_KEY_INDEX));
+        literals.add(value.getValue().getStringArray(MAP_VALUE_INDEX));
       } else {
-        throw new IllegalArgumentException(
-            "Unsupported arguments for CONTAINS_KEY / CONTAINS_KEYVALUE / CONTAINS_KEY_LIKE operator");
+        throw new IllegalArgumentException("Unsupported arguments for CONTAINS_KEYVALUE  operator");
       }
     }
+    return getLiteralConstants(literals);
+  }
 
-    List<LiteralConstant> literalConstantList = new ArrayList<>();
-    for (int i = 0; i < 2; i++) {
-      literalConstantList.add(
-          LiteralConstant.newBuilder()
-              .setValue(Value.newBuilder().setString(literals.get(i)).build())
-              .build());
+  private LiteralConstant convertMapLikeExpressionToLiterals(Expression expression) {
+    List<String> literals = new ArrayList<>(1);
+    if (expression.getValueCase() == LITERAL) {
+      LiteralConstant value = expression.getLiteral();
+      if (value.getValue().getValueType() == ValueType.STRING) {
+        literals.add("%\"" + value.getValue().getString() + "\":%");
+      } else {
+        throw new IllegalArgumentException("Unsupported arguments for CONTAINS_KEY_LIKE operator");
+      }
     }
+    return getLiteralConstants(literals).get(0);
+  }
 
-    return literalConstantList;
+  @NotNull
+  private List<LiteralConstant> getLiteralConstants(List<String> literals) {
+    return literals.stream()
+        .map(
+            literal ->
+                LiteralConstant.newBuilder()
+                    .setValue(Value.newBuilder().setString(literal))
+                    .build())
+        .collect(Collectors.toUnmodifiableList());
   }
 
   /** TODO:Handle all types */

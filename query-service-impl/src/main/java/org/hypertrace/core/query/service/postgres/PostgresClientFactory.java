@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.codec.binary.Hex;
 
 /*
- * Factory to create PostgresClient based on given zookeeper path.
+ * Factory to create PostgresClient based on postgres jdbc connection.
  */
 public class PostgresClientFactory {
 

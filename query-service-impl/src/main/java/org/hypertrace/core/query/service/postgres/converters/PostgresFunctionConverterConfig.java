@@ -20,7 +20,7 @@ public class PostgresFunctionConverterConfig {
       "percentile_cont(%f) within group (order by (%s) asc)";
   private static final String DEFAULT_TDIGEST_PERCENTILE_AGGREGATION_FUNCTION =
       "tdigest_percentile";
-  private static final String DEFAULT_DATE_TIME_CONVERT_FUNCTION = "dataTimeConvert";
+  private static final String DEFAULT_DATE_TIME_CONVERT_FUNCTION = "dateTimeConvert";
   private static final String DEFAULT_DISTINCT_COUNT_AGGREGATION_FUNCTION = "count(distinct %s)";
 
   String percentileAggregationFunction;

@@ -17,6 +17,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createS
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createTimestampFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
+import static org.hypertrace.core.query.service.QueryRequestUtil.createNotContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -564,7 +565,29 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags = 'flags'",
+            + "AND tags->>'flags' IS NOT NULL",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithNotContainsKeyOperator() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.tags"));
+    builder.setFilter(createNotContainsKeyFilter("Span.tags", "FLAGS"));
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        builder.build(),
+        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
+            + "WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags->>'flags' IS NULL",
         tableDefinition,
         executionContext);
   }
@@ -595,7 +618,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags mapvalue ('flags', '0')",
+            + "AND tags->>'flags' = '0'",
         tableDefinition,
         executionContext);
   }
@@ -606,7 +629,7 @@ class QueryRequestToPostgresSQLConverterTest {
     Expression spanTag = createColumnExpression("Span.tags").build();
     builder.addSelection(spanTag);
 
-    Expression tag = createStringLiteralValueExpression("my_tag_name.*");
+    Expression tag = createStringLiteralValueExpression("my_tag_name%");
     Filter likeFilter =
         Filter.newBuilder()
             .setOperator(Operator.CONTAINS_KEY_LIKE)
@@ -626,7 +649,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags like 'my_tag_name.*'",
+            + "AND tags::jsonb::text like '%\"my_tag_name%\":%'",
         tableDefinition,
         executionContext);
   }
