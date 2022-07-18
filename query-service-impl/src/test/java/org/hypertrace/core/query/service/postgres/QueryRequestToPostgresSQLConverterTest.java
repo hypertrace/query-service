@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.postgres;
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
@@ -650,6 +651,37 @@ class QueryRequestToPostgresSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND tags::jsonb::text like '%\"my_tag_name%\":%'",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithComplexKeyValueOperator() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression spanTag = createColumnExpression("Span.tags").build();
+    builder.addSelection(spanTag);
+
+    Expression spanTags = createComplexAttributeExpression("Span.tags", "FLAGS").build();
+    Filter filter =
+        Filter.newBuilder()
+            .setLhs(spanTags)
+            .setOperator(Operator.EQ)
+            .setRhs(createStringLiteralValueExpression("0"))
+            .build();
+    builder.setFilter(filter);
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        builder.build(),
+        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
+            + "WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND tags->>'flags' = '0'",
         tableDefinition,
         executionContext);
   }
