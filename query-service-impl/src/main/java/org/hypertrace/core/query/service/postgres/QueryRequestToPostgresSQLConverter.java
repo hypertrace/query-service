@@ -9,7 +9,6 @@ import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
 import org.hypertrace.core.query.service.postgres.Params.Builder;
-import org.hypertrace.core.query.service.postgres.converters.ColumnRequestContext;
 import org.hypertrace.core.query.service.postgres.converters.ColumnRequestConverter;
 import org.hypertrace.core.query.service.postgres.converters.ColumnRequestConverterFactory;
 import org.hypertrace.core.query.service.postgres.converters.PostgresFunctionConverter;
@@ -35,7 +34,6 @@ class QueryRequestToPostgresSQLConverter {
       ExecutionContext executionContext,
       QueryRequest request,
       LinkedHashSet<Expression> allSelections) {
-    ColumnRequestContext context = new ColumnRequestContext();
     ColumnRequestConverter columnRequestConverter =
         ColumnRequestConverterFactory.getColumnRequestConverter(tableDefinition, functionConverter);
     Builder paramsBuilder = Params.newBuilder();
@@ -47,21 +45,17 @@ class QueryRequestToPostgresSQLConverter {
       pqlBuilder.append("DISTINCT ");
     }
 
-    context.setQueryPart(ColumnRequestContext.QueryPart.SELECT);
     // allSelections contain all the various expressions in QueryRequest that we want selections on.
     // Group bys, selections and aggregations in that order. See RequestAnalyzer#analyze() to see
     // how it is created.
     for (Expression expr : allSelections) {
       pqlBuilder.append(delim);
       pqlBuilder.append(
-          columnRequestConverter.convertExpressionToString(
-              expr, paramsBuilder, executionContext, context));
+          columnRequestConverter.convertSelectClause(expr, paramsBuilder, executionContext));
       delim = ", ";
     }
 
     pqlBuilder.append(" FROM public.\"").append(tableDefinition.getTableName()).append("\"");
-
-    context.setQueryPart(ColumnRequestContext.QueryPart.WHERE);
 
     // Add the tenantId filter
     pqlBuilder.append(" WHERE ").append(tableDefinition.getTenantIdColumn()).append(" = ?");
@@ -70,33 +64,31 @@ class QueryRequestToPostgresSQLConverter {
     if (request.hasFilter()) {
       pqlBuilder.append(" AND ");
       String filterClause =
-          columnRequestConverter.convertFilterToString(
-              request.getFilter(), paramsBuilder, executionContext, context);
+          columnRequestConverter.convertFilterClause(
+              request.getFilter(), paramsBuilder, executionContext);
       pqlBuilder.append(filterClause);
     }
 
     if (request.getGroupByCount() > 0) {
-      context.setQueryPart(ColumnRequestContext.QueryPart.GROUP_BY);
       pqlBuilder.append(" GROUP BY ");
       delim = "";
       for (Expression groupByExpression : request.getGroupByList()) {
         pqlBuilder.append(delim);
         pqlBuilder.append(
-            columnRequestConverter.convertExpressionToString(
-                groupByExpression, paramsBuilder, executionContext, context));
+            columnRequestConverter.convertGroupByClause(
+                groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
       }
     }
 
     if (!request.getOrderByList().isEmpty()) {
-      context.setQueryPart(ColumnRequestContext.QueryPart.ORDER_BY);
       pqlBuilder.append(" ORDER BY ");
       delim = "";
       for (OrderByExpression orderByExpression : request.getOrderByList()) {
         pqlBuilder.append(delim);
         pqlBuilder.append(
-            columnRequestConverter.convertExpressionToString(
-                orderByExpression.getExpression(), paramsBuilder, executionContext, context));
+            columnRequestConverter.convertOrderByClause(
+                orderByExpression.getExpression(), paramsBuilder, executionContext));
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
           pqlBuilder.append(" desc ");
         }

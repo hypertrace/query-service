@@ -7,15 +7,15 @@ import org.hypertrace.core.query.service.postgres.Params.Builder;
 
 public interface ColumnRequestConverter {
 
-  String convertExpressionToString(
-      Expression expression,
-      Builder paramsBuilder,
-      ExecutionContext executionContext,
-      ColumnRequestContext context);
+  String convertSelectClause(
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext);
 
-  String convertFilterToString(
-      Filter filter,
-      Builder paramsBuilder,
-      ExecutionContext executionContext,
-      ColumnRequestContext context);
+  String convertFilterClause(
+      Filter filter, Builder paramsBuilder, ExecutionContext executionContext);
+
+  String convertGroupByClause(
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext);
+
+  String convertOrderByClause(
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext);
 }

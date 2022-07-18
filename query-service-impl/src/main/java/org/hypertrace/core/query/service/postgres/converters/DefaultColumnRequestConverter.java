@@ -4,6 +4,11 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColum
 import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionWithSubpath;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
+import static org.hypertrace.core.query.service.postgres.converters.ColumnRequestContext.QueryPart.FILTER;
+import static org.hypertrace.core.query.service.postgres.converters.ColumnRequestContext.QueryPart.GROUP_BY;
+import static org.hypertrace.core.query.service.postgres.converters.ColumnRequestContext.QueryPart.ORDER_BY;
+import static org.hypertrace.core.query.service.postgres.converters.ColumnRequestContext.QueryPart.SELECT;
+import static org.hypertrace.core.query.service.postgres.converters.ColumnRequestContext.createColumnRequestContext;
 
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
@@ -43,7 +48,35 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     this.functionConverter = functionConverter;
   }
 
-  public String convertFilterToString(
+  @Override
+  public String convertSelectClause(
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
+    return convertExpressionToString(
+        expression, paramsBuilder, executionContext, createColumnRequestContext(SELECT));
+  }
+
+  @Override
+  public String convertFilterClause(
+      Filter filter, Builder paramsBuilder, ExecutionContext executionContext) {
+    return convertFilterToString(
+        filter, paramsBuilder, executionContext, createColumnRequestContext(FILTER));
+  }
+
+  @Override
+  public String convertGroupByClause(
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
+    return convertExpressionToString(
+        expression, paramsBuilder, executionContext, createColumnRequestContext(GROUP_BY));
+  }
+
+  @Override
+  public String convertOrderByClause(
+      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
+    return convertExpressionToString(
+        expression, paramsBuilder, executionContext, createColumnRequestContext(ORDER_BY));
+  }
+
+  private String convertFilterToString(
       Filter filter,
       Builder paramsBuilder,
       ExecutionContext executionContext,
@@ -186,7 +219,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     }
   }
 
-  public String convertExpressionToString(
+  private String convertExpressionToString(
       Expression expression,
       Builder paramsBuilder,
       ExecutionContext executionContext,

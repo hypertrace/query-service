@@ -2,15 +2,19 @@ package org.hypertrace.core.query.service.postgres.converters;
 
 import org.hypertrace.core.query.service.api.ValueType;
 
-public class ColumnRequestContext {
+class ColumnRequestContext {
   private QueryPart queryPart;
   private ValueType columnValueType;
 
-  public void setQueryPart(QueryPart queryPart) {
+  private ColumnRequestContext(QueryPart queryPart) {
     this.queryPart = queryPart;
   }
 
-  public void setColumnValueType(ValueType columnValueType) {
+  static ColumnRequestContext createColumnRequestContext(QueryPart queryPart) {
+    return new ColumnRequestContext(queryPart);
+  }
+
+  void setColumnValueType(ValueType columnValueType) {
     this.columnValueType = columnValueType;
   }
 
@@ -26,9 +30,9 @@ public class ColumnRequestContext {
     return columnValueType != null && columnValueType.equals(ValueType.STRING_MAP);
   }
 
-  public enum QueryPart {
+  enum QueryPart {
     SELECT,
-    WHERE,
+    FILTER,
     ORDER_BY,
     GROUP_BY
   }
