@@ -5,8 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Holds the params that need to be set in the PreparedStatement for constructing the final PQL
- * query
+ * Holds the params that need to be set in the PreparedStatement for constructing the final SQL
+ * query in postgres
  */
 public class Params {
 

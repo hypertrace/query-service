@@ -19,21 +19,16 @@ class PostgresResultAnalyzer {
   /* Stores the Non-Map Attributes logical name to Physical Name index */
   private final Map<String, Integer> logicalNameToPhysicalNameIndex;
   private final ResultSet resultSet;
-  private final TableDefinition tableDefinition;
   private final Map<String, RateLimiter> attributeLogRateLimitter;
-  private final PostgresMapConverter postgresMapConverter;
 
   PostgresResultAnalyzer(
       ResultSet resultSet,
       LinkedHashSet<String> selectedAttributes,
-      TableDefinition tableDefinition,
       Map<String, Integer> logicalNameToPhysicalNameIndex) {
     this.logicalNameToPhysicalNameIndex = logicalNameToPhysicalNameIndex;
     this.resultSet = resultSet;
-    this.tableDefinition = tableDefinition;
     this.attributeLogRateLimitter = new HashMap<>();
     selectedAttributes.forEach(e -> attributeLogRateLimitter.put(e, RateLimiter.create(0.5)));
-    this.postgresMapConverter = new PostgresMapConverter();
   }
 
   /** For each selected attributes build the map of logical name to result index. */
@@ -57,7 +52,7 @@ class PostgresResultAnalyzer {
     }
     LOG.info("Attributes to Index: {}", logicalNameToPhysicalNameIndex);
     return new PostgresResultAnalyzer(
-        resultSet, selectedAttributes, tableDefinition, logicalNameToPhysicalNameIndex);
+        resultSet, selectedAttributes, logicalNameToPhysicalNameIndex);
   }
 
   @VisibleForTesting

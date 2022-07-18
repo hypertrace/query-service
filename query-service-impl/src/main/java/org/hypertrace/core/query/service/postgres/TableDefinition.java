@@ -178,14 +178,6 @@ public class TableDefinition {
     return columnSpecMap.get(logicalColumnName).getColumnName();
   }
 
-  public boolean isMap(String logicalName) {
-    return (ValueType.STRING_MAP.equals(columnSpecMap.get(logicalName).getType()));
-  }
-
-  public boolean isBytes(String logicalName) {
-    return (ValueType.BYTES.equals(columnSpecMap.get(logicalName).getType()));
-  }
-
   public ValueType getColumnType(String logicalName) {
     return columnSpecMap.get(logicalName).getType();
   }

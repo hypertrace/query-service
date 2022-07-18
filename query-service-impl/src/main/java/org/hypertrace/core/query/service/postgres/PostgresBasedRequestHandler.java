@@ -65,7 +65,6 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private TableDefinition tableDefinition;
   private Optional<String> startTimeAttributeName;
   private QueryRequestToPostgresSQLConverter request2PostgresSqlConverter;
-  private final PostgresMapConverter postgresMapConverter;
   // The implementations of ResultSet are package private and hence there's no way to determine the
   // shape of the results
   // other than to do string comparison on the simple class names. In order to be able to unit test
@@ -97,7 +96,6 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     this.name = name;
     this.resultSetTypePredicateProvider = resultSetTypePredicateProvider;
     this.postgresClientFactory = postgresClientFactory;
-    this.postgresMapConverter = new PostgresMapConverter();
     this.processConfig(config);
   }
 
