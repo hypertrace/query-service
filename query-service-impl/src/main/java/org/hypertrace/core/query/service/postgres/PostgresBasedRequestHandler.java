@@ -384,11 +384,11 @@ public class PostgresBasedRequestHandler implements RequestHandler {
         request = originalRequest;
       }
 
-      Entry<String, Params> pql =
+      Entry<String, Params> sql =
           request2PostgresSqlConverter.toSQL(
               executionContext, request, executionContext.getAllSelections());
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Trying to execute PQL: [ {} ] by RequestHandler: [ {} ]", pql, this.getName());
+        LOG.debug("Trying to execute SQL: [ {} ] by RequestHandler: [ {} ]", sql, this.getName());
       }
       final PostgresClient postgresClient = postgresClientFactory.getPostgresClient(this.getName());
 
@@ -396,10 +396,10 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       try {
         resultSet =
             postgresQueryExecutionTimer.recordCallable(
-                () -> postgresClient.executeQuery(pql.getKey(), pql.getValue()));
+                () -> postgresClient.executeQuery(sql.getKey(), sql.getValue()));
       } catch (Exception ex) {
         // Catch this exception to log the Postgres SQL query that caused the issue
-        LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
+        LOG.error("An error occurred while executing: {}", sql.getKey(), ex);
         // Rethrow for the caller to return an error.
         throw new RuntimeException(ex);
       }
@@ -417,7 +417,7 @@ public class PostgresBasedRequestHandler implements RequestHandler {
                     LOG.warn(
                         "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}, executionStats: {}",
                         requestTimeMs,
-                        pql.getKey(),
+                        sql.getKey(),
                         protoJsonPrinter.print(request),
                         "Stats not available");
                   } catch (InvalidProtocolBufferException ignore) {
@@ -520,18 +520,18 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     } while (resultSet.next());
   }
 
+  // TODO - Need to validate and fix this function
   private void handleAggregationAndGroupBy(ResultSet resultSet, List<Builder> rowBuilderList)
       throws SQLException {
     Map<String, Integer> groupKey2RowIdMap = new HashMap<>();
     do {
       Builder builder;
-      //
-      int groupKeyLength = 0; // resultSet.getGroupKeyLength();
+      int groupKeyLength = 0;
       String groupKey;
       StringBuilder groupKeyBuilder = new StringBuilder();
       String groupKeyDelim = "";
       for (int g = 0; g < groupKeyLength; g++) {
-        String colVal = ""; // resultSet.getGroupKeyString(rowId, g);
+        String colVal = "";
         groupKeyBuilder.append(groupKeyDelim).append(colVal);
         groupKeyDelim = "|";
       }
@@ -539,9 +539,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       if (!groupKey2RowIdMap.containsKey(groupKey)) {
         builder = Row.newBuilder();
         rowBuilderList.add(builder);
-        // groupKey2RowIdMap.put(groupKey, rowId);
         for (int g = 0; g < groupKeyLength; g++) {
-          String colVal = ""; // resultSet.getGroupKeyString(g);
+          String colVal = "";
           // add it only the first time
           builder.addColumn(Value.newBuilder().setString(colVal).build());
           groupKeyBuilder.append(colVal).append(groupKeyDelim);
@@ -591,7 +590,6 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     }
 
     // Validate attribute expressions
-
     validateAttributeExpressionFilter(request.getFilter());
 
     for (Expression expression : executionContext.getAllSelections()) {

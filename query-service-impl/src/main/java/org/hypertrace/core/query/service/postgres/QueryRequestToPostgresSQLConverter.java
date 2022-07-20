@@ -37,44 +37,44 @@ class QueryRequestToPostgresSQLConverter {
     ColumnRequestConverter columnRequestConverter =
         ColumnRequestConverterFactory.getColumnRequestConverter(tableDefinition, functionConverter);
     Builder paramsBuilder = Params.newBuilder();
-    StringBuilder pqlBuilder = new StringBuilder("Select ");
+    StringBuilder sqlBuilder = new StringBuilder("Select ");
     String delim = "";
 
     // Set the DISTINCT keyword if the request has set distinctSelections.
     if (request.getDistinctSelections()) {
-      pqlBuilder.append("DISTINCT ");
+      sqlBuilder.append("DISTINCT ");
     }
 
     // allSelections contain all the various expressions in QueryRequest that we want selections on.
     // Group bys, selections and aggregations in that order. See RequestAnalyzer#analyze() to see
     // how it is created.
     for (Expression expr : allSelections) {
-      pqlBuilder.append(delim);
-      pqlBuilder.append(
+      sqlBuilder.append(delim);
+      sqlBuilder.append(
           columnRequestConverter.convertSelectClause(expr, paramsBuilder, executionContext));
       delim = ", ";
     }
 
-    pqlBuilder.append(" FROM public.\"").append(tableDefinition.getTableName()).append("\"");
+    sqlBuilder.append(" FROM public.\"").append(tableDefinition.getTableName()).append("\"");
 
     // Add the tenantId filter
-    pqlBuilder.append(" WHERE ").append(tableDefinition.getTenantIdColumn()).append(" = ?");
+    sqlBuilder.append(" WHERE ").append(tableDefinition.getTenantIdColumn()).append(" = ?");
     paramsBuilder.addStringParam(executionContext.getTenantId());
 
     if (request.hasFilter()) {
-      pqlBuilder.append(" AND ");
+      sqlBuilder.append(" AND ");
       String filterClause =
           columnRequestConverter.convertFilterClause(
               request.getFilter(), paramsBuilder, executionContext);
-      pqlBuilder.append(filterClause);
+      sqlBuilder.append(filterClause);
     }
 
     if (request.getGroupByCount() > 0) {
-      pqlBuilder.append(" GROUP BY ");
+      sqlBuilder.append(" GROUP BY ");
       delim = "";
       for (Expression groupByExpression : request.getGroupByList()) {
-        pqlBuilder.append(delim);
-        pqlBuilder.append(
+        sqlBuilder.append(delim);
+        sqlBuilder.append(
             columnRequestConverter.convertGroupByClause(
                 groupByExpression, paramsBuilder, executionContext));
         delim = ", ";
@@ -82,34 +82,34 @@ class QueryRequestToPostgresSQLConverter {
     }
 
     if (!request.getOrderByList().isEmpty()) {
-      pqlBuilder.append(" ORDER BY ");
+      sqlBuilder.append(" ORDER BY ");
       delim = "";
       for (OrderByExpression orderByExpression : request.getOrderByList()) {
-        pqlBuilder.append(delim);
-        pqlBuilder.append(
+        sqlBuilder.append(delim);
+        sqlBuilder.append(
             columnRequestConverter.convertOrderByClause(
                 orderByExpression.getExpression(), paramsBuilder, executionContext));
         if (SortOrder.DESC.equals(orderByExpression.getOrder())) {
-          pqlBuilder.append(" desc ");
+          sqlBuilder.append(" desc ");
         }
         delim = ", ";
       }
     }
     if (request.getLimit() > 0) {
       if (request.getOffset() > 0) {
-        pqlBuilder
+        sqlBuilder
             .append(" limit ")
             .append(request.getOffset())
             .append(", ")
             .append(request.getLimit());
       } else {
-        pqlBuilder.append(" limit ").append(request.getLimit());
+        sqlBuilder.append(" limit ").append(request.getLimit());
       }
     }
 
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Converted QueryRequest to Postgres SQL: {}", pqlBuilder);
+      LOG.debug("Converted QueryRequest to Postgres SQL: {}", sqlBuilder);
     }
-    return new SimpleEntry<>(pqlBuilder.toString(), paramsBuilder.build());
+    return new SimpleEntry<>(sqlBuilder.toString(), paramsBuilder.build());
   }
 }

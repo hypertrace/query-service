@@ -118,13 +118,13 @@ public class TableDefinition {
       PostgresColumnSpec spec;
       // todo: replace this with call to attribute service
       if (mapFields.contains(physName)) {
-        spec = new PostgresColumnSpec(physName, ValueType.STRING_MAP);
+        spec = new PostgresColumnSpec(physName, ValueType.STRING_MAP, false);
       } else if (bytesFields.contains(physName)) {
-        spec = new PostgresColumnSpec(physName, ValueType.BYTES);
+        spec = new PostgresColumnSpec(physName, ValueType.BYTES, false);
       } else if (tdigestFields.contains(physName)) {
-        spec = new PostgresColumnSpec(physName, ValueType.TDIGEST);
+        spec = new PostgresColumnSpec(physName, null, true);
       } else {
-        spec = new PostgresColumnSpec(physName, ValueType.STRING);
+        spec = new PostgresColumnSpec(physName, ValueType.STRING, false);
       }
       columnSpecMap.put(logicalName, spec);
     }
@@ -180,6 +180,10 @@ public class TableDefinition {
 
   public ValueType getColumnType(String logicalName) {
     return columnSpecMap.get(logicalName).getType();
+  }
+
+  public boolean isTdigestColumnType(String logicalName) {
+    return columnSpecMap.get(logicalName).isTdigest();
   }
 
   @Nonnull

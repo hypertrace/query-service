@@ -1,6 +1,6 @@
 package org.hypertrace.core.query.service.postgres.converters;
 
-import static org.hypertrace.core.query.service.QueryFunctionConstants.DATA_TIME_CONVERT;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.DATE_TIME_CONVERT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVGRATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL;
@@ -50,8 +50,7 @@ public class PostgresFunctionConverter {
         return this.convertCount();
       case QUERY_FUNCTION_PERCENTILE:
         // Computing PERCENTILE in Postgres is resource intensive. T-Digest calculation is much
-        // faster
-        // and reasonably accurate, so support selecting the implementation to use
+        // faster and reasonably accurate, so support selecting the implementation to use
         return this.toPostgresPercentile(function, argumentConverter);
       case QUERY_FUNCTION_DISTINCTCOUNT:
         return this.toPostgresDistinctCount(function, argumentConverter);
@@ -61,7 +60,7 @@ public class PostgresFunctionConverter {
         // AVGRATE not supported directly in Postgres. So AVG_RATE is computed by summing over all
         // values and then dividing by a constant.
         return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
-      case DATA_TIME_CONVERT:
+      case DATE_TIME_CONVERT:
         return this.functionToDateTimeConvert(function, argumentConverter, executionContext);
       case QUERY_FUNCTION_CONDITIONAL:
         throw new UnsupportedOperationException("Unsupported function " + function);
@@ -168,9 +167,7 @@ public class PostgresFunctionConverter {
             .orElseThrow(
                 () -> new IllegalArgumentException("Attribute expression not found : " + function));
     boolean isTdigest =
-        tableDefinition
-            .getColumnType(expr.getAttributeExpression().getAttributeId())
-            .equals(ValueType.TDIGEST);
+        tableDefinition.isTdigestColumnType(expr.getAttributeExpression().getAttributeId());
     if (isTdigest) {
       return this.functionToString(
           Function.newBuilder(function)

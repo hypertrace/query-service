@@ -7,4 +7,5 @@ import org.hypertrace.core.query.service.api.ValueType;
 public class PostgresColumnSpec {
   String columnName;
   ValueType type;
+  boolean isTdigest;
 }
