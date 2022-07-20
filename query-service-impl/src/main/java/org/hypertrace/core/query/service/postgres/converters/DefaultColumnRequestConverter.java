@@ -190,8 +190,6 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case NOT:
         return "NOT";
       case EQ:
-      case CONTAINS_KEY:
-      case CONTAINS_KEYVALUE:
         return "=";
       case NEQ:
       case NOT_CONTAINS_KEY:
@@ -211,6 +209,9 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case LIKE:
       case CONTAINS_KEY_LIKE:
         return REGEX_OPERATOR;
+      case CONTAINS_KEY:
+      case CONTAINS_KEYVALUE:
+        return "";
       case RANGE:
         throw new UnsupportedOperationException("RANGE NOT supported use >= and <=");
       case UNRECOGNIZED:

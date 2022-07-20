@@ -69,7 +69,7 @@ public class TableDefinition {
 
   public static TableDefinition parse(
       Config config, String tenantColumnName, String countColumnName) {
-    String viewName = config.getString(TABLE_NAME_CONFIG_KEY);
+    String tableName = config.getString(TABLE_NAME_CONFIG_KEY);
     long retentionTimeMillis =
         config.hasPath(RETENTION_TIME_CONFIG_KEY)
             ? config.getLong(RETENTION_TIME_CONFIG_KEY)
@@ -140,7 +140,7 @@ public class TableDefinition {
     }
 
     return new TableDefinition(
-        viewName,
+        tableName,
         retentionTimeMillis,
         timeGranularityMillis,
         columnSpecMap,

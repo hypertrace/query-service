@@ -286,7 +286,8 @@ class QueryRequestToPostgresSQLConverterTest {
   @Test
   void testQueryWithTimestampFilter() {
     QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(createTimestampFilter("Span.is_entry", Operator.EQ, 123456));
+        buildSimpleQueryWithFilter(
+            createTimestampFilter("Span.start_time_millis", Operator.EQ, 123456));
     TableDefinition tableDefinition = getDefaultTableDefinition();
     defaultMockingForExecutionContext();
 
@@ -297,7 +298,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND is_entry = 123456",
+            + "AND start_time_millis = 123456",
         tableDefinition,
         executionContext);
   }
@@ -334,15 +335,15 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "order by start_time_millis desc , end_time_millis limit 1000, 100",
+            + "order by start_time_millis desc , end_time_millis offset 1000 limit 100",
         tableDefinition,
         executionContext);
   }
 
   @Test
   void testQueryWithGroupByWithMultipleAggregates() {
-    QueryRequest orderByQueryRequest = buildMultipleGroupByMultipleAggQuery();
-    Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
+    QueryRequest groupByQueryRequest = buildMultipleGroupByMultipleAggQuery();
+    Builder builder = QueryRequest.newBuilder(groupByQueryRequest);
     builder.setLimit(20);
     TableDefinition tableDefinition = getDefaultTableDefinition();
     defaultMockingForExecutionContext();

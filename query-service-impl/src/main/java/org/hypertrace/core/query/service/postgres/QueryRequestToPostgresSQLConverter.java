@@ -98,9 +98,9 @@ class QueryRequestToPostgresSQLConverter {
     if (request.getLimit() > 0) {
       if (request.getOffset() > 0) {
         sqlBuilder
-            .append(" limit ")
+            .append(" offset ")
             .append(request.getOffset())
-            .append(", ")
+            .append(" limit ")
             .append(request.getLimit());
       } else {
         sqlBuilder.append(" limit ").append(request.getLimit());
