@@ -124,10 +124,10 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     }
 
     String tenantColumnName = config.getString(TENANT_COLUMN_NAME_CONFIG_KEY);
-    String countColumnName =
+    Optional<String> countColumnName =
         config.hasPath(COUNT_COLUMN_NAME_CONFIG_KEY)
-            ? config.getString(COUNT_COLUMN_NAME_CONFIG_KEY)
-            : null;
+            ? Optional.of(config.getString(COUNT_COLUMN_NAME_CONFIG_KEY))
+            : Optional.empty();
 
     this.tableDefinition =
         TableDefinition.parse(

@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
@@ -41,7 +42,7 @@ public class TableDefinition {
   private final String tenantColumnName;
 
   /** The name of the column which should be used to get count */
-  private final String countColumnName;
+  private final Optional<String> countColumnName;
 
   /**
    * Map from column name to the ViewColumnFilter that's applied to this view for that column. All
@@ -56,7 +57,7 @@ public class TableDefinition {
       long timeGranularityMillis,
       Map<String, PostgresColumnSpec> columnSpecMap,
       String tenantColumnName,
-      String countColumnName,
+      Optional<String> countColumnName,
       Map<String, TableColumnFilter> filterMap) {
     this.tableName = tableName;
     this.retentionTimeMillis = retentionTimeMillis;
@@ -68,7 +69,7 @@ public class TableDefinition {
   }
 
   public static TableDefinition parse(
-      Config config, String tenantColumnName, String countColumnName) {
+      Config config, String tenantColumnName, Optional<String> countColumnName) {
     String tableName = config.getString(TABLE_NAME_CONFIG_KEY);
     long retentionTimeMillis =
         config.hasPath(RETENTION_TIME_CONFIG_KEY)
@@ -122,7 +123,7 @@ public class TableDefinition {
       } else if (bytesFields.contains(physName)) {
         spec = new PostgresColumnSpec(physName, ValueType.BYTES, false);
       } else if (tdigestFields.contains(physName)) {
-        spec = new PostgresColumnSpec(physName, null, true);
+        spec = new PostgresColumnSpec(physName, ValueType.STRING, true);
       } else {
         spec = new PostgresColumnSpec(physName, ValueType.STRING, false);
       }
@@ -165,7 +166,7 @@ public class TableDefinition {
     return tenantColumnName;
   }
 
-  public String getCountColumnName() {
+  public Optional<String> getCountColumnName() {
     return countColumnName;
   }
 

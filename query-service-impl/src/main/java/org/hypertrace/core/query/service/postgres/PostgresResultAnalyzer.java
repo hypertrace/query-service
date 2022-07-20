@@ -37,19 +37,19 @@ class PostgresResultAnalyzer {
       LinkedHashSet<String> selectedAttributes,
       TableDefinition tableDefinition)
       throws SQLException {
-    Map<String, Integer> logicalNameToPhysicalNameIndex = new HashMap<>();
-
-    for (String logicalName : selectedAttributes) {
-      String name = tableDefinition.getPhysicalColumnName(logicalName);
-      ResultSetMetaData metaData = resultSet.getMetaData();
-      for (int colIndex = 0; colIndex < metaData.getColumnCount(); colIndex++) {
-        String physName = metaData.getColumnName(colIndex);
-        if (physName.equalsIgnoreCase(name)) {
-          logicalNameToPhysicalNameIndex.put(logicalName, colIndex);
-          break;
-        }
-      }
+    Map<String, Integer> physicalNameColIndexMap = new HashMap<>();
+    ResultSetMetaData metaData = resultSet.getMetaData();
+    for (int colIndex = 0; colIndex < metaData.getColumnCount(); colIndex++) {
+      String physName = metaData.getColumnName(colIndex);
+      physicalNameColIndexMap.put(physName, colIndex);
     }
+
+    Map<String, Integer> logicalNameToPhysicalNameIndex = new HashMap<>();
+    for (String logicalName : selectedAttributes) {
+      String physName = tableDefinition.getPhysicalColumnName(logicalName);
+      logicalNameToPhysicalNameIndex.put(logicalName, physicalNameColIndexMap.get(physName));
+    }
+
     LOG.info("Attributes to Index: {}", logicalNameToPhysicalNameIndex);
     return new PostgresResultAnalyzer(
         resultSet, selectedAttributes, logicalNameToPhysicalNameIndex);

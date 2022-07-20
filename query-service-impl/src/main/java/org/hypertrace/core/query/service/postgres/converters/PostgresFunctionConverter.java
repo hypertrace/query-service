@@ -24,7 +24,7 @@ import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.postgres.TableDefinition;
 
 public class PostgresFunctionConverter {
-  private static final String POSTGRES_CONCAT_FUNCTION = "CONCATSKIPNULL";
+  private static final String CONCAT_FUNCTION = "CONCATSKIPNULL";
   private static final String DEFAULT_AVG_RATE_SIZE = "PT1S";
   private static final String SUM_FUNCTION = "SUM";
 
@@ -49,16 +49,14 @@ public class PostgresFunctionConverter {
       case QUERY_FUNCTION_COUNT:
         return this.convertCount();
       case QUERY_FUNCTION_PERCENTILE:
-        // Computing PERCENTILE in Postgres is resource intensive. T-Digest calculation is much
-        // faster and reasonably accurate, so support selecting the implementation to use
-        return this.toPostgresPercentile(function, argumentConverter);
+        return this.toPercentile(function, argumentConverter);
       case QUERY_FUNCTION_DISTINCTCOUNT:
-        return this.toPostgresDistinctCount(function, argumentConverter);
+        return this.toDistinctCount(function, argumentConverter);
       case QUERY_FUNCTION_CONCAT:
-        return this.functionToString(this.toPostgresConcat(function), argumentConverter);
+        return this.functionToString(this.toConcat(function), argumentConverter);
       case QUERY_FUNCTION_AVGRATE:
-        // AVGRATE not supported directly in Postgres. So AVG_RATE is computed by summing over all
-        // values and then dividing by a constant.
+        // Average rate is not supported directly in Postgres. So average rate is computed by
+        // summing over all values and then dividing by a constant.
         return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
       case DATE_TIME_CONVERT:
         return this.functionToDateTimeConvert(function, argumentConverter, executionContext);
@@ -66,8 +64,7 @@ public class PostgresFunctionConverter {
         throw new UnsupportedOperationException("Unsupported function " + function);
       default:
         // TODO remove once postgres-specific logic removed from gateway - this normalization
-        // reverts
-        // that logic
+        // reverts that logic
         if (this.isHardcodedPercentile(function)) {
           return this.convert(
               executionContext, this.normalizeHardcodedPercentile(function), argumentConverter);
@@ -143,14 +140,14 @@ public class PostgresFunctionConverter {
   }
 
   private String convertCount() {
-    if (tableDefinition.getCountColumnName() != null) {
-      return SUM_FUNCTION + "(" + tableDefinition.getCountColumnName() + ")";
+    if (tableDefinition.getCountColumnName().isPresent()) {
+      return SUM_FUNCTION + "(" + tableDefinition.getCountColumnName().get() + ")";
     } else {
       return "COUNT(*)";
     }
   }
 
-  private String toPostgresPercentile(
+  private String toPercentile(
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     int percentileValue =
         this.getPercentileValueFromFunction(function)
@@ -184,13 +181,11 @@ public class PostgresFunctionConverter {
     }
   }
 
-  private Function toPostgresConcat(Function function) {
-    // We don't want to use postgres's built in concat, it has different null behavior.
-    // Instead, use our custom UDF.
-    return Function.newBuilder(function).setFunctionName(POSTGRES_CONCAT_FUNCTION).build();
+  private Function toConcat(Function function) {
+    return Function.newBuilder(function).setFunctionName(CONCAT_FUNCTION).build();
   }
 
-  private String toPostgresDistinctCount(
+  private String toDistinctCount(
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     return String.format(
         this.config.getDistinctCountAggregationFunction(),

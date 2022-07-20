@@ -1190,7 +1190,9 @@ class QueryRequestToPostgresSQLConverterTest {
                     .getResource(TEST_REQUEST_HANDLER_CONFIG_FILE)));
 
     return TableDefinition.parse(
-        fileConfig.getConfig("requestHandlerInfo.tableDefinition"), TENANT_COLUMN_NAME, null);
+        fileConfig.getConfig("requestHandlerInfo.tableDefinition"),
+        TENANT_COLUMN_NAME,
+        Optional.empty());
   }
 
   private TableDefinition getTableDefinition() {
@@ -1204,7 +1206,7 @@ class QueryRequestToPostgresSQLConverterTest {
     return TableDefinition.parse(
         serviceFileConfig.getConfig("requestHandlerInfo.tableDefinition"),
         TENANT_COLUMN_NAME,
-        null);
+        Optional.empty());
   }
 
   private void defaultMockingForExecutionContext() {
