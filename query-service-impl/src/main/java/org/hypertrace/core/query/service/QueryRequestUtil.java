@@ -82,6 +82,14 @@ public class QueryRequestUtil {
         .build();
   }
 
+  public static Filter createNotContainsKeyFilter(String column, String value) {
+    return Filter.newBuilder()
+        .setOperator(Operator.NOT_CONTAINS_KEY)
+        .setLhs(createSimpleAttributeExpression(column))
+        .setRhs(createStringLiteralValueExpression(value))
+        .build();
+  }
+
   public static Expression createStringLiteralValueExpression(String value) {
     return Expression.newBuilder()
         .setLiteral(
