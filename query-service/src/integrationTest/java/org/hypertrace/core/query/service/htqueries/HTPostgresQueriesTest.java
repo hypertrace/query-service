@@ -115,7 +115,10 @@ public class HTPostgresQueriesTest {
                 + "/postgres?user=postgres&password=postgres")
         .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
         .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
-        .execute(() -> IntegrationTestServerUtil.startServices(new String[] {"query-service"}));
+        .execute(
+            () ->
+                IntegrationTestServerUtil.startServices(
+                    "postgres", new String[] {"query-service"}));
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("host", "localhost");
@@ -127,6 +130,7 @@ public class HTPostgresQueriesTest {
   @AfterAll
   public static void shutdown() {
     LOG.info("Initiating shutdown");
+    IntegrationTestServerUtil.shutdownServices();
     attributeService.stop();
     mongo.stop();
     postgresqlService.stop();
