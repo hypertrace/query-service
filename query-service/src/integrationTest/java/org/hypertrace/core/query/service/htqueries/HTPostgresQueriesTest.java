@@ -115,10 +115,7 @@ public class HTPostgresQueriesTest {
                 + "/postgres?user=postgres&password=postgres")
         .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
         .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
-        .execute(
-            () ->
-                IntegrationTestServerUtil.startServices(
-                    new String[] {"query-service-postgres"}));
+        .execute(() -> IntegrationTestServerUtil.startServices(new String[] {"query-service"}));
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("host", "localhost");
