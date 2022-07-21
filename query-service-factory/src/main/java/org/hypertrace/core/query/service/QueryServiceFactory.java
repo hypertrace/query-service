@@ -17,7 +17,9 @@ public class QueryServiceFactory implements GrpcPlatformServiceFactory {
         new GrpcPlatformService(
             Guice.createInjector(
                     new QueryServiceModule(
-                        environment.getConfig(SERVICE_NAME).getConfig(QUERY_SERVICE_CONFIG),
+                        environment
+                            .getConfig(environment.getServiceName(SERVICE_NAME))
+                            .getConfig(QUERY_SERVICE_CONFIG),
                         environment.getChannelRegistry()))
                 .getInstance(QueryServiceImplBase.class)));
   }
