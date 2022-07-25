@@ -152,12 +152,8 @@ public class HTPostgresQueriesTest {
         String line;
         long startTime = ((System.currentTimeMillis() - 300000) / 60000) * 60000 + 1000;
         StringBuilder builder = new StringBuilder();
-        int lineCount = 0;
         while ((line = reader.readLine()) != null) {
-          lineCount++;
           line = line.replace("START_TIME_MILLIS", String.valueOf(startTime));
-          // line = line.replace("MAP_DATA", createMap(lineCount).replaceAll("=", ":"));
-          // line = line.replace("BYTEA_DATA", "\\x" + generateAlphaNumericString(16));
           builder.append(line);
           builder.append("\n");
           startTime += 5000;
@@ -180,43 +176,6 @@ public class HTPostgresQueriesTest {
         LOG.info("sql command output : {}", execResult);
       }
     }
-  }
-
-  private static String createMap(int index) {
-    int modValue = index % 5;
-    switch (modValue) {
-      case 4:
-        return Map.of(
-                "\"key1\"", "\"value11\"", "\"key2\"", "\"value22\"", "\"key3\"", "\"value33\"")
-            .toString();
-      case 3:
-        return Map.of(
-                "\"key1\"", "\"value12\"", "\"key3\"", "\"value33\"", "\"key4\"", "\"value44\"")
-            .toString();
-      case 2:
-        return Map.of(
-                "\"key1\"", "\"value11\"", "\"key2\"", "\"value23\"", "\"key3\"", "\"value33\"")
-            .toString();
-      case 1:
-        return Map.of(
-                "\"key1\"", "\"value12\"", "\"key2\"", "\"value22\"", "\"key5\"", "\"value55\"")
-            .toString();
-      default:
-        return Map.of(
-                "\"key1\"", "\"value11\"", "\"key2\"", "\"value22\"", "\"key3\"", "\"value34\"")
-            .toString();
-    }
-  }
-
-  private static String generateAlphaNumericString(int targetStringLength) {
-    int leftLimit = 48; // numeral '0'
-    int rightLimit = 70; // letter 'z'
-    return RANDOM
-        .ints(leftLimit, rightLimit + 1)
-        .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
-        .limit(targetStringLength)
-        .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-        .toString();
   }
 
   private static void validateRows(List<Row> rows, double divisor) {
