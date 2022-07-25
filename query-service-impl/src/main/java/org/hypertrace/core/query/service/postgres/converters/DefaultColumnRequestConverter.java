@@ -193,9 +193,9 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     }
 
     if (value.getValueType().equals(ValueType.STRING)) {
-      validateValue(value.getString(), lhs);
+      isValidHexString(value.getString(), lhs);
     } else if (value.getValueType().equals(ValueType.STRING_ARRAY)) {
-      value.getStringArrayList().forEach(strValue -> validateValue(strValue, lhs));
+      value.getStringArrayList().forEach(strValue -> isValidHexString(strValue, lhs));
     }
 
     String convertedLiteral = convertLiteralToString(rhs.getLiteral(), paramsBuilder);
@@ -215,7 +215,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
         || strValue.trim().equals("{}");
   }
 
-  private void validateValue(String value, String columnName) {
+  private void isValidHexString(String value, String columnName) {
     try {
       // decode string to hex to validate whether it is a valid hex string
       Hex.decodeHex(value);
