@@ -523,14 +523,14 @@ class QueryRequestToPostgresSQLConverterTest {
   @Test
   void testQueryWithLikeOperator() {
     Builder builder = QueryRequest.newBuilder();
-    Expression spanId = createColumnExpression("Span.id").build();
+    Expression spanId = createColumnExpression("Span.displaySpanName").build();
     builder.addSelection(spanId);
 
     Filter likeFilter =
         Filter.newBuilder()
             .setOperator(Operator.LIKE)
             .setLhs(spanId)
-            .setRhs(createStringLiteralValueExpression("042e5523ff6b2506"))
+            .setRhs(createStringLiteralValueExpression("%test%"))
             .build();
     builder.setFilter(likeFilter);
 
@@ -539,13 +539,13 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT span_name FROM public.\"span-event-view\" "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_id like decode('042e5523ff6b2506', 'hex')",
+            + "AND span_name like '%test%'",
         tableDefinition,
         executionContext);
   }
@@ -731,8 +731,7 @@ class QueryRequestToPostgresSQLConverterTest {
     assertExceptionOnSQLQuery(
         builder.build(),
         IllegalArgumentException.class,
-        "Invalid input:{ string: \"042e5523ff6b250L\"\n"
-            + " } for bytes column:{ parent_span_id }");
+        "Invalid input:{ 042e5523ff6b250L" + " } for bytes column:{ parent_span_id }");
   }
 
   @Test
@@ -758,7 +757,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( parent_span_id != '' ) limit 5",
+            + "AND ( parent_span_id IS NOT NULL ) limit 5",
         tableDefinition,
         executionContext);
   }
@@ -786,7 +785,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( parent_span_id != '' ) limit 5",
+            + "AND ( parent_span_id IS NOT NULL ) limit 5",
         tableDefinition,
         executionContext);
   }
@@ -838,7 +837,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( span_id != '' ) limit 5",
+            + "AND ( span_id IS NOT NULL ) limit 5",
         tableDefinition,
         executionContext);
   }

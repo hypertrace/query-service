@@ -9,17 +9,19 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.ConfigFactory;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.codec.binary.StringUtils;
-import org.apache.commons.compress.utils.IOUtils;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Row;
@@ -50,6 +52,7 @@ public class HTPostgresQueriesTest {
   private static final Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(LOG);
   private static final Map<String, String> TENANT_ID_MAP = Map.of("x-tenant-id", "__default");
   private static final int CONTAINER_STARTUP_ATTEMPTS = 5;
+  private static final Random RANDOM = new Random();
 
   private static Network network;
   private static GenericContainer<?> mongo;
@@ -140,16 +143,26 @@ public class HTPostgresQueriesTest {
   private static void runSqlInPostgresDb(String... sqlFileNames)
       throws IOException, InterruptedException {
     int count = 0;
-    long currentTimeMillis = System.currentTimeMillis();
     for (String sqlFileName : sqlFileNames) {
       count++;
       byte[] resourceBytes;
       try (InputStream resourceAsStream =
-          HTPostgresQueriesTest.class.getClassLoader().getResourceAsStream(sqlFileName)) {
-        resourceBytes =
-            StringUtils.getBytesUtf8(
-                StringUtils.newStringUtf8(IOUtils.toByteArray(resourceAsStream))
-                    .replaceAll("START_TIME_MIILIS", String.valueOf(currentTimeMillis)));
+              HTPostgresQueriesTest.class.getClassLoader().getResourceAsStream(sqlFileName);
+          BufferedReader reader = new BufferedReader(new InputStreamReader(resourceAsStream))) {
+        String line;
+        long startTime = ((System.currentTimeMillis() - 300000) / 60000) * 60000 + 1000;
+        StringBuilder builder = new StringBuilder();
+        int lineCount = 0;
+        while ((line = reader.readLine()) != null) {
+          lineCount++;
+          line = line.replace("START_TIME_MILLIS", String.valueOf(startTime));
+          // line = line.replace("MAP_DATA", createMap(lineCount).replaceAll("=", ":"));
+          // line = line.replace("BYTEA_DATA", "\\x" + generateAlphaNumericString(16));
+          builder.append(line);
+          builder.append("\n");
+          startTime += 5000;
+        }
+        resourceBytes = StringUtils.getBytesUtf8(builder.toString());
       }
       if (resourceBytes != null) {
         postgresqlService.copyFileToContainer(
@@ -167,6 +180,43 @@ public class HTPostgresQueriesTest {
         LOG.info("sql command output : {}", execResult);
       }
     }
+  }
+
+  private static String createMap(int index) {
+    int modValue = index % 5;
+    switch (modValue) {
+      case 4:
+        return Map.of(
+                "\"key1\"", "\"value11\"", "\"key2\"", "\"value22\"", "\"key3\"", "\"value33\"")
+            .toString();
+      case 3:
+        return Map.of(
+                "\"key1\"", "\"value12\"", "\"key3\"", "\"value33\"", "\"key4\"", "\"value44\"")
+            .toString();
+      case 2:
+        return Map.of(
+                "\"key1\"", "\"value11\"", "\"key2\"", "\"value23\"", "\"key3\"", "\"value33\"")
+            .toString();
+      case 1:
+        return Map.of(
+                "\"key1\"", "\"value12\"", "\"key2\"", "\"value22\"", "\"key5\"", "\"value55\"")
+            .toString();
+      default:
+        return Map.of(
+                "\"key1\"", "\"value11\"", "\"key2\"", "\"value22\"", "\"key3\"", "\"value34\"")
+            .toString();
+    }
+  }
+
+  private static String generateAlphaNumericString(int targetStringLength) {
+    int leftLimit = 48; // numeral '0'
+    int rightLimit = 70; // letter 'z'
+    return RANDOM
+        .ints(leftLimit, rightLimit + 1)
+        .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
+        .limit(targetStringLength)
+        .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+        .toString();
   }
 
   private static void validateRows(List<Row> rows, double divisor) {
@@ -231,8 +281,88 @@ public class HTPostgresQueriesTest {
             ServicesQueries.buildAvgRateQueryWithTimeAggregation(), TENANT_ID_MAP, 10000);
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
-    assertEquals(4, rows.size());
+    assertEquals(7, rows.size());
     validateRows(rows, 15);
+  }
+
+  @Test
+  public void testServicesQueriesForTraceId() {
+    LOG.info("Services queries for TraceId");
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTraceIdEqualQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(1, rows.size());
+    }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTraceIdsInQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(2, rows.size());
+    }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTraceIdNotEmptyQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(11, rows.size());
+    }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTraceIdIsEmptyQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(2, rows.size());
+    }
+  }
+
+  @Test
+  public void testServicesQueriesForTags() {
+    LOG.info("Services queries for TraceId");
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTagsContainsKeyQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(3, rows.size());
+    }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTagsNotContainsKeyQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(3, rows.size());
+    }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTagsContainsKeyValueQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(3, rows.size());
+    }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTagsContainsKeyLikeQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(3, rows.size());
+    }
   }
 
   private static Stream<Arguments> provideQueryRequestForServiceQueries()

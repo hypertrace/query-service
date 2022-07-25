@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS public."raw-service-view-events"
     api_discovery_state text COLLATE pg_catalog."default",
     domain_id text COLLATE pg_catalog."default",
     environment text COLLATE pg_catalog."default",
+    trace_id bytea,
+    tags jsonb not null default '{}'::jsonb,
     seq_id bigserial
 )
 WITH (

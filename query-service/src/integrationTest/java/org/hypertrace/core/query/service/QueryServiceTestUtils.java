@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.List;
 import org.apache.kafka.common.requests.RequestContext;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -40,6 +41,13 @@ public class QueryServiceTestUtils {
         break;
       case STRING:
         value = Value.newBuilder(value).setString((String) valueObject).build();
+        break;
+      case STRING_ARRAY:
+        value =
+            Value.newBuilder()
+                .addAllStringArray((List<String>) valueObject)
+                .setValueType(ValueType.STRING_ARRAY)
+                .build();
     }
     LiteralConstant constant = LiteralConstant.newBuilder().setValue(value).build();
     Expression rhs = Expression.newBuilder().setLiteral(constant).build();

@@ -7,7 +7,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.commons.codec.binary.Hex;
 
 /*
  * Factory to create PostgresClient based on postgres jdbc connection.
@@ -110,9 +109,6 @@ public class PostgresClientFactory {
       params.getLongParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
       params.getDoubleParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
       params.getFloatParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-      params
-          .getByteStringParams()
-          .forEach((i, p) -> parameters[i] = getStringParam(Hex.encodeHexString(p.toByteArray())));
 
       StringBuilder sb = new StringBuilder();
       for (int i = 0; i < queryParts.length; i++) {
