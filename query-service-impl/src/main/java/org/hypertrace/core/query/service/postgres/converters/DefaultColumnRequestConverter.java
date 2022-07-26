@@ -145,7 +145,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           break;
         default:
           if (isFilterForBytesColumnType(filter, context)) {
-            handleConversionForBytesExpression(
+            handleConversionForBytesColumnExpression(
                 lhs, operator, filter.getRhs(), builder, paramsBuilder);
           } else {
             builder.append(lhs);
@@ -168,37 +168,23 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
   }
 
   /** Handles value conversion of a bytes expression based */
-  private void handleConversionForBytesExpression(
+  private void handleConversionForBytesColumnExpression(
       String lhs, String operator, Expression rhs, StringBuilder builder, Builder paramsBuilder) {
     Value value = rhs.getLiteral().getValue();
-    if (value.getValueType().equals(ValueType.STRING)) {
-      String strValue = value.getString();
-      if (isNullorEmpty(strValue)) {
-        builder.append(lhs);
-        builder.append(" ");
-        switch (operator) {
-          case "=":
-            builder.append("IS NULL");
-            break;
-          case "!=":
-            builder.append("IS NOT NULL");
-            break;
-          default:
-            throw new IllegalArgumentException(
-                String.format(
-                    "Unsupported operator {%s} for bytes column with empty value", operator));
-        }
-        return;
-      }
-    }
+
+    if (handleConversionForNullOrEmptyBytesLiteral(lhs, operator, builder, value)) return;
 
     if (value.getValueType().equals(ValueType.STRING)) {
       isValidHexString(value.getString(), lhs);
     } else if (value.getValueType().equals(ValueType.STRING_ARRAY)) {
       value.getStringArrayList().forEach(strValue -> isValidHexString(strValue, lhs));
+    } else {
+      throw new IllegalArgumentException(
+          String.format("Value not supported for bytes column : {%s}", value));
     }
 
     String convertedLiteral = convertLiteralToString(rhs.getLiteral(), paramsBuilder);
+    // add decode for all string values
     convertedLiteral = convertedLiteral.replace("?", "decode(?, 'hex')");
 
     builder.append(lhs);
@@ -208,7 +194,29 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     builder.append(convertedLiteral);
   }
 
-  private boolean isNullorEmpty(String strValue) {
+  private boolean handleConversionForNullOrEmptyBytesLiteral(
+      String lhs, String operator, StringBuilder builder, Value value) {
+    if (value.getValueType().equals(ValueType.STRING) && isNullOrEmpty(value.getString())) {
+      builder.append(lhs);
+      builder.append(" ");
+      switch (operator) {
+        case "=":
+          builder.append("IS NULL");
+          break;
+        case "!=":
+          builder.append("IS NOT NULL");
+          break;
+        default:
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unsupported operator {%s} for bytes column with empty value", operator));
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private boolean isNullOrEmpty(String strValue) {
     return Strings.isNullOrEmpty(strValue)
         || strValue.trim().equals("null")
         || strValue.trim().equals("''")
