@@ -166,6 +166,7 @@ public class HTPinotQueriesTest {
   @AfterAll
   public static void shutdown() {
     LOG.info("Initiating shutdown");
+    IntegrationTestServerUtil.shutdownServices();
     attributeService.stop();
     mongo.stop();
     pinotServiceManager.stop();

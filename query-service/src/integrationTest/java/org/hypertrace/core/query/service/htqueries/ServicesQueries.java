@@ -8,6 +8,7 @@ import static org.hypertrace.core.query.service.QueryServiceTestUtils.createStri
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createTimeColumnGroupByFunctionExpression;
 
 import java.time.Duration;
+import java.util.List;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Operator;
@@ -150,6 +151,7 @@ class ServicesQueries {
 
     Expression serviceErrorCount = createColumnExpression("SERVICE.errorCount");
     Expression avgrateFunction = createFunctionExpression("AVGRATE", serviceErrorCount);
+    builder.addSelection(avgrateFunction);
     builder.addOrderBy(createOrderByExpression(avgrateFunction, SortOrder.ASC));
     builder.setLimit(10000);
     return builder.build();
@@ -191,6 +193,138 @@ class ServicesQueries {
         createTimeColumnGroupByFunctionExpression("SERVICE.startTime", "15:SECONDS"));
     builder.addGroupBy(serviceId);
     builder.setLimit(10000);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTraceIdEqualQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Filter filter = createFilter("TRACE.id", Operator.EQ, ValueType.STRING, "8851c75f67562e1f");
+
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTraceIdsInQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Filter filter =
+        createFilter(
+            "TRACE.id",
+            Operator.IN,
+            ValueType.STRING_ARRAY,
+            List.of("8851c75f67562e1f", "d8b0a767ec677cde"));
+
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTraceIdNotEmptyQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Filter filter = createFilter("TRACE.id", Operator.NEQ, ValueType.STRING, "");
+
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTraceIdIsEmptyQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Filter filter = createFilter("TRACE.id", Operator.EQ, ValueType.STRING, "");
+
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTagsContainsKeyQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Filter filter = createFilter("SERVICE.tags", Operator.CONTAINS_KEY, ValueType.STRING, "key4");
+
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTagsNotContainsKeyQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Filter filter =
+        createFilter("SERVICE.tags", Operator.NOT_CONTAINS_KEY, ValueType.STRING, "key2");
+
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTagsContainsKeyValueQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Filter filter =
+        createFilter(
+            "SERVICE.tags",
+            Operator.CONTAINS_KEYVALUE,
+            ValueType.STRING_ARRAY,
+            List.of("key2", "value23"));
+
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTagsContainsKeyLikeQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Filter filter =
+        createFilter("SERVICE.tags", Operator.CONTAINS_KEY_LIKE, ValueType.STRING, "key5%");
+
+    builder.setFilter(filter);
 
     return builder.build();
   }

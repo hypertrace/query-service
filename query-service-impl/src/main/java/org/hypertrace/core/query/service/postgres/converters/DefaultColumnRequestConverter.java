@@ -10,10 +10,13 @@ import static org.hypertrace.core.query.service.postgres.converters.ColumnReques
 import static org.hypertrace.core.query.service.postgres.converters.ColumnRequestContext.QueryPart.SELECT;
 import static org.hypertrace.core.query.service.postgres.converters.ColumnRequestContext.createColumnRequestContext;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -111,7 +114,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           builder.append("->>");
           builder.append(
               convertLiteralToString(
-                  convertMapKeyExpressionToLiterals(filter.getRhs()), paramsBuilder, context));
+                  convertMapKeyExpressionToLiterals(filter.getRhs()), paramsBuilder));
           builder.append(" IS NOT NULL");
           break;
         case NOT_CONTAINS_KEY:
@@ -119,16 +122,16 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           builder.append("->>");
           builder.append(
               convertLiteralToString(
-                  convertMapKeyExpressionToLiterals(filter.getRhs()), paramsBuilder, context));
+                  convertMapKeyExpressionToLiterals(filter.getRhs()), paramsBuilder));
           builder.append(" IS NULL");
           break;
         case CONTAINS_KEYVALUE:
           List<LiteralConstant> kvp = convertMapKeyValueExpressionToLiterals(filter.getRhs());
           builder.append(lhs);
           builder.append("->>");
-          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder, context));
+          builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
           builder.append(" = ");
-          builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder, context));
+          builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder));
           break;
         case CONTAINS_KEY_LIKE:
           builder.append(lhs);
@@ -138,46 +141,87 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           builder.append(" ");
           builder.append(
               convertLiteralToString(
-                  convertMapLikeExpressionToLiterals(filter.getRhs()), paramsBuilder, context));
+                  convertMapLikeExpressionToLiterals(filter.getRhs()), paramsBuilder));
           break;
         default:
-          Expression rhs =
-              handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          builder.append(lhs);
-          builder.append(" ");
-          builder.append(operator);
-          builder.append(" ");
-          builder.append(convertExpressionToString(rhs, paramsBuilder, executionContext, context));
+          if (isFilterForBytesColumnType(filter, context)) {
+            handleConversionForBytesExpression(
+                lhs, operator, filter.getRhs(), builder, paramsBuilder);
+          } else {
+            builder.append(lhs);
+            builder.append(" ");
+            builder.append(operator);
+            builder.append(" ");
+            builder.append(
+                convertExpressionToString(
+                    filter.getRhs(), paramsBuilder, executionContext, context));
+          }
       }
     }
     return builder.toString();
   }
 
-  /**
-   * Handles value conversion of a literal expression based on its associated column.
-   *
-   * @param lhs LHS expression with which literal is associated with
-   * @param rhs RHS expression which needs value conversion if its a literal expression
-   * @return newly created literal {@link Expression} of rhs if converted else the same one.
-   */
-  private Expression handleValueConversionForLiteralExpression(Expression lhs, Expression rhs) {
-    if (!(isSimpleAttributeExpression(lhs) && rhs.getValueCase().equals(LITERAL))) {
-      return rhs;
+  private boolean isFilterForBytesColumnType(Filter filter, ColumnRequestContext context) {
+    return isSimpleAttributeExpression(filter.getLhs())
+        && filter.getRhs().getValueCase().equals(LITERAL)
+        && context.isBytesColumnType();
+  }
+
+  /** Handles value conversion of a bytes expression based */
+  private void handleConversionForBytesExpression(
+      String lhs, String operator, Expression rhs, StringBuilder builder, Builder paramsBuilder) {
+    Value value = rhs.getLiteral().getValue();
+    if (value.getValueType().equals(ValueType.STRING)) {
+      String strValue = value.getString();
+      if (isNullorEmpty(strValue)) {
+        builder.append(lhs);
+        builder.append(" ");
+        switch (operator) {
+          case "=":
+            builder.append("IS NULL");
+            break;
+          case "!=":
+            builder.append("IS NOT NULL");
+            break;
+          default:
+            throw new IllegalArgumentException(
+                String.format(
+                    "Unsupported operator {%s} for bytes column with empty value", operator));
+        }
+        return;
+      }
     }
 
-    String lhsColumnName = getLogicalColumnName(lhs).orElseThrow(IllegalArgumentException::new);
+    if (value.getValueType().equals(ValueType.STRING)) {
+      isValidHexString(value.getString(), lhs);
+    } else if (value.getValueType().equals(ValueType.STRING_ARRAY)) {
+      value.getStringArrayList().forEach(strValue -> isValidHexString(strValue, lhs));
+    }
+
+    String convertedLiteral = convertLiteralToString(rhs.getLiteral(), paramsBuilder);
+    convertedLiteral = convertedLiteral.replace("?", "decode(?, 'hex')");
+
+    builder.append(lhs);
+    builder.append(" ");
+    builder.append(operator);
+    builder.append(" ");
+    builder.append(convertedLiteral);
+  }
+
+  private boolean isNullorEmpty(String strValue) {
+    return Strings.isNullOrEmpty(strValue)
+        || strValue.trim().equals("null")
+        || strValue.trim().equals("''")
+        || strValue.trim().equals("{}");
+  }
+
+  private void isValidHexString(String value, String columnName) {
     try {
-      Value value =
-          DestinationColumnValueConverter.INSTANCE.convert(
-              rhs.getLiteral().getValue(), tableDefinition.getColumnType(lhsColumnName));
-      return Expression.newBuilder()
-          .setLiteral(LiteralConstant.newBuilder().setValue(value))
-          .build();
-    } catch (Exception e) {
+      // decode string to hex to validate whether it is a valid hex string
+      Hex.decodeHex(value);
+    } catch (DecoderException e) {
       throw new IllegalArgumentException(
-          String.format(
-              "Invalid input:{ %s } for bytes column:{ %s }",
-              rhs.getLiteral().getValue(), tableDefinition.getPhysicalColumnName(lhsColumnName)));
+          String.format("Invalid input:{ %s } for bytes column:{ %s }", value, columnName));
     }
   }
 
@@ -192,7 +236,6 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case EQ:
         return "=";
       case NEQ:
-      case NOT_CONTAINS_KEY:
         return "!=";
       case IN:
         return "IN";
@@ -210,6 +253,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case CONTAINS_KEY_LIKE:
         return REGEX_OPERATOR;
       case CONTAINS_KEY:
+      case NOT_CONTAINS_KEY:
       case CONTAINS_KEYVALUE:
         return "";
       case RANGE:
@@ -237,9 +281,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
                   .setValue(Value.newBuilder().setString(pathExpression).build())
                   .build();
 
-          return columnName
-              + "->>"
-              + convertLiteralToString(pathExpressionLiteral, paramsBuilder, context);
+          return columnName + "->>" + convertLiteralToString(pathExpressionLiteral, paramsBuilder);
         }
       case COLUMNIDENTIFIER:
         String logicalColumnName =
@@ -254,7 +296,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           return columnName;
         }
       case LITERAL:
-        return convertLiteralToString(expression.getLiteral(), paramsBuilder, context);
+        return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
         return this.functionConverter.convert(
             executionContext,
@@ -324,10 +366,8 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
   }
 
   /** TODO:Handle all types */
-  private String convertLiteralToString(
-      LiteralConstant literal, Builder paramsBuilder, ColumnRequestContext context) {
+  private String convertLiteralToString(LiteralConstant literal, Builder paramsBuilder) {
     Value value = literal.getValue();
-    boolean isEmpty = false;
     String ret = null;
     switch (value.getValueType()) {
       case STRING_ARRAY:
@@ -377,7 +417,6 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case BYTES:
         ret = QUESTION_MARK;
         paramsBuilder.addByteStringParam(value.getBytes());
-        isEmpty = value.getBytes().isEmpty();
         break;
       case BOOL:
         ret = QUESTION_MARK;
@@ -402,9 +441,6 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case BOOLEAN_ARRAY:
       case UNRECOGNIZED:
         break;
-    }
-    if (ret != null && context.isBytesColumnType() && !isEmpty) {
-      ret = ret.replace("?", "decode(?, 'hex')");
     }
     return ret;
   }
