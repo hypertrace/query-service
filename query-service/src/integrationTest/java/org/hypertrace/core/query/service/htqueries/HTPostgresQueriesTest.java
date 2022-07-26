@@ -18,7 +18,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.codec.binary.StringUtils;
@@ -30,7 +29,6 @@ import org.hypertrace.core.query.service.client.QueryServiceConfig;
 import org.hypertrace.core.serviceframework.IntegrationTestServerUtil;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -46,7 +44,6 @@ import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-@Disabled("Running pinot and postgres test together fails. Disabled till that issue is resolved")
 @Testcontainers
 public class HTPostgresQueriesTest {
 
@@ -54,7 +51,6 @@ public class HTPostgresQueriesTest {
   private static final Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(LOG);
   private static final Map<String, String> TENANT_ID_MAP = Map.of("x-tenant-id", "__default");
   private static final int CONTAINER_STARTUP_ATTEMPTS = 5;
-  private static final Random RANDOM = new Random();
 
   private static Network network;
   private static GenericContainer<?> mongo;
@@ -121,9 +117,10 @@ public class HTPostgresQueriesTest {
         .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
         .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
         .execute(
-            () ->
-                IntegrationTestServerUtil.startServices(
-                    "postgres", new String[] {"query-service"}));
+            () -> {
+              ConfigFactory.invalidateCaches();
+              IntegrationTestServerUtil.startServices("postgres", new String[] {"query-service"});
+            });
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("host", "localhost");
@@ -320,6 +317,15 @@ public class HTPostgresQueriesTest {
       Iterator<ResultSetChunk> itr =
           queryServiceClient.executeQuery(
               ServicesQueries.buildTagsContainsKeyLikeQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(3, rows.size());
+    }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildTagsComplexAttrExpEqualQuery(), TENANT_ID_MAP, 10000);
       List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
       List<Row> rows = list.get(0).getRowList();
       assertEquals(3, rows.size());

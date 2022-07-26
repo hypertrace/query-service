@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.htqueries;
 
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryServiceTestUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFilter;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryServiceTestUtils.createOrderByExpression;
@@ -323,6 +324,28 @@ class ServicesQueries {
 
     Filter filter =
         createFilter("SERVICE.tags", Operator.CONTAINS_KEY_LIKE, ValueType.STRING, "key5%");
+
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildTagsComplexAttrExpEqualQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    Expression serviceName = createColumnExpression("SERVICE.name");
+
+    builder.addSelection(serviceId);
+    builder.addSelection(serviceName);
+
+    Expression spanTags = createComplexAttributeExpression("SERVICE.tags", "key2").build();
+    Filter filter =
+        Filter.newBuilder()
+            .setLhs(spanTags)
+            .setOperator(Operator.EQ)
+            .setRhs(createStringLiteralValueExpression("value23"))
+            .build();
+    builder.setFilter(filter);
 
     builder.setFilter(filter);
 

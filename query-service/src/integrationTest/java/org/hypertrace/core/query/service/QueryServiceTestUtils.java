@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.List;
 import org.apache.kafka.common.requests.RequestContext;
+import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -119,6 +120,13 @@ public class QueryServiceTestUtils {
             LiteralConstant.newBuilder()
                 .setValue(Value.newBuilder().setString(value).setValueType(ValueType.STRING)))
         .build();
+  }
+
+  public static Expression.Builder createComplexAttributeExpression(
+      String attributeId, String subPath) {
+    return Expression.newBuilder()
+        .setAttributeExpression(
+            AttributeExpression.newBuilder().setAttributeId(attributeId).setSubpath(subPath));
   }
 
   public static QueryRequest getAttributeExpressionQuery(QueryRequest originalQueryRequest)
