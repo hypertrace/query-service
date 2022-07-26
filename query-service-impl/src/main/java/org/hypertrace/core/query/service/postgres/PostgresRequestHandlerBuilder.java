@@ -34,8 +34,7 @@ public class PostgresRequestHandlerBuilder implements RequestHandlerBuilder {
                         "Client config requested but not registered: " + config.getClientConfig()));
 
     try {
-      PostgresClientFactory.createPostgresClient(
-          config.getName(), clientConfig.getConnectionString());
+      PostgresClientFactory.createPostgresClient(config.getName(), clientConfig);
     } catch (SQLException ex) {
       throw new RuntimeException(ex);
     }

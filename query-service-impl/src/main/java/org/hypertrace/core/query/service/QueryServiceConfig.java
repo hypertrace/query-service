@@ -62,12 +62,36 @@ public class QueryServiceConfig {
   public static class RequestHandlerClientConfig {
     private static final String CONFIG_PATH_TYPE = "type";
     private static final String CONFIG_PATH_CONNECTION_STRING = "connectionString";
+    private static final String CONFIG_PATH_HOST = "host";
+    private static final String CONFIG_PATH_PORT = "port";
+    private static final String CONFIG_PATH_DATABASE_NAME = "databaseName";
+    private static final String CONFIG_PATH_USER = "user";
+    private static final String CONFIG_PATH_PASSWORD = "password";
     String type;
     String connectionString;
+    String host;
+    int port;
+    String databaseName;
+    String user;
+    String password;
 
     private RequestHandlerClientConfig(Config config) {
       this.type = config.getString(CONFIG_PATH_TYPE);
-      this.connectionString = config.getString(CONFIG_PATH_CONNECTION_STRING);
+      if (config.hasPath(CONFIG_PATH_CONNECTION_STRING)) {
+        this.connectionString = config.getString(CONFIG_PATH_CONNECTION_STRING);
+        this.host = null;
+        this.port = 0;
+        this.databaseName = null;
+        this.user = null;
+        this.password = null;
+      } else {
+        this.connectionString = null;
+        this.host = config.getString(CONFIG_PATH_HOST);
+        this.port = config.getInt(CONFIG_PATH_PORT);
+        this.databaseName = config.getString(CONFIG_PATH_DATABASE_NAME);
+        this.user = config.getString(CONFIG_PATH_USER);
+        this.password = config.getString(CONFIG_PATH_PASSWORD);
+      }
     }
   }
 
