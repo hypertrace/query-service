@@ -15,7 +15,6 @@ public class PostgresFunctionConverterConfig {
   private static final String DATE_TIME_CONVERT_FUNCTION_CONFIG = "dataTimeConvertFunction";
   private static final String DISTINCT_COUNT_AGGREGATION_FUNCTION_CONFIG =
       "distinctCountAggFunction";
-  // Todo: define this percentile function
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION =
       "percentile_cont(%f) within group (order by (%s) asc)";
   private static final String DEFAULT_TDIGEST_PERCENTILE_AGGREGATION_FUNCTION =

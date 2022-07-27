@@ -59,7 +59,7 @@ public class PostgresFunctionConverter {
         // summing over all values and then dividing by a constant.
         return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
       case DATE_TIME_CONVERT:
-        return this.functionToDateTimeConvert(function, argumentConverter, executionContext);
+        return this.functionToDateTimeConvert(function, argumentConverter);
       case QUERY_FUNCTION_CONDITIONAL:
         throw new UnsupportedOperationException("Unsupported function " + function);
       default:
@@ -74,9 +74,7 @@ public class PostgresFunctionConverter {
   }
 
   private String functionToDateTimeConvert(
-      Function function,
-      java.util.function.Function<Expression, String> argumentConverter,
-      ExecutionContext executionContext) {
+      Function function, java.util.function.Function<Expression, String> argumentConverter) {
     List<Expression> argumentsList = function.getArgumentsList();
     if (argumentsList.size() < 4) {
       throw new IllegalArgumentException("Expected four arguments : " + function);
