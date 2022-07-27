@@ -66,6 +66,8 @@ queryServiceConfig:
   name: query-service-config
   data:
     zookeeperConnectionString: zookeeper:2181/pinot/my-views
+    postgresConnectionString: jdbc:postgresql://localhost:5432/postgres
+    postgresUser: postgres
     tenantColumnName: tenant_id
     attributeClient:
       host: attribute-service

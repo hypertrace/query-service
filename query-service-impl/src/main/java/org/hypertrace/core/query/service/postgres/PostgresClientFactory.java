@@ -61,19 +61,11 @@ public class PostgresClientFactory {
     private final Connection connection;
 
     private PostgresClient(RequestHandlerClientConfig clientConfig) throws SQLException {
-      String url;
-      if (clientConfig.getConnectionString() != null) {
-        url = clientConfig.getConnectionString();
-      } else {
-        url =
-            String.format(
-                "jdbc:postgresql://%s:%d/%s?user=%s&password=%s",
-                clientConfig.getHost(),
-                clientConfig.getPort(),
-                clientConfig.getDatabaseName(),
-                clientConfig.getUser(),
-                clientConfig.getPassword());
-      }
+      String user = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
+      String password = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
+      String url =
+          String.format(
+              "%s?user=%s&password=%s", clientConfig.getConnectionString(), user, password);
       LOG.info(
           "Trying to create a Postgres client connected to postgres server using url: {}", url);
       this.connection = DriverManager.getConnection(url);

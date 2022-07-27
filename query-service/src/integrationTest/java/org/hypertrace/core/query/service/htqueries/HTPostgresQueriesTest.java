@@ -109,7 +109,10 @@ public class HTPostgresQueriesTest {
         "sql/raw-service-view-events.sql",
         "sql/raw-service-view-events-insert.sql");
 
-    withEnvironmentVariable("POSTGRES_PORT", postgresqlService.getMappedPort(5432).toString())
+    withEnvironmentVariable(
+            "POSTGRES_CONNECT_STR",
+            String.format(
+                "jdbc:postgresql://localhost:%s/postgres", postgresqlService.getMappedPort(5432)))
         .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
         .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
         .execute(

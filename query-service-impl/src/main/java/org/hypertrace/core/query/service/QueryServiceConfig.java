@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service;
 
 import com.typesafe.config.Config;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -62,35 +63,25 @@ public class QueryServiceConfig {
   public static class RequestHandlerClientConfig {
     private static final String CONFIG_PATH_TYPE = "type";
     private static final String CONFIG_PATH_CONNECTION_STRING = "connectionString";
-    private static final String CONFIG_PATH_HOST = "host";
-    private static final String CONFIG_PATH_PORT = "port";
-    private static final String CONFIG_PATH_DATABASE_NAME = "databaseName";
     private static final String CONFIG_PATH_USER = "user";
     private static final String CONFIG_PATH_PASSWORD = "password";
     String type;
     String connectionString;
-    String host;
-    int port;
-    String databaseName;
-    String user;
-    String password;
+    Optional<String> user;
+    Optional<String> password;
 
     private RequestHandlerClientConfig(Config config) {
       this.type = config.getString(CONFIG_PATH_TYPE);
-      if (config.hasPath(CONFIG_PATH_CONNECTION_STRING)) {
-        this.connectionString = config.getString(CONFIG_PATH_CONNECTION_STRING);
-        this.host = null;
-        this.port = 0;
-        this.databaseName = null;
-        this.user = null;
-        this.password = null;
+      this.connectionString = config.getString(CONFIG_PATH_CONNECTION_STRING);
+      if (config.hasPath(CONFIG_PATH_USER)) {
+        this.user = Optional.of(config.getString(CONFIG_PATH_USER));
       } else {
-        this.connectionString = null;
-        this.host = config.getString(CONFIG_PATH_HOST);
-        this.port = config.getInt(CONFIG_PATH_PORT);
-        this.databaseName = config.getString(CONFIG_PATH_DATABASE_NAME);
-        this.user = config.getString(CONFIG_PATH_USER);
-        this.password = config.getString(CONFIG_PATH_PASSWORD);
+        this.user = Optional.empty();
+      }
+      if (config.hasPath(CONFIG_PATH_PASSWORD)) {
+        this.password = Optional.of(config.getString(CONFIG_PATH_PASSWORD));
+      } else {
+        this.password = Optional.empty();
       }
     }
   }
