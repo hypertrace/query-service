@@ -22,6 +22,11 @@ data:
           type = zookeeper
           connectionString = "{{ .Values.queryServiceConfig.data.zookeeperConnectionString }}"
         }
+        {
+          type = postgres
+          connectionString = "{{ .Values.queryServiceConfig.data.postgresConnectionString }}"
+          user = "{{ .Values.queryServiceConfig.data.postgresUser }}"
+        }
       ]
       {{- if or .Values.handlers .Values.extraHandlers }}
       queryRequestHandlersConfig = [

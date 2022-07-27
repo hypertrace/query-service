@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.ConcurrentHashMap;
+import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerClientConfig;
 
 /*
  * Factory to create PostgresClient based on postgres jdbc connection.
@@ -23,12 +24,12 @@ public class PostgresClientFactory {
   private PostgresClientFactory() {}
 
   // Create a Postgres Client.
-  public static PostgresClient createPostgresClient(String postgresCluster, String path)
-      throws SQLException {
+  public static PostgresClient createPostgresClient(
+      String postgresCluster, RequestHandlerClientConfig clientConfig) throws SQLException {
     if (!get().containsClient(postgresCluster)) {
       synchronized (get()) {
         if (!get().containsClient(postgresCluster)) {
-          get().addPostgresClient(postgresCluster, new PostgresClient(path));
+          get().addPostgresClient(postgresCluster, new PostgresClient(clientConfig));
         }
       }
     }
@@ -59,7 +60,12 @@ public class PostgresClientFactory {
 
     private final Connection connection;
 
-    private PostgresClient(String url) throws SQLException {
+    private PostgresClient(RequestHandlerClientConfig clientConfig) throws SQLException {
+      String user = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
+      String password = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
+      String url =
+          String.format(
+              "%s?user=%s&password=%s", clientConfig.getConnectionString(), user, password);
       LOG.info(
           "Trying to create a Postgres client connected to postgres server using url: {}", url);
       this.connection = DriverManager.getConnection(url);

@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service;
 
 import com.typesafe.config.Config;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -62,12 +63,26 @@ public class QueryServiceConfig {
   public static class RequestHandlerClientConfig {
     private static final String CONFIG_PATH_TYPE = "type";
     private static final String CONFIG_PATH_CONNECTION_STRING = "connectionString";
+    private static final String CONFIG_PATH_USER = "user";
+    private static final String CONFIG_PATH_PASSWORD = "password";
     String type;
     String connectionString;
+    Optional<String> user;
+    Optional<String> password;
 
     private RequestHandlerClientConfig(Config config) {
       this.type = config.getString(CONFIG_PATH_TYPE);
       this.connectionString = config.getString(CONFIG_PATH_CONNECTION_STRING);
+      if (config.hasPath(CONFIG_PATH_USER)) {
+        this.user = Optional.of(config.getString(CONFIG_PATH_USER));
+      } else {
+        this.user = Optional.empty();
+      }
+      if (config.hasPath(CONFIG_PATH_PASSWORD)) {
+        this.password = Optional.of(config.getString(CONFIG_PATH_PASSWORD));
+      } else {
+        this.password = Optional.empty();
+      }
     }
   }
 

@@ -111,9 +111,8 @@ public class HTPostgresQueriesTest {
 
     withEnvironmentVariable(
             "POSTGRES_CONNECT_STR",
-            "jdbc:postgresql://localhost:"
-                + postgresqlService.getMappedPort(5432).toString()
-                + "/postgres?user=postgres&password=postgres")
+            String.format(
+                "jdbc:postgresql://localhost:%s/postgres", postgresqlService.getMappedPort(5432)))
         .and("ATTRIBUTE_SERVICE_HOST_CONFIG", attributeService.getHost())
         .and("ATTRIBUTE_SERVICE_PORT_CONFIG", attributeService.getMappedPort(9012).toString())
         .execute(
