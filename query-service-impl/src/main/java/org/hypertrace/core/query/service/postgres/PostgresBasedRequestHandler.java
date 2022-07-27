@@ -460,17 +460,7 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
   Observable<Row> convert(ResultSet resultSet) throws SQLException {
     List<Builder> rowBuilderList = new ArrayList<>();
-    if (resultSet.next()) {
-      handleAggregationAndGroupBy(resultSet, rowBuilderList);
-    }
-    return Observable.fromIterable(rowBuilderList)
-        .map(Builder::build)
-        .doOnNext(row -> LOG.debug("collect a row: {}", row));
-  }
-
-  private void handleAggregationAndGroupBy(ResultSet resultSet, List<Builder> rowBuilderList)
-      throws SQLException {
-    do {
+    while (resultSet.next()) {
       Builder builder = Row.newBuilder();
       rowBuilderList.add(builder);
       ResultSetMetaData metaData = resultSet.getMetaData();
@@ -481,7 +471,10 @@ public class PostgresBasedRequestHandler implements RequestHandler {
           builder.addColumn(Value.newBuilder().setString(colVal).build());
         }
       }
-    } while (resultSet.next());
+    }
+    return Observable.fromIterable(rowBuilderList)
+        .map(Builder::build)
+        .doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
   private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {
