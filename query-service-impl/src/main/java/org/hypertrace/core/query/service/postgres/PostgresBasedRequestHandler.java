@@ -15,7 +15,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -65,17 +64,6 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private TableDefinition tableDefinition;
   private Optional<String> startTimeAttributeName;
   private QueryRequestToPostgresSQLConverter request2PostgresSqlConverter;
-  // The implementations of ResultSet are package private and hence there's no way to determine the
-  // shape of the results
-  // other than to do string comparison on the simple class names. In order to be able to unit test
-  // the logic for
-  // parsing the Postgres response we need to be able to mock out the ResultSet interface and hence
-  // we
-  // create an interface
-  // for the logic to determine the handling function based in the ResultSet class name. See usages
-  // of resultSetTypePredicateProvider
-  // to see how it used.
-  private final ResultSetTypePredicateProvider resultSetTypePredicateProvider;
   private final PostgresClientFactory postgresClientFactory;
 
   private final JsonFormat.Printer protoJsonPrinter =
@@ -85,16 +73,12 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private int slowQueryThreshold = DEFAULT_SLOW_QUERY_THRESHOLD_MS;
 
   PostgresBasedRequestHandler(String name, Config config) {
-    this(name, config, new DefaultResultSetTypePredicateProvider(), PostgresClientFactory.get());
+    this(name, config, PostgresClientFactory.get());
   }
 
   PostgresBasedRequestHandler(
-      String name,
-      Config config,
-      ResultSetTypePredicateProvider resultSetTypePredicateProvider,
-      PostgresClientFactory postgresClientFactory) {
+      String name, Config config, PostgresClientFactory postgresClientFactory) {
     this.name = name;
-    this.resultSetTypePredicateProvider = resultSetTypePredicateProvider;
     this.postgresClientFactory = postgresClientFactory;
     this.processConfig(config);
   }
@@ -178,11 +162,6 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     if (!this.viewDefinitionSupportsFilter(tableDefinition, request.getFilter())) {
       return QueryCost.UNSUPPORTED;
     }
-
-    //    TODO
-    //    if (!this.viewDefinitionSupportsGranularity(viewDefinition, request.getGroupByList())) {
-    //      return QueryCost.UNSUPPORTED;
-    //    }
 
     double cost;
 
@@ -405,10 +384,10 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       }
 
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Query results: [ {} ]", resultSet.toString());
+        LOG.debug("Query results: [ {} ]", resultSet);
       }
       // need to merge data especially for Postgres. That's why we need to track the map columns
-      return this.convert(resultSet, executionContext.getSelectedColumns())
+      return this.convert(resultSet)
           .doOnComplete(
               () -> {
                 long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -421,6 +400,7 @@ public class PostgresBasedRequestHandler implements RequestHandler {
                         protoJsonPrinter.print(request),
                         "Stats not available");
                   } catch (InvalidProtocolBufferException ignore) {
+                    // ignore this exception
                   }
                 }
               });
@@ -478,77 +458,11 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSet resultSet, LinkedHashSet<String> selectedAttributes)
-      throws SQLException {
+  Observable<Row> convert(ResultSet resultSet) throws SQLException {
     List<Builder> rowBuilderList = new ArrayList<>();
-    if (resultSet.next()) {
-      // Postgres has different Response format for selection and aggregation/group by query.
-      if (resultSetTypePredicateProvider.isSelectionResultSetType(resultSet)) {
-        // map merging is only supported in the selection. Filtering and Group by has its own
-        // syntax in Postgres
-        handleSelection(resultSet, rowBuilderList, selectedAttributes);
-      } else if (resultSetTypePredicateProvider.isResultTableResultSetType(resultSet)) {
-        handleTableFormatResultSet(resultSet, rowBuilderList);
-      } else {
-        handleAggregationAndGroupBy(resultSet, rowBuilderList);
-      }
-    }
-    return Observable.fromIterable(rowBuilderList)
-        .map(Builder::build)
-        .doOnNext(row -> LOG.debug("collect a row: {}", row));
-  }
-
-  private void handleSelection(
-      ResultSet resultSet, List<Builder> rowBuilderList, LinkedHashSet<String> selectedAttributes)
-      throws SQLException {
-    do {
-      // Find the index in the result's column for each selected attributes
-      PostgresResultAnalyzer resultAnalyzer =
-          PostgresResultAnalyzer.create(resultSet, selectedAttributes, tableDefinition);
-      Builder builder;
-      builder = Row.newBuilder();
+    while (resultSet.next()) {
+      Builder builder = Row.newBuilder();
       rowBuilderList.add(builder);
-
-      // for each selected attributes in the request get the data from the
-      // Postgres row result
-      for (String logicalName : selectedAttributes) {
-        // colVal will never be null. But getDataRow can throw a runtime exception if it failed
-        // to retrieve data
-        String colVal = resultAnalyzer.getDataFromRow(logicalName);
-        builder.addColumn(Value.newBuilder().setString(colVal).build());
-      }
-    } while (resultSet.next());
-  }
-
-  // TODO - Need to validate and fix this function
-  private void handleAggregationAndGroupBy(ResultSet resultSet, List<Builder> rowBuilderList)
-      throws SQLException {
-    Map<String, Integer> groupKey2RowIdMap = new HashMap<>();
-    do {
-      Builder builder;
-      int groupKeyLength = 0;
-      String groupKey;
-      StringBuilder groupKeyBuilder = new StringBuilder();
-      String groupKeyDelim = "";
-      for (int g = 0; g < groupKeyLength; g++) {
-        String colVal = "";
-        groupKeyBuilder.append(groupKeyDelim).append(colVal);
-        groupKeyDelim = "|";
-      }
-      groupKey = groupKeyBuilder.toString();
-      if (!groupKey2RowIdMap.containsKey(groupKey)) {
-        builder = Row.newBuilder();
-        rowBuilderList.add(builder);
-        for (int g = 0; g < groupKeyLength; g++) {
-          String colVal = "";
-          // add it only the first time
-          builder.addColumn(Value.newBuilder().setString(colVal).build());
-          groupKeyBuilder.append(colVal).append(groupKeyDelim);
-          groupKeyDelim = "|";
-        }
-      } else {
-        builder = rowBuilderList.get(groupKey2RowIdMap.get(groupKey));
-      }
       ResultSetMetaData metaData = resultSet.getMetaData();
       int columnCount = metaData.getColumnCount();
       if (columnCount > 0) {
@@ -557,22 +471,10 @@ public class PostgresBasedRequestHandler implements RequestHandler {
           builder.addColumn(Value.newBuilder().setString(colVal).build());
         }
       }
-    } while (resultSet.next());
-  }
-
-  private void handleTableFormatResultSet(ResultSet resultSet, List<Builder> rowBuilderList)
-      throws SQLException {
-    do {
-      Builder builder;
-      builder = Row.newBuilder();
-      rowBuilderList.add(builder);
-
-      ResultSetMetaData metaData = resultSet.getMetaData();
-      for (int colIdx = 1; colIdx <= metaData.getColumnCount(); colIdx++) {
-        String val = resultSet.getString(colIdx);
-        builder.addColumn(Value.newBuilder().setString(val).build());
-      }
-    } while (resultSet.next());
+    }
+    return Observable.fromIterable(rowBuilderList)
+        .map(Builder::build)
+        .doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
   private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {

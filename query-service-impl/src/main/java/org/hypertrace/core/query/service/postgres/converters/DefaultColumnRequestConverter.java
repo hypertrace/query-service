@@ -29,13 +29,9 @@ import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.postgres.Params.Builder;
 import org.hypertrace.core.query.service.postgres.TableDefinition;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Converts {@link QueryRequest} to Postgres SQL query */
 class DefaultColumnRequestConverter implements ColumnRequestConverter {
-
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultColumnRequestConverter.class);
 
   private static final String QUESTION_MARK = "?";
   private static final String REGEX_OPERATOR = "LIKE";
