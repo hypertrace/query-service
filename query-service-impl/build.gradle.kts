@@ -52,7 +52,7 @@ dependencies {
   implementation("com.google.guava:guava:31.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.9.3")
-  implementation("org.postgresql:postgresql:42.4.0")
+  implementation("org.postgresql:postgresql:42.4.1")
 
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
