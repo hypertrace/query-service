@@ -61,7 +61,7 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
   private static final Value NULL_VALUE =
-      Value.newBuilder().setValueType(ValueType.NULL_STRING).setString("null").build();
+      Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
 
   private final String name;
   private TableDefinition tableDefinition;
@@ -472,7 +472,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
         for (int c = 1; c <= columnCount; c++) {
           String colVal = resultSet.getString(c);
           if (colVal != null) {
-            builder.addColumn(Value.newBuilder().setString(colVal).build());
+            builder.addColumn(
+                Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build());
           } else {
             builder.addColumn(NULL_VALUE);
           }
