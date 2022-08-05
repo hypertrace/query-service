@@ -60,7 +60,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
-  private static final Value NULL_VALUE = Value.newBuilder().setString("null").build();
+  private static final Value NULL_VALUE =
+      Value.newBuilder().setValueType(ValueType.NULL_STRING).setString("null").build();
 
   private final String name;
   private TableDefinition tableDefinition;
