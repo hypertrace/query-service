@@ -198,6 +198,37 @@ class ServicesQueries {
     return builder.build();
   }
 
+  static QueryRequest buildQueryHavingNullValue() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceId = createColumnExpression("SERVICE.id");
+    builder.addSelection(serviceId);
+
+    Expression protocol = createColumnExpression("TRACE.protocol");
+    builder.addSelection(protocol);
+
+    Filter filter1 =
+        createFilter(
+            "SERVICE.startTime",
+            Operator.GE,
+            ValueType.LONG,
+            System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+    Filter filter2 =
+        createFilter("SERVICE.startTime", Operator.LT, ValueType.LONG, System.currentTimeMillis());
+    Filter filter3 = createFilter("SERVICE.id", Operator.NEQ, ValueType.NULL_STRING, "");
+
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(filter1)
+            .addChildFilter(filter2)
+            .addChildFilter(filter3)
+            .build());
+
+    builder.setLimit(10000);
+
+    return builder.build();
+  }
+
   public static QueryRequest buildTraceIdEqualQuery() {
     Builder builder = QueryRequest.newBuilder();
     Expression serviceId = createColumnExpression("SERVICE.id");

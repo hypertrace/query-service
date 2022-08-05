@@ -73,16 +73,14 @@ public class QueryServiceConfig {
     private RequestHandlerClientConfig(Config config) {
       this.type = config.getString(CONFIG_PATH_TYPE);
       this.connectionString = config.getString(CONFIG_PATH_CONNECTION_STRING);
-      if (config.hasPath(CONFIG_PATH_USER)) {
-        this.user = Optional.of(config.getString(CONFIG_PATH_USER));
-      } else {
-        this.user = Optional.empty();
-      }
-      if (config.hasPath(CONFIG_PATH_PASSWORD)) {
-        this.password = Optional.of(config.getString(CONFIG_PATH_PASSWORD));
-      } else {
-        this.password = Optional.empty();
-      }
+      this.user =
+          config.hasPath(CONFIG_PATH_USER)
+              ? Optional.of(config.getString(CONFIG_PATH_USER))
+              : Optional.empty();
+      this.password =
+          config.hasPath(CONFIG_PATH_PASSWORD)
+              ? Optional.of(config.getString(CONFIG_PATH_PASSWORD))
+              : Optional.empty();
     }
   }
 
