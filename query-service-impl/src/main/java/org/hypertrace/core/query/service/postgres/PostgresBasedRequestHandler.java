@@ -60,6 +60,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
+  private static final Value NULL_VALUE = Value.newBuilder().setString("null").build();
+
   private final String name;
   private TableDefinition tableDefinition;
   private Optional<String> startTimeAttributeName;
@@ -468,7 +470,11 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       if (columnCount > 0) {
         for (int c = 1; c <= columnCount; c++) {
           String colVal = resultSet.getString(c);
-          builder.addColumn(Value.newBuilder().setString(colVal).build());
+          if (colVal != null) {
+            builder.addColumn(Value.newBuilder().setString(colVal).build());
+          } else {
+            builder.addColumn(NULL_VALUE);
+          }
         }
       }
     }

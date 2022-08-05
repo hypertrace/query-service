@@ -331,6 +331,17 @@ public class HTPostgresQueriesTest {
     }
   }
 
+  @Test
+  public void testServicesQueriesHavingNullValue() {
+    LOG.info("Services queries having null value");
+    Iterator<ResultSetChunk> itr =
+        queryServiceClient.executeQuery(
+            ServicesQueries.buildQueryHavingNullValue(), TENANT_ID_MAP, 10000);
+    List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+    List<Row> rows = list.get(0).getRowList();
+    assertEquals(13, rows.size());
+  }
+
   private static Stream<Arguments> provideQueryRequestForServiceQueries()
       throws InvalidProtocolBufferException {
     QueryRequest queryRequest1 = ServicesQueries.buildQuery1();
