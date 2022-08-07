@@ -81,7 +81,7 @@ public class PostgresFunctionConverter {
     }
     return String.format(
         "%s(%s, %d)",
-        config.getDataTimeConvertFunction(),
+        config.getDateTimeConvertFunction(),
         argumentConverter.apply(argumentsList.get(0)),
         getTimeInMillis(argumentsList.get(3).getLiteral().getValue().getString()));
   }

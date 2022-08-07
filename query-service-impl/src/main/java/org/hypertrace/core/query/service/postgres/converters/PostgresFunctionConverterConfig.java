@@ -12,7 +12,7 @@ public class PostgresFunctionConverterConfig {
   private static final String PERCENTILE_AGGREGATION_FUNCTION_CONFIG = "percentileAggFunction";
   private static final String TDIGEST_PERCENTILE_AGGREGATION_FUNCTION_CONFIG =
       "tdigestPercentileAggFunction";
-  private static final String DATE_TIME_CONVERT_FUNCTION_CONFIG = "dataTimeConvertFunction";
+  private static final String DATE_TIME_CONVERT_FUNCTION_CONFIG = "dateTimeConvertFunction";
   private static final String DISTINCT_COUNT_AGGREGATION_FUNCTION_CONFIG =
       "distinctCountAggFunction";
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION =
@@ -24,7 +24,7 @@ public class PostgresFunctionConverterConfig {
 
   String percentileAggregationFunction;
   String tdigestPercentileAggregationFunction;
-  String dataTimeConvertFunction;
+  String dateTimeConvertFunction;
   String distinctCountAggregationFunction;
 
   public PostgresFunctionConverterConfig(Config config) {
@@ -40,9 +40,9 @@ public class PostgresFunctionConverterConfig {
       this.tdigestPercentileAggregationFunction = DEFAULT_TDIGEST_PERCENTILE_AGGREGATION_FUNCTION;
     }
     if (config.hasPath(DATE_TIME_CONVERT_FUNCTION_CONFIG)) {
-      this.dataTimeConvertFunction = config.getString(DATE_TIME_CONVERT_FUNCTION_CONFIG);
+      this.dateTimeConvertFunction = config.getString(DATE_TIME_CONVERT_FUNCTION_CONFIG);
     } else {
-      this.dataTimeConvertFunction = DEFAULT_DATE_TIME_CONVERT_FUNCTION;
+      this.dateTimeConvertFunction = DEFAULT_DATE_TIME_CONVERT_FUNCTION;
     }
     if (config.hasPath(DISTINCT_COUNT_AGGREGATION_FUNCTION_CONFIG)) {
       this.distinctCountAggregationFunction =
