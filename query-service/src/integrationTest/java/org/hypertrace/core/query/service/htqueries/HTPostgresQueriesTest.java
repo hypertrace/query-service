@@ -342,6 +342,23 @@ public class HTPostgresQueriesTest {
     assertEquals(13, rows.size());
   }
 
+  @Test
+  public void testServicesQueriesForLabels() {
+    LOG.info("Services queries for labels");
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(ServicesQueries.buildLabelsQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(13, rows.size());
+      rows.forEach(
+          row -> {
+            String colVal = row.getColumn(0).getString();
+            assertTrue(colVal.equals("[\"label1\",\"label2\",\"label3\"]") || colVal.equals("[]"));
+          });
+    }
+  }
+
   private static Stream<Arguments> provideQueryRequestForServiceQueries()
       throws InvalidProtocolBufferException {
     QueryRequest queryRequest1 = ServicesQueries.buildQuery1();

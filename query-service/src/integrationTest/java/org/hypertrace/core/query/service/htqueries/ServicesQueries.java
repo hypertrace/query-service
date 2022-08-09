@@ -382,4 +382,13 @@ class ServicesQueries {
 
     return builder.build();
   }
+
+  public static QueryRequest buildLabelsQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+
+    builder.addSelection(serviceLabels);
+
+    return builder.build();
+  }
 }

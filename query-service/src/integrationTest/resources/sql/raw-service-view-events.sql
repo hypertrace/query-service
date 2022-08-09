@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS public."raw-service-view-events"
     environment text COLLATE pg_catalog."default",
     trace_id bytea,
     tags jsonb not null default '{}'::jsonb,
+    labels TEXT [],
     seq_id bigserial
 )
 WITH (
