@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.postgres;
 
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
@@ -11,10 +12,12 @@ import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import io.reactivex.rxjava3.core.Observable;
+import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import lombok.SneakyThrows;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
@@ -62,6 +66,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
   private static final Value NULL_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final String name;
   private TableDefinition tableDefinition;
@@ -461,7 +467,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSet resultSet) throws SQLException {
+  @SneakyThrows
+  Observable<Row> convert(ResultSet resultSet) {
     List<Builder> rowBuilderList = new ArrayList<>();
     while (resultSet.next()) {
       Builder builder = Row.newBuilder();
@@ -470,13 +477,25 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       int columnCount = metaData.getColumnCount();
       if (columnCount > 0) {
         for (int c = 1; c <= columnCount; c++) {
-          String colVal = resultSet.getString(c);
-          if (colVal != null) {
-            builder.addColumn(
-                Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build());
+          int colType = metaData.getColumnType(c);
+          Value convertedColVal;
+          if (colType == Types.ARRAY) {
+            Array colVal = resultSet.getArray(c);
+            convertedColVal =
+                Value.newBuilder()
+                    .setValueType(ValueType.STRING)
+                    .setString(
+                        MAPPER.writeValueAsString(
+                            colVal != null ? colVal.getArray() : Collections.emptyList()))
+                    .build();
           } else {
-            builder.addColumn(NULL_VALUE);
+            String colVal = resultSet.getString(c);
+            convertedColVal =
+                colVal != null
+                    ? Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build()
+                    : NULL_VALUE;
           }
+          builder.addColumn(convertedColVal);
         }
       }
     }
