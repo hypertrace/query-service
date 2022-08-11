@@ -3,7 +3,6 @@ package org.hypertrace.core.query.service.postgres.converters;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.DATE_TIME_CONVERT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVGRATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
-import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONDITIONAL;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_DISTINCTCOUNT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_PERCENTILE;
@@ -60,8 +59,6 @@ public class PostgresFunctionConverter {
         return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
       case DATE_TIME_CONVERT:
         return this.functionToDateTimeConvert(function, argumentConverter);
-      case QUERY_FUNCTION_CONDITIONAL:
-        throw new UnsupportedOperationException("Unsupported function " + function);
       default:
         // TODO remove once postgres-specific logic removed from gateway - this normalization
         // reverts that logic

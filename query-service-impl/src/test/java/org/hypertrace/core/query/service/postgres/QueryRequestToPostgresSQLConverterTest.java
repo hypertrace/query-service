@@ -975,8 +975,17 @@ class QueryRequestToPostgresSQLConverterTest {
     TableDefinition tableDefinition = getDefaultTableDefinition();
     defaultMockingForExecutionContext();
 
-    assertExceptionOnSQLQuery(
-        queryRequest, UnsupportedOperationException.class, "Unsupported function");
+    assertSQLQuery(
+        queryRequest,
+        "select conditional('true',encode(span_id, 'hex'),'null'), conditional('true',duration_millis,0)"
+            + " from public.\"span-event-view\""
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' limit 15",
+        tableDefinition,
+        executionContext);
   }
 
   @Test
