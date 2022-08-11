@@ -1,27 +1,27 @@
 CREATE OR REPLACE FUNCTION dateTimeConvert (bigint, bigint) RETURNS bigint AS $$ select ((($1 + $2 - 1)/$2)*$2) $$ LANGUAGE SQL;
 
-CREATE OR REPLACE FUNCTION conditional (text, text, text)
+CREATE OR REPLACE FUNCTION conditional (condition text, first text, second text)
  RETURNS text
   AS $$
    SELECT
-    CASE WHEN $1 IS NOT NULL
-     THEN CASE WHEN CAST ($1 AS BOOLEAN) THEN $2 ELSE $3 END
+    CASE WHEN condition IS NOT NULL
+     THEN CASE WHEN CAST (condition AS BOOLEAN) THEN first ELSE second END
      ELSE NULL
     END
   $$
   LANGUAGE SQL;
 
-CREATE OR REPLACE FUNCTION stringEquals (text, text)
+CREATE OR REPLACE FUNCTION stringEquals (str1 text, str2 text)
  RETURNS text
   AS $$
    SELECT
-    CASE WHEN $1 IS NULL AND $2 IS NULL
+    CASE WHEN str1 IS NULL AND str2 IS NULL
      THEN 'true'
      ELSE
-      CASE WHEN $1 IS NULL OR $2 IS NULL
+      CASE WHEN str1 IS NULL OR str2 IS NULL
        THEN 'false'
        ELSE
-        CASE WHEN $1 = $2
+        CASE WHEN str1 = str2
          THEN 'true'
          ELSE 'false'
         END
