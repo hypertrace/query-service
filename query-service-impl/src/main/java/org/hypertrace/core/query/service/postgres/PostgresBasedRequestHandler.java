@@ -64,8 +64,14 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
-  private static final Value NULL_VALUE =
+  private static final Value NULL_STRING_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
+  private static final Value NULL_INT_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("0").build();
+  private static final Value NULL_FLOAT_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("0.0").build();
+  private static final Value NULL_BOOLEAN_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("false").build();
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -493,7 +499,7 @@ public class PostgresBasedRequestHandler implements RequestHandler {
             convertedColVal =
                 colVal != null
                     ? Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build()
-                    : NULL_VALUE;
+                    : getNullValueEquivalent(metaData.getColumnType(c));
           }
           builder.addColumn(convertedColVal);
         }
@@ -502,6 +508,21 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     return Observable.fromIterable(rowBuilderList)
         .map(Builder::build)
         .doOnNext(row -> LOG.debug("collect a row: {}", row));
+  }
+
+  private Value getNullValueEquivalent(int columnType) {
+    switch (columnType) {
+      case Types.BIGINT:
+      case Types.INTEGER:
+        return NULL_INT_VALUE;
+      case Types.FLOAT:
+      case Types.DOUBLE:
+        return NULL_FLOAT_VALUE;
+      case Types.BOOLEAN:
+        return NULL_BOOLEAN_VALUE;
+      default:
+        return NULL_STRING_VALUE;
+    }
   }
 
   private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {
