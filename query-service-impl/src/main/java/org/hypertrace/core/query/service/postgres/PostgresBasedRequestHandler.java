@@ -64,13 +64,16 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
-  private static final Value NULL_STRING_VALUE =
+  // string values equivalent for null value of different data types
+  // this is required to keep null values equivalent to default values for
+  // various data types in pinot implementation
+  private static final Value NULL_STRING_EQ_STRING_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
-  private static final Value NULL_INT_VALUE =
+  private static final Value NULL_INTEGER_EQ_STRING_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("0").build();
-  private static final Value NULL_FLOAT_VALUE =
+  private static final Value NULL_FLOAT_EQ_STRING_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("0.0").build();
-  private static final Value NULL_BOOLEAN_VALUE =
+  private static final Value NULL_BOOLEAN_EQ_STRING_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("false").build();
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -514,14 +517,14 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     switch (columnType) {
       case Types.BIGINT:
       case Types.INTEGER:
-        return NULL_INT_VALUE;
+        return NULL_INTEGER_EQ_STRING_VALUE;
       case Types.FLOAT:
       case Types.DOUBLE:
-        return NULL_FLOAT_VALUE;
+        return NULL_FLOAT_EQ_STRING_VALUE;
       case Types.BOOLEAN:
-        return NULL_BOOLEAN_VALUE;
+        return NULL_BOOLEAN_EQ_STRING_VALUE;
       default:
-        return NULL_STRING_VALUE;
+        return NULL_STRING_EQ_STRING_VALUE;
     }
   }
 
