@@ -195,18 +195,13 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     if (value.getValueType().equals(ValueType.STRING) && isNullOrEmpty(value.getString())) {
       builder.append(lhs);
       builder.append(" ");
-      switch (operator) {
-        case "=":
-          builder.append("IS NULL");
-          break;
-        case "!=":
-          builder.append("IS NOT NULL");
-          break;
-        default:
-          throw new IllegalArgumentException(
-              String.format(
-                  "Unsupported operator {%s} for bytes column with empty value", operator));
+      if (!operator.equals("=") && !operator.equals("!=")) {
+        throw new IllegalArgumentException(
+            String.format("Unsupported operator {%s} for bytes column with empty value", operator));
       }
+      builder.append(operator);
+      builder.append(" ");
+      builder.append("''");
       return true;
     }
     return false;

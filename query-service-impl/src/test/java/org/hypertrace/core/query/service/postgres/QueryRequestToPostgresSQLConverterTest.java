@@ -757,7 +757,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( parent_span_id IS NOT NULL ) limit 5",
+            + "AND ( parent_span_id != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
@@ -785,7 +785,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( parent_span_id IS NOT NULL ) limit 5",
+            + "AND ( parent_span_id != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
@@ -837,7 +837,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( span_id IS NOT NULL ) limit 5",
+            + "AND ( span_id != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
