@@ -20,6 +20,7 @@ public class TableDefinition {
   private static final String TABLE_NAME_CONFIG_KEY = "tableName";
   private static final String RETENTION_TIME_CONFIG_KEY = "retentionTimeMillis";
   private static final String TIME_GRANULARITY_CONFIG_KEY = "timeGranularityMillis";
+  private static final String ARRAY_FIELDS_CONFIG_KEY = "arrayFields";
   private static final String BYTES_FIELDS_CONFIG_KEY = "bytesFields";
   private static final String TDIGEST_FIELDS_CONFIG_KEY = "tdigestFields";
   private static final String FIELD_MAP_CONFIG_KEY = "fieldMap";
@@ -112,6 +113,13 @@ public class TableDefinition {
                 ? config.getStringList(TDIGEST_FIELDS_CONFIG_KEY)
                 : List.of());
 
+    // get array fields
+    final Set<String> arrayFields =
+        new HashSet<>(
+            config.hasPath(ARRAY_FIELDS_CONFIG_KEY)
+                ? config.getStringList(ARRAY_FIELDS_CONFIG_KEY)
+                : List.of());
+
     Map<String, PostgresColumnSpec> columnSpecMap = new HashMap<>();
     for (Entry<String, String> entry : fieldMap.entrySet()) {
       String logicalName = entry.getKey();
@@ -124,6 +132,8 @@ public class TableDefinition {
         spec = new PostgresColumnSpec(physName, ValueType.BYTES, false);
       } else if (tdigestFields.contains(physName)) {
         spec = new PostgresColumnSpec(physName, ValueType.STRING, true);
+      } else if (arrayFields.contains(physName)) {
+        spec = new PostgresColumnSpec(physName, ValueType.STRING_ARRAY, true);
       } else {
         spec = new PostgresColumnSpec(physName, ValueType.STRING, false);
       }

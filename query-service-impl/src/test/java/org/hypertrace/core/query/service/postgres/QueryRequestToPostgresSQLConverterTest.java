@@ -815,6 +815,110 @@ class QueryRequestToPostgresSQLConverterTest {
   }
 
   @Test
+  void testQueryWithArrayColumnWithValidValue() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.id").build());
+
+    Filter filter = createEqualsFilter("Span.labels", "label1");
+    builder.setFilter(filter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        request,
+        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+            + "WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND labels && '{label1}' limit 5",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithArrayColumnWithNullValue() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.id").build());
+
+    Filter filter = createNotEqualsFilter("Span.labels", "null");
+    builder.setFilter(filter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        request,
+        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+            + "WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND labels != '{}' limit 5",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithArrayColumnWithEmptyValue() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.id").build());
+
+    Filter filter = createNotEqualsFilter("Span.labels", "''");
+    builder.setFilter(filter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        request,
+        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+            + "WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND labels != '{}' limit 5",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithArrayColumnInFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.id").build());
+
+    Filter filter = createInFilter("Span.labels", List.of("label1", "label2"));
+    builder.setFilter(filter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        request,
+        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+            + "WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND labels && '{label1, label2}' limit 5",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
   void testQueryWithStringColumnWithNullString() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id"));

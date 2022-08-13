@@ -22,6 +22,10 @@ class ColumnRequestContext {
     return queryPart.equals(QueryPart.SELECT);
   }
 
+  boolean isArrayColumnType() {
+    return columnValueType != null && columnValueType.equals(ValueType.STRING_ARRAY);
+  }
+
   boolean isBytesColumnType() {
     return columnValueType != null && columnValueType.equals(ValueType.BYTES);
   }
