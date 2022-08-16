@@ -120,6 +120,10 @@ public class QueryRequestBuilderUtils {
     return createFilter(column, Operator.IN, createStringArrayLiteralValueExpression(values));
   }
 
+  public static Filter createNotInFilter(String column, List<String> values) {
+    return createFilter(column, Operator.NOT_IN, createStringArrayLiteralValueExpression(values));
+  }
+
   public static Filter createNotEqualsFilter(String column, String value) {
     return createFilter(column, Operator.NEQ, createStringLiteralValueExpression(value));
   }
