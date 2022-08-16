@@ -432,4 +432,31 @@ class ServicesQueries {
 
     return builder.build();
   }
+
+  public static QueryRequest buildLabelsNotEqualsQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+
+    builder.addSelection(serviceLabels);
+
+    Filter filter =
+        createFilter("SERVICE.labels", Operator.NEQ, ValueType.STRING_ARRAY, List.of("label4"));
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildLabelsNotInQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+
+    builder.addSelection(serviceLabels);
+
+    Filter filter =
+        createFilter(
+            "SERVICE.labels", Operator.NOT_IN, ValueType.STRING_ARRAY, List.of("label4", "label5"));
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
 }

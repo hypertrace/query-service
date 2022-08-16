@@ -224,16 +224,23 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
     if (handleConversionForNullOrEmptyArrayLiteral(lhs, operator, builder, value)) return;
 
-    builder.append(lhs);
     // support only equals and IN operator
-    // both of them are handled as contains check
-    if (!operator.equals("=") && !operator.equals("IN")) {
+    // both of them are handled as contains check to align with existing implementation
+    if (operator.equals("=")
+        || operator.equals("IN")
+        || operator.equals("!=")
+        || operator.equals("NOT IN")) {
+      // add NOT operator to negate the match condition
+      if (operator.equals("!=") || operator.equals("NOT IN")) {
+        builder.append("NOT ");
+      }
+      builder.append(lhs);
+      // overlap operator for array
+      builder.append(" && ");
+    } else {
       throw new IllegalArgumentException(
           String.format(
               "Unsupported operator {%s} for array column with non-empty value", operator));
-    } else {
-      // overlap operator for array
-      builder.append(" && ");
     }
     builder.append("?");
     switch (value.getValueType()) {

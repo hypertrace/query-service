@@ -400,6 +400,34 @@ public class HTPostgresQueriesTest {
             assertTrue(colVal.equals("[\"label1\",\"label2\",\"label3\"]"));
           });
     }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildLabelsNotEqualsQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(13, rows.size());
+      rows.forEach(
+          row -> {
+            String colVal = row.getColumn(0).getString();
+            assertTrue(colVal.equals("[\"label1\",\"label2\",\"label3\"]") || colVal.equals("[]"));
+          });
+    }
+
+    {
+      Iterator<ResultSetChunk> itr =
+          queryServiceClient.executeQuery(
+              ServicesQueries.buildLabelsNotInQuery(), TENANT_ID_MAP, 10000);
+      List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
+      List<Row> rows = list.get(0).getRowList();
+      assertEquals(13, rows.size());
+      rows.forEach(
+          row -> {
+            String colVal = row.getColumn(0).getString();
+            assertTrue(colVal.equals("[\"label1\",\"label2\",\"label3\"]") || colVal.equals("[]"));
+          });
+    }
   }
 
   private static Stream<Arguments> provideQueryRequestForServiceQueries()
