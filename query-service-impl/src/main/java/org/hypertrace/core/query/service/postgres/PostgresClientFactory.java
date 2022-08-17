@@ -1,13 +1,31 @@
 package org.hypertrace.core.query.service.postgres;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import io.reactivex.rxjava3.core.Observable;
+import java.sql.Array;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.sql.DataSource;
+import lombok.SneakyThrows;
+import org.apache.commons.dbcp2.ConnectionFactory;
+import org.apache.commons.dbcp2.DriverManagerConnectionFactory;
+import org.apache.commons.dbcp2.PoolableConnection;
+import org.apache.commons.dbcp2.PoolableConnectionFactory;
+import org.apache.commons.dbcp2.PoolingDataSource;
+import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerClientConfig;
+import org.hypertrace.core.query.service.api.Row;
+import org.hypertrace.core.query.service.api.Value;
+import org.hypertrace.core.query.service.api.ValueType;
 
 /*
  * Factory to create PostgresClient based on postgres jdbc connection.
@@ -18,6 +36,11 @@ public class PostgresClientFactory {
       org.slf4j.LoggerFactory.getLogger(PostgresClientFactory.class);
   // Singleton instance
   private static final PostgresClientFactory INSTANCE = new PostgresClientFactory();
+
+  private static final Value NULL_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final ConcurrentHashMap<String, PostgresClient> clientMap = new ConcurrentHashMap<>();
 
@@ -36,8 +59,8 @@ public class PostgresClientFactory {
     return get().getPostgresClient(postgresCluster);
   }
 
-  public static PostgresClient createPostgresClient(Connection connection) {
-    return new PostgresClient(connection);
+  public static PostgresClient createPostgresClient(DataSource dataSource) {
+    return new PostgresClient(dataSource);
   }
 
   public static PostgresClientFactory get() {
@@ -58,32 +81,56 @@ public class PostgresClientFactory {
 
   public static class PostgresClient {
 
-    private final Connection connection;
+    private final DataSource dataSource;
 
     private PostgresClient(RequestHandlerClientConfig clientConfig) throws SQLException {
       String user = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
       String password = clientConfig.getPassword().orElseThrow(IllegalArgumentException::new);
-      String url =
-          String.format(
-              "%s?user=%s&password=%s", clientConfig.getConnectionString(), user, password);
+      String url = clientConfig.getConnectionString();
+      this.dataSource = createPooledDataSource(url, user, password);
+    }
+
+    private DataSource createPooledDataSource(String url, String user, String password) {
       LOG.debug(
-          "Trying to create a Postgres client connected to postgres server using url: {}", url);
-      this.connection = DriverManager.getConnection(url);
+          "Trying to create a Postgres client connected to postgres server using url: {}, user: {}, password: {}",
+          url,
+          user,
+          password);
+      ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(url, user, password);
+      PoolableConnectionFactory poolableConnectionFactory =
+          new PoolableConnectionFactory(connectionFactory, null);
+      GenericObjectPool<PoolableConnection> connectionPool =
+          new GenericObjectPool<>(poolableConnectionFactory);
+      connectionPool.setMaxTotal(50);
+      connectionPool.setMaxIdle(10);
+      connectionPool.setMinIdle(5);
+      connectionPool.setMaxWaitMillis(5000);
+      poolableConnectionFactory.setPool(connectionPool);
+      poolableConnectionFactory.setValidationQuery("SELECT 1");
+      poolableConnectionFactory.setValidationQueryTimeout(5);
+      poolableConnectionFactory.setDefaultReadOnly(false);
+      poolableConnectionFactory.setDefaultAutoCommit(false);
+      poolableConnectionFactory.setDefaultTransactionIsolation(
+          Connection.TRANSACTION_READ_COMMITTED);
+      poolableConnectionFactory.setPoolStatements(false);
+      // poolableConnectionFactory.setMaxOpenPreparedStatements(100);
+      return new PoolingDataSource<>(connectionPool);
     }
 
-    private PostgresClient(Connection connection) {
-      this.connection = connection;
+    private PostgresClient(DataSource dataSource) {
+      this.dataSource = dataSource;
     }
 
-    public ResultSet executeQuery(String statement, Params params) throws SQLException {
-      PreparedStatement preparedStatement = buildPreparedStatement(statement, params);
-      return preparedStatement.executeQuery();
-    }
-
-    private PreparedStatement buildPreparedStatement(String statement, Params params)
-        throws SQLException {
+    public Observable<Row> executeQuery(String statement, Params params) throws SQLException {
       String resolvedStatement = resolveStatement(statement, params);
-      return connection.prepareStatement(resolvedStatement);
+      try (Connection connection = dataSource.getConnection();
+          PreparedStatement preparedStatement = connection.prepareStatement(resolvedStatement);
+          ResultSet resultSet = preparedStatement.executeQuery()) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Query results: [ {} ]", resultSet);
+        }
+        return convert(resultSet);
+      }
     }
 
     @VisibleForTesting
@@ -130,6 +177,43 @@ public class PostgresClientFactory {
 
     private static String getStringParam(String value) {
       return "'" + value.replace("'", "''") + "'";
+    }
+
+    @SneakyThrows
+    Observable<Row> convert(ResultSet resultSet) {
+      List<Row.Builder> rowBuilderList = new ArrayList<>();
+      while (resultSet.next()) {
+        Row.Builder builder = Row.newBuilder();
+        rowBuilderList.add(builder);
+        ResultSetMetaData metaData = resultSet.getMetaData();
+        int columnCount = metaData.getColumnCount();
+        if (columnCount > 0) {
+          for (int c = 1; c <= columnCount; c++) {
+            int colType = metaData.getColumnType(c);
+            Value convertedColVal;
+            if (colType == Types.ARRAY) {
+              Array colVal = resultSet.getArray(c);
+              convertedColVal =
+                  Value.newBuilder()
+                      .setValueType(ValueType.STRING)
+                      .setString(
+                          MAPPER.writeValueAsString(
+                              colVal != null ? colVal.getArray() : Collections.emptyList()))
+                      .build();
+            } else {
+              String colVal = resultSet.getString(c);
+              convertedColVal =
+                  colVal != null
+                      ? Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build()
+                      : NULL_VALUE;
+            }
+            builder.addColumn(convertedColVal);
+          }
+        }
+      }
+      return Observable.fromIterable(rowBuilderList)
+          .map(Row.Builder::build)
+          .doOnNext(row -> LOG.debug("collect a row: {}", row));
     }
   }
 }

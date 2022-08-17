@@ -29,12 +29,14 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
+import javax.sql.DataSource;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
 import org.hypertrace.core.query.service.api.Expression;
@@ -60,15 +62,20 @@ class QueryRequestToPostgresSQLConverterTest {
   private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
       "postgres_service_request_handler.conf";
 
+  private DataSource dataSource;
   private Connection connection;
   private ExecutionContext executionContext;
 
   @BeforeEach
   void setup() throws SQLException {
     executionContext = mock(ExecutionContext.class);
+    dataSource = mock(DataSource.class);
     connection = mock(Connection.class);
+    when(dataSource.getConnection()).thenReturn(connection);
     PreparedStatement preparedStatement = mock(PreparedStatement.class);
-    Mockito.when(connection.prepareStatement(any(String.class))).thenReturn(preparedStatement);
+    when(connection.prepareStatement(any(String.class))).thenReturn(preparedStatement);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(preparedStatement.executeQuery()).thenReturn(resultSet);
   }
 
   @Test
@@ -1295,7 +1302,7 @@ class QueryRequestToPostgresSQLConverterTest {
         converter.toSQL(
             executionContext, queryRequest, createSelectionsFromQueryRequest(queryRequest));
     PostgresClientFactory.PostgresClient postgresClient =
-        PostgresClientFactory.createPostgresClient(connection);
+        PostgresClientFactory.createPostgresClient(dataSource);
     try {
       postgresClient.executeQuery(statementToParam.getKey(), statementToParam.getValue());
     } catch (SQLException ex) {

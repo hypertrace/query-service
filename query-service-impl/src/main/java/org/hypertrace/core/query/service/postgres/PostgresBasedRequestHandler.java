@@ -2,7 +2,6 @@ package org.hypertrace.core.query.service.postgres;
 
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
@@ -12,12 +11,6 @@ import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import io.reactivex.rxjava3.core.Observable;
-import java.sql.Array;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.Types;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,7 +21,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import lombok.SneakyThrows;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
@@ -40,7 +32,6 @@ import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
-import org.hypertrace.core.query.service.api.Row.Builder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.postgres.PostgresClientFactory.PostgresClient;
@@ -63,11 +54,6 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
-
-  private static final Value NULL_VALUE =
-      Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
-
-  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final String name;
   private TableDefinition tableDefinition;
@@ -380,9 +366,9 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       }
       final PostgresClient postgresClient = postgresClientFactory.getPostgresClient(this.getName());
 
-      final ResultSet resultSet;
+      Observable<Row> rowObservable;
       try {
-        resultSet =
+        rowObservable =
             postgresQueryExecutionTimer.recordCallable(
                 () -> postgresClient.executeQuery(sql.getKey(), sql.getValue()));
       } catch (Exception ex) {
@@ -392,27 +378,23 @@ public class PostgresBasedRequestHandler implements RequestHandler {
         throw new RuntimeException(ex);
       }
 
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Query results: [ {} ]", resultSet);
-      }
       // need to merge data especially for Postgres. That's why we need to track the map columns
-      return this.convert(resultSet)
-          .doOnComplete(
-              () -> {
-                long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
-                if (requestTimeMs > slowQueryThreshold) {
-                  try {
-                    LOG.warn(
-                        "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}, executionStats: {}",
-                        requestTimeMs,
-                        sql.getKey(),
-                        protoJsonPrinter.print(request),
-                        "Stats not available");
-                  } catch (InvalidProtocolBufferException ignore) {
-                    // ignore this exception
-                  }
-                }
-              });
+      return rowObservable.doOnComplete(
+          () -> {
+            long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
+            if (requestTimeMs > slowQueryThreshold) {
+              try {
+                LOG.warn(
+                    "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}, executionStats: {}",
+                    requestTimeMs,
+                    sql.getKey(),
+                    protoJsonPrinter.print(request),
+                    "Stats not available");
+              } catch (InvalidProtocolBufferException ignore) {
+                // ignore this exception
+              }
+            }
+          });
     } catch (Throwable error) {
       return Observable.error(error);
     }
@@ -465,43 +447,6 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
     // In every other case, retain the query filter.
     return queryFilter;
-  }
-
-  @SneakyThrows
-  Observable<Row> convert(ResultSet resultSet) {
-    List<Builder> rowBuilderList = new ArrayList<>();
-    while (resultSet.next()) {
-      Builder builder = Row.newBuilder();
-      rowBuilderList.add(builder);
-      ResultSetMetaData metaData = resultSet.getMetaData();
-      int columnCount = metaData.getColumnCount();
-      if (columnCount > 0) {
-        for (int c = 1; c <= columnCount; c++) {
-          int colType = metaData.getColumnType(c);
-          Value convertedColVal;
-          if (colType == Types.ARRAY) {
-            Array colVal = resultSet.getArray(c);
-            convertedColVal =
-                Value.newBuilder()
-                    .setValueType(ValueType.STRING)
-                    .setString(
-                        MAPPER.writeValueAsString(
-                            colVal != null ? colVal.getArray() : Collections.emptyList()))
-                    .build();
-          } else {
-            String colVal = resultSet.getString(c);
-            convertedColVal =
-                colVal != null
-                    ? Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build()
-                    : NULL_VALUE;
-          }
-          builder.addColumn(convertedColVal);
-        }
-      }
-    }
-    return Observable.fromIterable(rowBuilderList)
-        .map(Builder::build)
-        .doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
   private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {
