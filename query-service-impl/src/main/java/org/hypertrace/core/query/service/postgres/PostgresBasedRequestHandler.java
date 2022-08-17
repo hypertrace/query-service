@@ -475,10 +475,9 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
   @SneakyThrows
   Observable<Row> convert(ResultSet resultSet) {
-    List<Builder> rowBuilderList = new ArrayList<>();
+    List<Row> rowList = new ArrayList<>();
     while (resultSet.next()) {
       Builder builder = Row.newBuilder();
-      rowBuilderList.add(builder);
       ResultSetMetaData metaData = resultSet.getMetaData();
       int columnCount = metaData.getColumnCount();
       if (columnCount > 0) {
@@ -504,10 +503,9 @@ public class PostgresBasedRequestHandler implements RequestHandler {
           builder.addColumn(convertedColVal);
         }
       }
+      rowList.add(builder.build());
     }
-    return Observable.fromIterable(rowBuilderList)
-        .map(Builder::build)
-        .doOnNext(row -> LOG.debug("collect a row: {}", row));
+    return Observable.fromIterable(rowList).doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
   private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {

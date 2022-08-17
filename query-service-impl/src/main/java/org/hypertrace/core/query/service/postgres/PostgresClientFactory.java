@@ -72,10 +72,9 @@ public class PostgresClientFactory {
 
     private DataSource createPooledDataSource(String url, String user, String password) {
       LOG.debug(
-          "Trying to create a Postgres client connected to postgres server using url: {}, user: {}, password: {}",
+          "Trying to create a Postgres client connected to postgres server using url: {}, user: {}",
           url,
-          user,
-          password);
+          user);
       ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(url, user, password);
       PoolableConnectionFactory poolableConnectionFactory =
           new PoolableConnectionFactory(connectionFactory, null);
@@ -93,7 +92,6 @@ public class PostgresClientFactory {
       poolableConnectionFactory.setDefaultTransactionIsolation(
           Connection.TRANSACTION_READ_COMMITTED);
       poolableConnectionFactory.setPoolStatements(false);
-      // poolableConnectionFactory.setMaxOpenPreparedStatements(100);
       return new PoolingDataSource<>(connectionPool);
     }
 
