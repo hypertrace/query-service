@@ -19,6 +19,7 @@ public class PostgresClientFactory {
 
   private static final org.slf4j.Logger LOG =
       org.slf4j.LoggerFactory.getLogger(PostgresClientFactory.class);
+  private static final Integer DEFAULT_MAX_CONNECTIONS = 5;
   // Singleton instance
   private static final PostgresClientFactory INSTANCE = new PostgresClientFactory();
 
@@ -67,10 +68,12 @@ public class PostgresClientFactory {
       String user = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
       String password = clientConfig.getPassword().orElseThrow(IllegalArgumentException::new);
       String url = clientConfig.getConnectionString();
-      this.dataSource = createPooledDataSource(url, user, password);
+      int maxConnections = clientConfig.getMaxConnections().orElse(DEFAULT_MAX_CONNECTIONS);
+      this.dataSource = createPooledDataSource(url, user, password, maxConnections);
     }
 
-    private DataSource createPooledDataSource(String url, String user, String password) {
+    private DataSource createPooledDataSource(
+        String url, String user, String password, int maxConnections) {
       LOG.debug(
           "Trying to create a Postgres client connected to postgres server using url: {}, user: {}",
           url,
@@ -80,9 +83,12 @@ public class PostgresClientFactory {
           new PoolableConnectionFactory(connectionFactory, null);
       GenericObjectPool<PoolableConnection> connectionPool =
           new GenericObjectPool<>(poolableConnectionFactory);
-      connectionPool.setMaxTotal(50);
-      connectionPool.setMaxIdle(10);
-      connectionPool.setMinIdle(5);
+      connectionPool.setMaxTotal(maxConnections);
+      // max idle connections are 20% of max connections
+      connectionPool.setMaxIdle(getPercentOf(maxConnections, 20));
+      // min idle connections are 10% of max connections
+      connectionPool.setMinIdle(getPercentOf(maxConnections, 10));
+      connectionPool.setBlockWhenExhausted(true);
       connectionPool.setMaxWaitMillis(5000);
       poolableConnectionFactory.setPool(connectionPool);
       poolableConnectionFactory.setValidationQuery("SELECT 1");
@@ -101,6 +107,15 @@ public class PostgresClientFactory {
 
     public Connection getConnection() throws SQLException {
       return dataSource.getConnection();
+    }
+
+    private int getPercentOf(int maxConnections, int percent) {
+      int value = (maxConnections * 100) / percent;
+      // min value is always 1
+      if (value < 1) {
+        return 1;
+      }
+      return value;
     }
   }
 }
