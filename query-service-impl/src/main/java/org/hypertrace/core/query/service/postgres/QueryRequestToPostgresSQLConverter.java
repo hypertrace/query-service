@@ -112,4 +112,33 @@ class QueryRequestToPostgresSQLConverter {
     }
     return new SimpleEntry<>(sqlBuilder.toString(), paramsBuilder.build());
   }
+
+  String resolveStatement(String query, Params params) {
+    if (query.isEmpty()) {
+      return query;
+    }
+    String[] queryParts = query.split("\\?");
+
+    String[] parameters = new String[queryParts.length];
+    params.getStringParams().forEach((i, p) -> parameters[i] = getStringParam(p));
+    params.getIntegerParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+    params.getLongParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+    params.getDoubleParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+    params.getFloatParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < queryParts.length; i++) {
+      sb.append(queryParts[i]);
+      sb.append(parameters[i] != null ? parameters[i] : "");
+    }
+    String statement = sb.toString();
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Resolved SQL statement: [{}]", statement);
+    }
+    return statement;
+  }
+
+  String getStringParam(String value) {
+    return "'" + value.replace("'", "''") + "'";
+  }
 }

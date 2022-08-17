@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.postgres;
 
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
@@ -11,6 +12,15 @@ import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import io.reactivex.rxjava3.core.Observable;
+import java.sql.Array;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import lombok.SneakyThrows;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
@@ -32,6 +43,7 @@ import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
+import org.hypertrace.core.query.service.api.Row.Builder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.postgres.PostgresClientFactory.PostgresClient;
@@ -54,6 +66,11 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
+
+  private static final Value NULL_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final String name;
   private TableDefinition tableDefinition;
@@ -364,19 +381,10 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Trying to execute SQL: [ {} ] by RequestHandler: [ {} ]", sql, this.getName());
       }
-      final PostgresClient postgresClient = postgresClientFactory.getPostgresClient(this.getName());
 
-      Observable<Row> rowObservable;
-      try {
-        rowObservable =
-            postgresQueryExecutionTimer.recordCallable(
-                () -> postgresClient.executeQuery(sql.getKey(), sql.getValue()));
-      } catch (Exception ex) {
-        // Catch this exception to log the Postgres SQL query that caused the issue
-        LOG.error("An error occurred while executing: {}", sql.getKey(), ex);
-        // Rethrow for the caller to return an error.
-        throw new RuntimeException(ex);
-      }
+      Observable<Row> rowObservable =
+          postgresQueryExecutionTimer.recordCallable(
+              () -> executeQuery(sql.getKey(), sql.getValue()));
 
       // need to merge data especially for Postgres. That's why we need to track the map columns
       return rowObservable.doOnComplete(
@@ -447,6 +455,59 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
     // In every other case, retain the query filter.
     return queryFilter;
+  }
+
+  public Observable<Row> executeQuery(String statement, Params params) throws SQLException {
+    final PostgresClient postgresClient = postgresClientFactory.getPostgresClient(this.getName());
+    String resolvedStatement = request2PostgresSqlConverter.resolveStatement(statement, params);
+    try (Connection connection = postgresClient.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(resolvedStatement);
+        ResultSet resultSet = preparedStatement.executeQuery()) {
+      LOG.debug("Query results: [ {} ]", resultSet);
+      return convert(resultSet);
+    } catch (Exception ex) {
+      // Catch this exception to log the Postgres SQL query that caused the issue
+      LOG.error("An error occurred while executing: {}", resolvedStatement, ex);
+      // Rethrow for the caller to return an error.
+      throw new RuntimeException(ex);
+    }
+  }
+
+  @SneakyThrows
+  Observable<Row> convert(ResultSet resultSet) {
+    List<Builder> rowBuilderList = new ArrayList<>();
+    while (resultSet.next()) {
+      Builder builder = Row.newBuilder();
+      rowBuilderList.add(builder);
+      ResultSetMetaData metaData = resultSet.getMetaData();
+      int columnCount = metaData.getColumnCount();
+      if (columnCount > 0) {
+        for (int c = 1; c <= columnCount; c++) {
+          int colType = metaData.getColumnType(c);
+          Value convertedColVal;
+          if (colType == Types.ARRAY) {
+            Array colVal = resultSet.getArray(c);
+            convertedColVal =
+                Value.newBuilder()
+                    .setValueType(ValueType.STRING)
+                    .setString(
+                        MAPPER.writeValueAsString(
+                            colVal != null ? colVal.getArray() : Collections.emptyList()))
+                    .build();
+          } else {
+            String colVal = resultSet.getString(c);
+            convertedColVal =
+                colVal != null
+                    ? Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build()
+                    : NULL_VALUE;
+          }
+          builder.addColumn(convertedColVal);
+        }
+      }
+    }
+    return Observable.fromIterable(rowBuilderList)
+        .map(Builder::build)
+        .doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
   private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {
