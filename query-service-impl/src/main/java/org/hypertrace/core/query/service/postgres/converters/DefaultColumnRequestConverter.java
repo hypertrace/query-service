@@ -143,6 +143,9 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           if (isFilterForBytesColumnType(filter, context)) {
             handleConversionForBytesColumnExpression(
                 lhs, operator, filter.getRhs(), builder, paramsBuilder);
+          } else if (isFilterForArrayColumnType(filter, context)) {
+            handleConversionForArrayColumnExpression(
+                lhs, operator, filter.getRhs(), builder, paramsBuilder);
           } else {
             builder.append(lhs);
             builder.append(" ");
@@ -192,21 +195,81 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
   private boolean handleConversionForNullOrEmptyBytesLiteral(
       String lhs, String operator, StringBuilder builder, Value value) {
-    if (value.getValueType().equals(ValueType.STRING) && isNullOrEmpty(value.getString())) {
+    if (value.getValueType().equals(ValueType.NULL_STRING)
+        || (value.getValueType().equals(ValueType.STRING) && isNullOrEmpty(value.getString()))) {
       builder.append(lhs);
       builder.append(" ");
-      switch (operator) {
-        case "=":
-          builder.append("IS NULL");
-          break;
-        case "!=":
-          builder.append("IS NOT NULL");
-          break;
-        default:
-          throw new IllegalArgumentException(
-              String.format(
-                  "Unsupported operator {%s} for bytes column with empty value", operator));
+      if (!operator.equals("=") && !operator.equals("!=")) {
+        throw new IllegalArgumentException(
+            String.format("Unsupported operator {%s} for bytes column with empty value", operator));
       }
+      builder.append(operator);
+      builder.append(" ");
+      builder.append("''");
+      return true;
+    }
+    return false;
+  }
+
+  private boolean isFilterForArrayColumnType(Filter filter, ColumnRequestContext context) {
+    return isSimpleAttributeExpression(filter.getLhs())
+        && filter.getRhs().getValueCase().equals(LITERAL)
+        && context.isArrayColumnType();
+  }
+
+  /** Handles value conversion of a array expression based */
+  private void handleConversionForArrayColumnExpression(
+      String lhs, String operator, Expression rhs, StringBuilder builder, Builder paramsBuilder) {
+    Value value = rhs.getLiteral().getValue();
+
+    if (handleConversionForNullOrEmptyArrayLiteral(lhs, operator, builder, value)) return;
+
+    // support only equals and IN operator
+    // both of them are handled as contains check to align with existing implementation
+    if (operator.equals("=")
+        || operator.equals("IN")
+        || operator.equals("!=")
+        || operator.equals("NOT IN")) {
+      // add NOT operator to negate the match condition
+      if (operator.equals("!=") || operator.equals("NOT IN")) {
+        builder.append("NOT ");
+      }
+      builder.append(lhs);
+      // overlap operator for array
+      builder.append(" && ");
+    } else {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unsupported operator {%s} for array column with non-empty value", operator));
+    }
+    builder.append("?");
+    switch (value.getValueType()) {
+      case STRING:
+        paramsBuilder.addStringParam("{" + value.getString() + "}");
+        break;
+      case STRING_ARRAY:
+        paramsBuilder.addStringParam("{" + String.join(", ", value.getStringArrayList()) + "}");
+        break;
+      default:
+        throw new IllegalArgumentException(
+            String.format("Unsupported value {%s} for array column", value));
+    }
+    builder.append(QUESTION_MARK);
+  }
+
+  private boolean handleConversionForNullOrEmptyArrayLiteral(
+      String lhs, String operator, StringBuilder builder, Value value) {
+    if (value.getValueType().equals(ValueType.NULL_STRING)
+        || (value.getValueType().equals(ValueType.STRING) && isNullOrEmpty(value.getString()))) {
+      builder.append(lhs);
+      builder.append(" ");
+      if (!operator.equals("=") && !operator.equals("!=")) {
+        throw new IllegalArgumentException(
+            String.format("Unsupported operator {%s} for bytes column with empty value", operator));
+      }
+      builder.append(operator);
+      builder.append(" ");
+      builder.append("'{}'");
       return true;
     }
     return false;

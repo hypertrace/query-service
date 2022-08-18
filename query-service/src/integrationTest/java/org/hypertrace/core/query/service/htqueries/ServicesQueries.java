@@ -383,11 +383,79 @@ class ServicesQueries {
     return builder.build();
   }
 
-  public static QueryRequest buildLabelsQuery() {
+  public static QueryRequest buildLabelsEqualsNullQuery() {
     Builder builder = QueryRequest.newBuilder();
     Expression serviceLabels = createColumnExpression("SERVICE.labels");
 
     builder.addSelection(serviceLabels);
+
+    Filter filter = createFilter("SERVICE.labels", Operator.EQ, ValueType.NULL_STRING, "");
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildLabelsNotEqualsNullQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+
+    builder.addSelection(serviceLabels);
+
+    Filter filter = createFilter("SERVICE.labels", Operator.NEQ, ValueType.NULL_STRING, "");
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildLabelsEqualsQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+
+    builder.addSelection(serviceLabels);
+
+    Filter filter = createFilter("SERVICE.labels", Operator.EQ, ValueType.STRING, "label1");
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildLabelsInQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+
+    builder.addSelection(serviceLabels);
+
+    Filter filter =
+        createFilter(
+            "SERVICE.labels", Operator.IN, ValueType.STRING_ARRAY, List.of("label1", "label4"));
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildLabelsNotEqualsQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+
+    builder.addSelection(serviceLabels);
+
+    Filter filter =
+        createFilter("SERVICE.labels", Operator.NEQ, ValueType.STRING_ARRAY, List.of("label4"));
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
+
+  public static QueryRequest buildLabelsNotInQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+
+    builder.addSelection(serviceLabels);
+
+    Filter filter =
+        createFilter(
+            "SERVICE.labels", Operator.NOT_IN, ValueType.STRING_ARRAY, List.of("label4", "label5"));
+    builder.setFilter(filter);
 
     return builder.build();
   }
