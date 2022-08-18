@@ -64,8 +64,17 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
-  private static final Value NULL_VALUE =
+  // string values equivalent for null value of different data types
+  // this is required to keep null values equivalent to default values for
+  // various data types in pinot implementation
+  private static final Value NULL_STRING_EQ_STRING_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
+  private static final Value NULL_INTEGER_EQ_STRING_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("0").build();
+  private static final Value NULL_FLOAT_EQ_STRING_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("0.0").build();
+  private static final Value NULL_BOOLEAN_EQ_STRING_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("false").build();
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -493,7 +502,7 @@ public class PostgresBasedRequestHandler implements RequestHandler {
             convertedColVal =
                 colVal != null
                     ? Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build()
-                    : NULL_VALUE;
+                    : getNullValueEquivalent(metaData.getColumnType(c));
           }
           builder.addColumn(convertedColVal);
         }
@@ -502,6 +511,21 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     return Observable.fromIterable(rowBuilderList)
         .map(Builder::build)
         .doOnNext(row -> LOG.debug("collect a row: {}", row));
+  }
+
+  private Value getNullValueEquivalent(int columnType) {
+    switch (columnType) {
+      case Types.BIGINT:
+      case Types.INTEGER:
+        return NULL_INTEGER_EQ_STRING_VALUE;
+      case Types.FLOAT:
+      case Types.DOUBLE:
+        return NULL_FLOAT_EQ_STRING_VALUE;
+      case Types.BOOLEAN:
+        return NULL_BOOLEAN_EQ_STRING_VALUE;
+      default:
+        return NULL_STRING_EQ_STRING_VALUE;
+    }
   }
 
   private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {
