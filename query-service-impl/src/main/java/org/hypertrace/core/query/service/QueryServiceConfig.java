@@ -65,10 +65,12 @@ public class QueryServiceConfig {
     private static final String CONFIG_PATH_CONNECTION_STRING = "connectionString";
     private static final String CONFIG_PATH_USER = "user";
     private static final String CONFIG_PATH_PASSWORD = "password";
+    private static final String CONFIG_PATH_MAX_CONNECTIONS = "maxConnections";
     String type;
     String connectionString;
     Optional<String> user;
     Optional<String> password;
+    Optional<Integer> maxConnections;
 
     private RequestHandlerClientConfig(Config config) {
       this.type = config.getString(CONFIG_PATH_TYPE);
@@ -80,6 +82,10 @@ public class QueryServiceConfig {
       this.password =
           config.hasPath(CONFIG_PATH_PASSWORD)
               ? Optional.of(config.getString(CONFIG_PATH_PASSWORD))
+              : Optional.empty();
+      this.maxConnections =
+          config.hasPath(CONFIG_PATH_MAX_CONNECTIONS)
+              ? Optional.of(config.getInt(CONFIG_PATH_MAX_CONNECTIONS))
               : Optional.empty();
     }
   }
