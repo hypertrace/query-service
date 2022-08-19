@@ -111,7 +111,8 @@ public class PostgresClientFactory {
 
     private int getPercentOf(int maxConnections, int percent) {
       int value = (maxConnections * percent) / 100;
-      return value > 1 ? value : 0;
+      // minimum value should be 1
+      return Math.max(value, 1);
     }
   }
 }
