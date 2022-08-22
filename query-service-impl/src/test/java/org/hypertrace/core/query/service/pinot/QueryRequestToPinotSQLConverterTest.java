@@ -2,7 +2,6 @@ package org.hypertrace.core.query.service.pinot;
 
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createBooleanArrayInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
@@ -220,25 +219,6 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND is_entry = 'true'",
-        viewDefinition,
-        executionContext);
-  }
-
-  @Test
-  public void testQueryWithBooleanArrayFilter() {
-    QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(createBooleanArrayInFilter("Span.is_entry", List.of(true)));
-    ViewDefinition viewDefinition = getDefaultViewDefinition();
-    defaultMockingForExecutionContext();
-
-    assertPQLQuery(
-        queryRequest,
-        "Select span_id FROM SpanEventView WHERE "
-            + viewDefinition.getTenantIdColumn()
-            + " = '"
-            + TENANT_ID
-            + "' "
-            + "AND is_entry in ('true')",
         viewDefinition,
         executionContext);
   }
