@@ -116,6 +116,10 @@ public class QueryRequestBuilderUtils {
     return Filter.newBuilder().setOperator(operator).addAllChildFilter(Arrays.asList(childFilters));
   }
 
+  public static Filter createBooleanArrayInFilter(String column, List<Boolean> values) {
+    return createFilter(column, Operator.IN, createBoolArrayLiteralValueExpression(values));
+  }
+
   public static Filter createInFilter(String column, List<String> values) {
     return createFilter(column, Operator.IN, createStringArrayLiteralValueExpression(values));
   }
@@ -242,6 +246,17 @@ public class QueryRequestBuilderUtils {
         .setLiteral(
             LiteralConstant.newBuilder()
                 .setValue(Value.newBuilder().setBoolean(value).setValueType(ValueType.BOOL)))
+        .build();
+  }
+
+  public static Expression createBoolArrayLiteralValueExpression(List<Boolean> values) {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder()
+                        .addAllBooleanArray(values)
+                        .setValueType(ValueType.BOOLEAN_ARRAY)))
         .build();
   }
 
