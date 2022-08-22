@@ -53,6 +53,7 @@ dependencies {
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.9.3")
   implementation("org.postgresql:postgresql:42.4.1")
+  implementation("org.apache.commons:commons-dbcp2:2.9.0")
 
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")

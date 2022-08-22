@@ -1,12 +1,15 @@
 package org.hypertrace.core.query.service.postgres;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.sql.DataSource;
+import org.apache.commons.dbcp2.ConnectionFactory;
+import org.apache.commons.dbcp2.DriverManagerConnectionFactory;
+import org.apache.commons.dbcp2.PoolableConnection;
+import org.apache.commons.dbcp2.PoolableConnectionFactory;
+import org.apache.commons.dbcp2.PoolingDataSource;
+import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerClientConfig;
 
 /*
@@ -16,6 +19,7 @@ public class PostgresClientFactory {
 
   private static final org.slf4j.Logger LOG =
       org.slf4j.LoggerFactory.getLogger(PostgresClientFactory.class);
+  private static final Integer DEFAULT_MAX_CONNECTIONS = 5;
   // Singleton instance
   private static final PostgresClientFactory INSTANCE = new PostgresClientFactory();
 
@@ -36,8 +40,8 @@ public class PostgresClientFactory {
     return get().getPostgresClient(postgresCluster);
   }
 
-  public static PostgresClient createPostgresClient(Connection connection) {
-    return new PostgresClient(connection);
+  public static PostgresClient createPostgresClient(DataSource dataSource) {
+    return new PostgresClient(dataSource);
   }
 
   public static PostgresClientFactory get() {
@@ -58,78 +62,57 @@ public class PostgresClientFactory {
 
   public static class PostgresClient {
 
-    private final Connection connection;
+    private final DataSource dataSource;
 
     private PostgresClient(RequestHandlerClientConfig clientConfig) throws SQLException {
       String user = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
       String password = clientConfig.getPassword().orElseThrow(IllegalArgumentException::new);
-      String url =
-          String.format(
-              "%s?user=%s&password=%s", clientConfig.getConnectionString(), user, password);
+      String url = clientConfig.getConnectionString();
+      int maxConnections = clientConfig.getMaxConnections().orElse(DEFAULT_MAX_CONNECTIONS);
+      this.dataSource = createPooledDataSource(url, user, password, maxConnections);
+    }
+
+    private DataSource createPooledDataSource(
+        String url, String user, String password, int maxConnections) {
       LOG.debug(
-          "Trying to create a Postgres client connected to postgres server using url: {}", url);
-      this.connection = DriverManager.getConnection(url);
+          "Trying to create a Postgres client connected to postgres server using url: {}, user: {}",
+          url,
+          user);
+      ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(url, user, password);
+      PoolableConnectionFactory poolableConnectionFactory =
+          new PoolableConnectionFactory(connectionFactory, null);
+      GenericObjectPool<PoolableConnection> connectionPool =
+          new GenericObjectPool<>(poolableConnectionFactory);
+      connectionPool.setMaxTotal(maxConnections);
+      // max idle connections are 20% of max connections
+      connectionPool.setMaxIdle(getPercentOf(maxConnections, 20));
+      // min idle connections are 10% of max connections
+      connectionPool.setMinIdle(getPercentOf(maxConnections, 10));
+      connectionPool.setBlockWhenExhausted(true);
+      connectionPool.setMaxWaitMillis(5000);
+      poolableConnectionFactory.setPool(connectionPool);
+      poolableConnectionFactory.setValidationQuery("SELECT 1");
+      poolableConnectionFactory.setValidationQueryTimeout(5);
+      poolableConnectionFactory.setDefaultReadOnly(false);
+      poolableConnectionFactory.setDefaultAutoCommit(false);
+      poolableConnectionFactory.setDefaultTransactionIsolation(
+          Connection.TRANSACTION_READ_COMMITTED);
+      poolableConnectionFactory.setPoolStatements(false);
+      return new PoolingDataSource<>(connectionPool);
     }
 
-    private PostgresClient(Connection connection) {
-      this.connection = connection;
+    private PostgresClient(DataSource dataSource) {
+      this.dataSource = dataSource;
     }
 
-    public ResultSet executeQuery(String statement, Params params) throws SQLException {
-      PreparedStatement preparedStatement = buildPreparedStatement(statement, params);
-      return preparedStatement.executeQuery();
+    public Connection getConnection() throws SQLException {
+      return dataSource.getConnection();
     }
 
-    private PreparedStatement buildPreparedStatement(String statement, Params params)
-        throws SQLException {
-      String resolvedStatement = resolveStatement(statement, params);
-      return connection.prepareStatement(resolvedStatement);
-    }
-
-    @VisibleForTesting
-    /*
-     * Postgres PreparedStatement creates invalid query if one of the parameters has '?' in its value.
-     * Sample postgres query : select * from table where team in (?, ?, ?).. Now say parameters are:
-     * 'abc', 'pqr with (?)' and 'xyz'..
-     *
-     * Now, on executing PreparedStatement:fillStatementWithParameters method on this will return
-     * select * from table where team in ('abc', 'pqr with ('xyz')', ?) -- which is clearly wrong
-     * (what we wanted was select * from table where team in ('abc', 'pqr with (?)', 'xyz'))..
-     *
-     * The reason is the usage of replaceFirst iteration in the postgres PreparedStatement method..
-     *
-     * Hence written this custom method to resolve the query statement rather than relying on Postgres's
-     * library method.
-     * This is a temporary fix and can be reverted when the Postgres issue gets resolved
-     * Raised an issue in incubator-postgres github repo: apache/incubator-postgres#6834
-     */
-    static String resolveStatement(String query, Params params) {
-      if (query.isEmpty()) {
-        return query;
-      }
-      String[] queryParts = query.split("\\?");
-
-      String[] parameters = new String[queryParts.length];
-      params.getStringParams().forEach((i, p) -> parameters[i] = getStringParam(p));
-      params.getIntegerParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-      params.getLongParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-      params.getDoubleParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-      params.getFloatParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
-
-      StringBuilder sb = new StringBuilder();
-      for (int i = 0; i < queryParts.length; i++) {
-        sb.append(queryParts[i]);
-        sb.append(parameters[i] != null ? parameters[i] : "");
-      }
-      String statement = sb.toString();
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Resolved SQL statement: [{}]", statement);
-      }
-      return statement;
-    }
-
-    private static String getStringParam(String value) {
-      return "'" + value.replace("'", "''") + "'";
+    private int getPercentOf(int maxConnections, int percent) {
+      int value = (maxConnections * percent) / 100;
+      // minimum value should be 1
+      return Math.max(value, 1);
     }
   }
 }

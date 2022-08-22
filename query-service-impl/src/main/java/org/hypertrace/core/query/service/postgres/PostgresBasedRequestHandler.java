@@ -13,8 +13,11 @@ import com.typesafe.config.Config;
 import io.micrometer.core.instrument.Timer;
 import io.reactivex.rxjava3.core.Observable;
 import java.sql.Array;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -64,8 +67,17 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
-  private static final Value NULL_VALUE =
+  // string values equivalent for null value of different data types
+  // this is required to keep null values equivalent to default values for
+  // various data types in pinot implementation
+  private static final Value NULL_STRING_EQ_STRING_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("null").build();
+  private static final Value NULL_INTEGER_EQ_STRING_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("0").build();
+  private static final Value NULL_FLOAT_EQ_STRING_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("0.0").build();
+  private static final Value NULL_BOOLEAN_EQ_STRING_VALUE =
+      Value.newBuilder().setValueType(ValueType.STRING).setString("false").build();
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -378,41 +390,28 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Trying to execute SQL: [ {} ] by RequestHandler: [ {} ]", sql, this.getName());
       }
-      final PostgresClient postgresClient = postgresClientFactory.getPostgresClient(this.getName());
 
-      final ResultSet resultSet;
-      try {
-        resultSet =
-            postgresQueryExecutionTimer.recordCallable(
-                () -> postgresClient.executeQuery(sql.getKey(), sql.getValue()));
-      } catch (Exception ex) {
-        // Catch this exception to log the Postgres SQL query that caused the issue
-        LOG.error("An error occurred while executing: {}", sql.getKey(), ex);
-        // Rethrow for the caller to return an error.
-        throw new RuntimeException(ex);
-      }
+      Observable<Row> rowObservable =
+          postgresQueryExecutionTimer.recordCallable(
+              () -> executeQuery(sql.getKey(), sql.getValue()));
 
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Query results: [ {} ]", resultSet);
-      }
       // need to merge data especially for Postgres. That's why we need to track the map columns
-      return this.convert(resultSet)
-          .doOnComplete(
-              () -> {
-                long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
-                if (requestTimeMs > slowQueryThreshold) {
-                  try {
-                    LOG.warn(
-                        "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}, executionStats: {}",
-                        requestTimeMs,
-                        sql.getKey(),
-                        protoJsonPrinter.print(request),
-                        "Stats not available");
-                  } catch (InvalidProtocolBufferException ignore) {
-                    // ignore this exception
-                  }
-                }
-              });
+      return rowObservable.doOnComplete(
+          () -> {
+            long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
+            if (requestTimeMs > slowQueryThreshold) {
+              try {
+                LOG.warn(
+                    "Query Execution time: {} ms, sqlQuery: {}, queryRequest: {}, executionStats: {}",
+                    requestTimeMs,
+                    sql.getKey(),
+                    protoJsonPrinter.print(request),
+                    "Stats not available");
+              } catch (InvalidProtocolBufferException ignore) {
+                // ignore this exception
+              }
+            }
+          });
     } catch (Throwable error) {
       return Observable.error(error);
     }
@@ -467,12 +466,27 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
+  public Observable<Row> executeQuery(String statement, Params params) throws SQLException {
+    final PostgresClient postgresClient = postgresClientFactory.getPostgresClient(this.getName());
+    String resolvedStatement = request2PostgresSqlConverter.resolveStatement(statement, params);
+    try (Connection connection = postgresClient.getConnection();
+        PreparedStatement preparedStatement = connection.prepareStatement(resolvedStatement);
+        ResultSet resultSet = preparedStatement.executeQuery()) {
+      LOG.debug("Query results: [ {} ]", resultSet);
+      return convert(resultSet);
+    } catch (Exception ex) {
+      // Catch this exception to log the Postgres SQL query that caused the issue
+      LOG.error("An error occurred while executing: {}", resolvedStatement, ex);
+      // Rethrow for the caller to return an error.
+      throw new RuntimeException(ex);
+    }
+  }
+
   @SneakyThrows
   Observable<Row> convert(ResultSet resultSet) {
-    List<Builder> rowBuilderList = new ArrayList<>();
+    List<Row> rowList = new ArrayList<>();
     while (resultSet.next()) {
       Builder builder = Row.newBuilder();
-      rowBuilderList.add(builder);
       ResultSetMetaData metaData = resultSet.getMetaData();
       int columnCount = metaData.getColumnCount();
       if (columnCount > 0) {
@@ -493,15 +507,29 @@ public class PostgresBasedRequestHandler implements RequestHandler {
             convertedColVal =
                 colVal != null
                     ? Value.newBuilder().setValueType(ValueType.STRING).setString(colVal).build()
-                    : NULL_VALUE;
+                    : getNullValueEquivalent(metaData.getColumnType(c));
           }
           builder.addColumn(convertedColVal);
         }
       }
+      rowList.add(builder.build());
     }
-    return Observable.fromIterable(rowBuilderList)
-        .map(Builder::build)
-        .doOnNext(row -> LOG.debug("collect a row: {}", row));
+    return Observable.fromIterable(rowList).doOnNext(row -> LOG.debug("collect a row: {}", row));
+  }
+
+  private Value getNullValueEquivalent(int columnType) {
+    switch (columnType) {
+      case Types.BIGINT:
+      case Types.INTEGER:
+        return NULL_INTEGER_EQ_STRING_VALUE;
+      case Types.FLOAT:
+      case Types.DOUBLE:
+        return NULL_FLOAT_EQ_STRING_VALUE;
+      case Types.BOOLEAN:
+        return NULL_BOOLEAN_EQ_STRING_VALUE;
+      default:
+        return NULL_STRING_EQ_STRING_VALUE;
+    }
   }
 
   private void validateQueryRequest(ExecutionContext executionContext, QueryRequest request) {
