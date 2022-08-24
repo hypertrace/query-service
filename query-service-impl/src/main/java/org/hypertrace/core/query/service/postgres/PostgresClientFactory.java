@@ -1,25 +1,26 @@
 package org.hypertrace.core.query.service.postgres;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.sql.DataSource;
-import org.apache.commons.dbcp2.ConnectionFactory;
-import org.apache.commons.dbcp2.DriverManagerConnectionFactory;
-import org.apache.commons.dbcp2.PoolableConnection;
-import org.apache.commons.dbcp2.PoolableConnectionFactory;
-import org.apache.commons.dbcp2.PoolingDataSource;
-import org.apache.commons.pool2.impl.GenericObjectPool;
+import java.util.concurrent.TimeUnit;
 import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerClientConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * Factory to create PostgresClient based on postgres jdbc connection.
  */
 public class PostgresClientFactory {
 
-  private static final org.slf4j.Logger LOG =
-      org.slf4j.LoggerFactory.getLogger(PostgresClientFactory.class);
-  private static final Integer DEFAULT_MAX_CONNECTIONS = 5;
+  private static final int DEFAULT_MAX_CONNECTION_ATTEMPTS = 200;
+  private static final Duration DEFAULT_CONNECTION_RETRY_BACKOFF = Duration.ofSeconds(5);
+  private static final int VALIDATION_QUERY_TIMEOUT_SECONDS = 5;
+
   // Singleton instance
   private static final PostgresClientFactory INSTANCE = new PostgresClientFactory();
 
@@ -40,10 +41,6 @@ public class PostgresClientFactory {
     return get().getPostgresClient(postgresCluster);
   }
 
-  public static PostgresClient createPostgresClient(DataSource dataSource) {
-    return new PostgresClient(dataSource);
-  }
-
   public static PostgresClientFactory get() {
     return INSTANCE;
   }
@@ -62,57 +59,98 @@ public class PostgresClientFactory {
 
   public static class PostgresClient {
 
-    private final DataSource dataSource;
+    private static final Logger LOGGER = LoggerFactory.getLogger(PostgresClient.class);
 
-    private PostgresClient(RequestHandlerClientConfig clientConfig) throws SQLException {
-      String user = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
-      String password = clientConfig.getPassword().orElseThrow(IllegalArgumentException::new);
-      String url = clientConfig.getConnectionString();
-      int maxConnections = clientConfig.getMaxConnections().orElse(DEFAULT_MAX_CONNECTIONS);
-      this.dataSource = createPooledDataSource(url, user, password, maxConnections);
+    private final String url;
+    private final String user;
+    private final String password;
+    private final int maxConnectionAttempts;
+    private final Duration connectionRetryBackoff;
+
+    private int count = 0;
+    private Connection connection;
+
+    public PostgresClient(RequestHandlerClientConfig clientConfig) {
+      this.url = clientConfig.getConnectionString();
+      this.user = clientConfig.getUser().orElseThrow(IllegalArgumentException::new);
+      this.password = clientConfig.getPassword().orElseThrow(IllegalArgumentException::new);
+      this.maxConnectionAttempts =
+          clientConfig.getMaxConnectionAttempts().orElse(DEFAULT_MAX_CONNECTION_ATTEMPTS);
+      this.connectionRetryBackoff =
+          clientConfig.getConnectionRetryBackoff().orElse(DEFAULT_CONNECTION_RETRY_BACKOFF);
     }
 
-    private DataSource createPooledDataSource(
-        String url, String user, String password, int maxConnections) {
-      LOG.debug(
-          "Trying to create a Postgres client connected to postgres server using url: {}, user: {}",
-          url,
-          user);
-      ConnectionFactory connectionFactory = new DriverManagerConnectionFactory(url, user, password);
-      PoolableConnectionFactory poolableConnectionFactory =
-          new PoolableConnectionFactory(connectionFactory, null);
-      GenericObjectPool<PoolableConnection> connectionPool =
-          new GenericObjectPool<>(poolableConnectionFactory);
-      connectionPool.setMaxTotal(maxConnections);
-      // max idle connections are 20% of max connections
-      connectionPool.setMaxIdle(getPercentOf(maxConnections, 20));
-      // min idle connections are 10% of max connections
-      connectionPool.setMinIdle(getPercentOf(maxConnections, 10));
-      connectionPool.setBlockWhenExhausted(true);
-      connectionPool.setMaxWaitMillis(5000);
-      poolableConnectionFactory.setPool(connectionPool);
-      poolableConnectionFactory.setValidationQuery("SELECT 1");
-      poolableConnectionFactory.setValidationQueryTimeout(5);
-      poolableConnectionFactory.setDefaultReadOnly(false);
-      poolableConnectionFactory.setDefaultAutoCommit(false);
-      poolableConnectionFactory.setDefaultTransactionIsolation(
-          Connection.TRANSACTION_READ_COMMITTED);
-      poolableConnectionFactory.setPoolStatements(false);
-      return new PoolingDataSource<>(connectionPool);
+    public synchronized Connection getConnection() {
+      try {
+        if (connection == null) {
+          newConnection();
+        } else if (!isConnectionValid(connection)) {
+          LOGGER.info("The database connection is invalid. Reconnecting...");
+          close();
+          newConnection();
+        }
+      } catch (SQLException sqle) {
+        throw new RuntimeException(sqle);
+      }
+      return connection;
     }
 
-    private PostgresClient(DataSource dataSource) {
-      this.dataSource = dataSource;
+    private synchronized boolean isConnectionValid(Connection connection) {
+      try {
+        if (connection.getMetaData().getJDBCMajorVersion() >= 4) {
+          return connection.isValid(VALIDATION_QUERY_TIMEOUT_SECONDS);
+        } else {
+          try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT 1");
+              ResultSet resultSet = preparedStatement.executeQuery()) {
+            return true;
+          }
+        }
+      } catch (SQLException sqle) {
+        LOGGER.debug("Unable to check if the underlying connection is valid", sqle);
+        return false;
+      }
     }
 
-    public Connection getConnection() throws SQLException {
-      return dataSource.getConnection();
+    private synchronized void newConnection() throws SQLException {
+      int attempts = 0;
+      while (attempts < maxConnectionAttempts) {
+        try {
+          ++count;
+          LOGGER.info("Attempting to open connection #{} to {}", count, url);
+          connection = DriverManager.getConnection(url, user, password);
+          return;
+        } catch (SQLException sqle) {
+          attempts++;
+          if (attempts < maxConnectionAttempts) {
+            LOGGER.info(
+                "Unable to connect to database on attempt {}/{}. Will retry in {} ms.",
+                attempts,
+                maxConnectionAttempts,
+                connectionRetryBackoff,
+                sqle);
+            try {
+              TimeUnit.MILLISECONDS.sleep(connectionRetryBackoff.toMillis());
+            } catch (InterruptedException e) {
+              // this is ok because just woke up early
+            }
+          } else {
+            throw sqle;
+          }
+        }
+      }
     }
 
-    private int getPercentOf(int maxConnections, int percent) {
-      int value = (maxConnections * percent) / 100;
-      // minimum value should be 1
-      return Math.max(value, 1);
+    private synchronized void close() {
+      if (connection != null) {
+        try {
+          LOGGER.info("Closing connection #{} to {}", count, url);
+          connection.close();
+        } catch (SQLException sqle) {
+          LOGGER.warn("Ignoring error closing connection", sqle);
+        } finally {
+          connection = null;
+        }
+      }
     }
   }
 }
