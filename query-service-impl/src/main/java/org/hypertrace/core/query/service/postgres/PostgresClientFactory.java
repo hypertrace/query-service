@@ -95,7 +95,7 @@ public class PostgresClientFactory {
       return connection;
     }
 
-    private synchronized boolean isConnectionValid(Connection connection) {
+    private boolean isConnectionValid(Connection connection) {
       try {
         if (connection.getMetaData().getJDBCMajorVersion() >= 4) {
           return connection.isValid(VALIDATION_QUERY_TIMEOUT_SECONDS);
@@ -111,19 +111,21 @@ public class PostgresClientFactory {
       }
     }
 
-    private synchronized void newConnection() throws SQLException {
+    private void newConnection() throws SQLException {
+      ++count;
       int attempts = 0;
       while (attempts < maxConnectionAttempts) {
         try {
-          ++count;
-          LOGGER.info("Attempting to open connection #{} to {}", count, url);
+          ++attempts;
+          LOGGER.info("Attempting(attempt #{}) to open connection #{} to {}", attempts, count, url);
           connection = DriverManager.getConnection(url, user, password);
           return;
         } catch (SQLException sqle) {
           attempts++;
           if (attempts < maxConnectionAttempts) {
             LOGGER.info(
-                "Unable to connect to database on attempt {}/{}. Will retry in {} ms.",
+                "Unable to connect(#{}) to database on attempt {}/{}. Will retry in {} ms.",
+                count,
                 attempts,
                 maxConnectionAttempts,
                 connectionRetryBackoff,
@@ -140,7 +142,7 @@ public class PostgresClientFactory {
       }
     }
 
-    private synchronized void close() {
+    private void close() {
       if (connection != null) {
         try {
           LOGGER.info("Closing connection #{} to {}", count, url);
