@@ -469,8 +469,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   public Observable<Row> executeQuery(String statement, Params params) throws SQLException {
     final PostgresClient postgresClient = postgresClientFactory.getPostgresClient(this.getName());
     String resolvedStatement = request2PostgresSqlConverter.resolveStatement(statement, params);
-    try (Connection connection = postgresClient.getConnection();
-        PreparedStatement preparedStatement = connection.prepareStatement(resolvedStatement);
+    Connection connection = postgresClient.getConnection();
+    try (PreparedStatement preparedStatement = connection.prepareStatement(resolvedStatement);
         ResultSet resultSet = preparedStatement.executeQuery()) {
       LOG.debug("Query results: [ {} ]", resultSet);
       return convert(resultSet);
