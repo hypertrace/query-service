@@ -41,7 +41,7 @@ public class PostgresFunctionConverter {
   }
 
   public String convert(
-      ExecutionContext executionContext,
+      PostgresExecutionContext postgresExecutionContext,
       Function function,
       java.util.function.Function<Expression, String> argumentConverter) {
     switch (function.getFunctionName().toUpperCase()) {
@@ -50,13 +50,15 @@ public class PostgresFunctionConverter {
       case QUERY_FUNCTION_PERCENTILE:
         return this.toPercentile(function, argumentConverter);
       case QUERY_FUNCTION_DISTINCTCOUNT:
-        return this.toDistinctCount(function, argumentConverter);
+      case "DISTINCTCOUNTMV":
+        return this.toDistinctCount(function, argumentConverter, postgresExecutionContext);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toConcat(function), argumentConverter);
       case QUERY_FUNCTION_AVGRATE:
         // Average rate is not supported directly in Postgres. So average rate is computed by
         // summing over all values and then dividing by a constant.
-        return this.functionToStringForAvgRate(function, argumentConverter, executionContext);
+        return this.functionToStringForAvgRate(
+            function, argumentConverter, postgresExecutionContext);
       case DATE_TIME_CONVERT:
         return this.functionToDateTimeConvert(function, argumentConverter);
       default:
@@ -64,7 +66,9 @@ public class PostgresFunctionConverter {
         // reverts that logic
         if (this.isHardcodedPercentile(function)) {
           return this.convert(
-              executionContext, this.normalizeHardcodedPercentile(function), argumentConverter);
+              postgresExecutionContext,
+              this.normalizeHardcodedPercentile(function),
+              argumentConverter);
         }
         return this.functionToString(function, argumentConverter);
     }
@@ -115,7 +119,7 @@ public class PostgresFunctionConverter {
   private String functionToStringForAvgRate(
       Function function,
       java.util.function.Function<Expression, String> argumentConverter,
-      ExecutionContext executionContext) {
+      PostgresExecutionContext postgresExecutionContext) {
 
     String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
     String rateIntervalInIso =
@@ -123,6 +127,7 @@ public class PostgresFunctionConverter {
             ? function.getArgumentsList().get(1).getLiteral().getValue().getString()
             : DEFAULT_AVG_RATE_SIZE;
     long rateIntervalInSeconds = isoDurationToSeconds(rateIntervalInIso);
+    ExecutionContext executionContext = postgresExecutionContext.getExecutionContext();
     long aggregateIntervalInSeconds =
         executionContext
             .getTimeSeriesPeriod()
@@ -181,10 +186,14 @@ public class PostgresFunctionConverter {
   }
 
   private String toDistinctCount(
-      Function function, java.util.function.Function<Expression, String> argumentConverter) {
-    return String.format(
-        this.config.getDistinctCountAggregationFunction(),
-        argumentConverter.apply(function.getArgumentsList().get(0)));
+      Function function,
+      java.util.function.Function<Expression, String> argumentConverter,
+      PostgresExecutionContext postgresExecutionContext) {
+    String argument = argumentConverter.apply(function.getArgumentsList().get(0));
+    if (postgresExecutionContext.getColumnRequestContext().isArrayColumnType()) {
+      postgresExecutionContext.addUnnestTableColumnName(argument);
+    }
+    return String.format(this.config.getDistinctCountAggregationFunction(), argument);
   }
 
   private boolean isHardcodedPercentile(Function function) {

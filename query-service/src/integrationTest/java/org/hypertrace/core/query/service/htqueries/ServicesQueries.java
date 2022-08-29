@@ -459,4 +459,17 @@ class ServicesQueries {
 
     return builder.build();
   }
+
+  public static QueryRequest buildLabelsDistinctCountQuery() {
+    Builder builder = QueryRequest.newBuilder();
+    Expression serviceLabels = createColumnExpression("SERVICE.labels");
+    Expression distinctCountFunction = createFunctionExpression("DISTINCTCOUNT", serviceLabels);
+
+    builder.addSelection(distinctCountFunction);
+
+    Filter filter = createFilter("SERVICE.labels", Operator.NEQ, ValueType.NULL_STRING, "");
+    builder.setFilter(filter);
+
+    return builder.build();
+  }
 }

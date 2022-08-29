@@ -307,7 +307,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "order by start_time_millis desc , end_time_millis limit 100",
+            + "order by 2 desc, 3 limit 100",
         tableDefinition,
         executionContext);
   }
@@ -327,7 +327,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "order by start_time_millis desc , end_time_millis offset 1000 limit 100",
+            + "order by 2 desc, 3 offset 1000 limit 100",
         tableDefinition,
         executionContext);
   }
@@ -349,7 +349,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
-            + " group by service_name, span_name limit 20",
+            + " group by 1, 2 limit 20",
         tableDefinition,
         executionContext);
   }
@@ -371,7 +371,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
-            + " group by service_name, span_name order by service_name, avg(duration_millis) desc , count(*) desc  limit 20",
+            + " group by 1, 2 order by 1, 4 desc, 3 desc limit 20",
         tableDefinition,
         executionContext);
   }
@@ -1150,9 +1150,54 @@ class QueryRequestToPostgresSQLConverterTest {
             + TENANT_ID
             + "' "
             + "and ( start_time_millis >= 1637297304041 and start_time_millis < 1637300904041 and service_id != 'null' ) "
-            + "group by service_id, service_name "
+            + "group by 1, 2 "
             + "order by SUM(error_count) / 3600.0 "
             + "limit 10000",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithDistinctCountAggregationAndGroupByForArrayColumn() {
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addSelection(createColumnExpression("Span.id"))
+            .addGroupBy(createColumnExpression("Span.id"))
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "DISTINCTCOUNT", "Span.labels", "distinctcount_labels"))
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .addOrderBy(
+                createOrderByExpression(
+                    createAliasedFunctionExpression(
+                        "DISTINCTCOUNT", "Span.labels", "distinctcount_labels"),
+                    SortOrder.ASC))
+            .setLimit(15)
+            .build();
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "select encode(span_id, 'hex'), count(distinct column2) FROM"
+            + " ( select span_id, unnest(labels) as column2 from public.\"span-event-view\""
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
+            + " ) as intermediate_table"
+            + " group by span_id order by 2 limit 15",
         tableDefinition,
         executionContext);
   }
