@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.postgres.converters;
 
 import static org.hypertrace.core.query.service.QueryFunctionConstants.DATE_TIME_CONVERT;
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVG;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_AVGRATE;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_CONCAT;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
@@ -54,6 +55,8 @@ public class PostgresFunctionConverter {
         return this.toDistinctCount(function, argumentConverter, postgresExecutionContext);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toConcat(function), argumentConverter);
+      case QUERY_FUNCTION_AVG:
+        return this.toAvg(function, argumentConverter);
       case QUERY_FUNCTION_AVGRATE:
         // Average rate is not supported directly in Postgres. So average rate is computed by
         // summing over all values and then dividing by a constant.
@@ -147,6 +150,28 @@ public class PostgresFunctionConverter {
     }
   }
 
+  private String toAvg(
+      Function function, java.util.function.Function<Expression, String> argumentConverter) {
+    Expression columnNameExpr = getColumnNameExpr(function);
+    String columnName =
+        columnNameExpr.hasColumnIdentifier()
+            ? columnNameExpr.getColumnIdentifier().getColumnName()
+            : columnNameExpr.getAttributeExpression().getAttributeId();
+    boolean isTdigest = tableDefinition.isTdigestColumnType(columnName);
+    if (isTdigest) {
+      return this.functionToString(
+          Function.newBuilder()
+              .setFunctionName(this.config.getTdigestAverageAggregationFunction())
+              .addArguments(columnNameExpr)
+              .addArguments(literalDouble(0.001))
+              .addArguments(literalDouble(0.999))
+              .build(),
+          argumentConverter);
+    } else {
+      return this.functionToString(function, argumentConverter);
+    }
+  }
+
   private String toPercentile(
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     int percentileValue =
@@ -157,14 +182,12 @@ public class PostgresFunctionConverter {
                         String.format(
                             "%s must include an integer convertible value as its first argument. Got: %s",
                             QUERY_FUNCTION_PERCENTILE, function.getArguments(0))));
-    Expression expr =
-        function.getArgumentsList().stream()
-            .filter(Expression::hasAttributeExpression)
-            .findFirst()
-            .orElseThrow(
-                () -> new IllegalArgumentException("Attribute expression not found : " + function));
-    boolean isTdigest =
-        tableDefinition.isTdigestColumnType(expr.getAttributeExpression().getAttributeId());
+    Expression columnNameExpr = getColumnNameExpr(function);
+    String columnName =
+        columnNameExpr.hasColumnIdentifier()
+            ? columnNameExpr.getColumnIdentifier().getColumnName()
+            : columnNameExpr.getAttributeExpression().getAttributeId();
+    boolean isTdigest = tableDefinition.isTdigestColumnType(columnName);
     if (isTdigest) {
       return this.functionToString(
           Function.newBuilder(function)
@@ -177,8 +200,21 @@ public class PostgresFunctionConverter {
       return String.format(
           this.config.getPercentileAggregationFunction(),
           (double) percentileValue / 100,
-          argumentConverter.apply(expr));
+          argumentConverter.apply(columnNameExpr));
     }
+  }
+
+  private Expression getColumnNameExpr(Function function) {
+    return function.getArgumentsList().stream()
+        .filter(Expression::hasColumnIdentifier)
+        .findFirst()
+        .orElseGet(
+            () ->
+                function.getArgumentsList().stream()
+                    .filter(Expression::hasAttributeExpression)
+                    .findFirst()
+                    .orElseThrow(
+                        () -> new IllegalArgumentException("Unable to get column name expr")));
   }
 
   private Function toConcat(Function function) {

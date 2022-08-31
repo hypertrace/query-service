@@ -12,6 +12,8 @@ public class PostgresFunctionConverterConfig {
   private static final String PERCENTILE_AGGREGATION_FUNCTION_CONFIG = "percentileAggFunction";
   private static final String TDIGEST_PERCENTILE_AGGREGATION_FUNCTION_CONFIG =
       "tdigestPercentileAggFunction";
+  private static final String TDIGEST_AVERAGE_AGGREGATION_FUNCTION_CONFIG =
+      "tdigestAverageAggFunction";
   private static final String DATE_TIME_CONVERT_FUNCTION_CONFIG = "dateTimeConvertFunction";
   private static final String DISTINCT_COUNT_AGGREGATION_FUNCTION_CONFIG =
       "distinctCountAggFunction";
@@ -20,12 +22,14 @@ public class PostgresFunctionConverterConfig {
       "percentile_cont(%f) within group (order by (%s) asc)";
   private static final String DEFAULT_TDIGEST_PERCENTILE_AGGREGATION_FUNCTION =
       "tdigest_percentile";
+  private static final String DEFAULT_TDIGEST_AVERAGE_AGGREGATION_FUNCTION = "tdigest_avg";
   private static final String DEFAULT_DATE_TIME_CONVERT_FUNCTION = "dateTimeConvert";
   private static final String DEFAULT_DISTINCT_COUNT_AGGREGATION_FUNCTION = "count(distinct %s)";
   private static final String DEFAULT_UNNEST_FUNCTION = "unnest(%s)";
 
   String percentileAggregationFunction;
   String tdigestPercentileAggregationFunction;
+  String tdigestAverageAggregationFunction;
   String dateTimeConvertFunction;
   String distinctCountAggregationFunction;
   String unnestFunction;
@@ -41,6 +45,12 @@ public class PostgresFunctionConverterConfig {
           config.getString(TDIGEST_PERCENTILE_AGGREGATION_FUNCTION_CONFIG);
     } else {
       this.tdigestPercentileAggregationFunction = DEFAULT_TDIGEST_PERCENTILE_AGGREGATION_FUNCTION;
+    }
+    if (config.hasPath(TDIGEST_AVERAGE_AGGREGATION_FUNCTION_CONFIG)) {
+      this.tdigestAverageAggregationFunction =
+          config.getString(TDIGEST_AVERAGE_AGGREGATION_FUNCTION_CONFIG);
+    } else {
+      this.tdigestAverageAggregationFunction = DEFAULT_TDIGEST_AVERAGE_AGGREGATION_FUNCTION;
     }
     if (config.hasPath(DATE_TIME_CONVERT_FUNCTION_CONFIG)) {
       this.dateTimeConvertFunction = config.getString(DATE_TIME_CONVERT_FUNCTION_CONFIG);
