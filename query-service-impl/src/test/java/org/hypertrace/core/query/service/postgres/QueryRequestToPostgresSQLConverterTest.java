@@ -1170,6 +1170,12 @@ class QueryRequestToPostgresSQLConverterTest {
             .addAggregation(
                 createAliasedFunctionExpression(
                     "DISTINCTCOUNT", "Span.labels", "distinctcount_labels"))
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "AVG", "Span.duration_millis", "avg_duration_millis"))
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "MAX", "Span.duration_millis", "avg_duration_millis"))
             .setFilter(
                 Filter.newBuilder()
                     .setOperator(Operator.AND)
@@ -1189,8 +1195,9 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "select encode(span_id, 'hex'), count(distinct column2) FROM"
-            + " ( select span_id, unnest(labels) as column2 from public.\"span-event-view\""
+        "select encode(span_id, 'hex'), count(distinct column2),"
+            + " avg(duration_millis), max(duration_millis) FROM"
+            + " ( select span_id, unnest(labels) as column2, duration_millis from public.\"span-event-view\""
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -159,6 +160,7 @@ class QueryRequestToPostgresSQLConverter {
           "No able to handle query where column queries and column names are of different sizes");
     }
 
+    Map<String, String> unnestColumnNameMap = new HashMap<>();
     IntStream.range(0, selectColumnQueries.size())
         .boxed()
         .forEach(
@@ -168,7 +170,9 @@ class QueryRequestToPostgresSQLConverter {
               }
               String actualColumnName = actualSelectColumns.get(i);
               if (unnestColumnNames.contains(actualColumnName)) {
-                String columnName = "column" + (i + 1);
+                String columnName =
+                    unnestColumnNameMap.computeIfAbsent(
+                        actualColumnName, key -> "column" + (i + 1));
                 sqlBuilder.append(
                     selectColumnQueries.get(i).replace(actualSelectColumns.get(i), columnName));
               } else {
@@ -177,23 +181,24 @@ class QueryRequestToPostgresSQLConverter {
             });
 
     sqlBuilder.append(" FROM ( SELECT ");
+    List<String> distinctActualSelectColumns =
+        actualSelectColumns.stream().distinct().collect(Collectors.toList());
 
-    IntStream.range(0, actualSelectColumns.size())
+    IntStream.range(0, distinctActualSelectColumns.size())
         .boxed()
         .forEach(
             i -> {
               if (i > 0) {
                 sqlBuilder.append(", ");
               }
-              String actualColumnName = actualSelectColumns.get(i);
+              String actualColumnName = distinctActualSelectColumns.get(i);
               if (unnestColumnNames.contains(actualColumnName)) {
                 sqlBuilder.append("UNNEST(");
                 sqlBuilder.append(actualColumnName);
                 sqlBuilder.append(") AS ");
-                String columnName = "column" + (i + 1);
-                sqlBuilder.append(columnName);
+                sqlBuilder.append(unnestColumnNameMap.get(actualColumnName));
               } else {
-                sqlBuilder.append(actualSelectColumns.get(i));
+                sqlBuilder.append(distinctActualSelectColumns.get(i));
               }
             });
 
