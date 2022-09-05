@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.postgres.converters;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 import org.hypertrace.core.query.service.ExecutionContext;
 
 public class PostgresExecutionContext {
@@ -12,11 +13,10 @@ public class PostgresExecutionContext {
   private final List<String> filterTableColumnNames;
   private final List<String> groupByTableColumnNames;
   private final List<String> orderByTableColumnNames;
-  private final List<String> resolvedSelectColumnQueries;
-  private final List<String> resolvedFilterColumnQueries;
-  private final List<String> resolvedGroupByColumnQueries;
-  private final List<String> resolvedOrderByColumnQueries;
-  private final List<Boolean> resolvedOrderByDescBool;
+  private final List<String> resolvedSelectColumns;
+  private final List<String> resolvedFilterColumns;
+  private final List<String> resolvedGroupByColumns;
+  private final List<Entry<String, Boolean>> resolvedOrderByColumns;
 
   private ColumnRequestContext columnRequestContext;
 
@@ -28,11 +28,10 @@ public class PostgresExecutionContext {
     this.filterTableColumnNames = new ArrayList<>();
     this.groupByTableColumnNames = new ArrayList<>();
     this.orderByTableColumnNames = new ArrayList<>();
-    this.resolvedSelectColumnQueries = new ArrayList<>();
-    this.resolvedFilterColumnQueries = new ArrayList<>();
-    this.resolvedGroupByColumnQueries = new ArrayList<>();
-    this.resolvedOrderByColumnQueries = new ArrayList<>();
-    this.resolvedOrderByDescBool = new ArrayList<>();
+    this.resolvedSelectColumns = new ArrayList<>();
+    this.resolvedFilterColumns = new ArrayList<>();
+    this.resolvedGroupByColumns = new ArrayList<>();
+    this.resolvedOrderByColumns = new ArrayList<>();
   }
 
   public ExecutionContext getExecutionContext() {
@@ -67,24 +66,20 @@ public class PostgresExecutionContext {
     return orderByTableColumnNames;
   }
 
-  public List<String> getResolvedSelectColumnQueries() {
-    return resolvedSelectColumnQueries;
+  public List<String> getResolvedSelectColumns() {
+    return resolvedSelectColumns;
   }
 
-  public List<String> getResolvedFilterColumnQueries() {
-    return resolvedFilterColumnQueries;
+  public List<String> getResolvedFilterColumns() {
+    return resolvedFilterColumns;
   }
 
-  public List<String> getResolvedGroupByColumnQueries() {
-    return resolvedGroupByColumnQueries;
+  public List<String> getResolvedGroupByColumns() {
+    return resolvedGroupByColumns;
   }
 
-  public List<String> getResolvedOrderByColumnQueries() {
-    return resolvedOrderByColumnQueries;
-  }
-
-  public List<Boolean> getResolvedOrderByDescBool() {
-    return resolvedOrderByDescBool;
+  public List<Entry<String, Boolean>> getResolvedOrderByColumns() {
+    return resolvedOrderByColumns;
   }
 
   public void addActualTableColumnName(String columnName) {
@@ -112,23 +107,19 @@ public class PostgresExecutionContext {
   }
 
   public void addResolvedSelectColumnQuery(String resolvedColumnQuery) {
-    resolvedSelectColumnQueries.add(resolvedColumnQuery);
+    resolvedSelectColumns.add(resolvedColumnQuery);
   }
 
   public void addResolvedFilterColumnQuery(String resolvedColumnQuery) {
-    resolvedFilterColumnQueries.add(resolvedColumnQuery);
+    resolvedFilterColumns.add(resolvedColumnQuery);
   }
 
   public void addResolvedGroupByColumnQuery(String resolvedColumnQuery) {
-    resolvedGroupByColumnQueries.add(resolvedColumnQuery);
+    resolvedGroupByColumns.add(resolvedColumnQuery);
   }
 
-  public void addResolvedOrderByColumnQuery(String resolvedColumnQuery) {
-    resolvedOrderByColumnQueries.add(resolvedColumnQuery);
-  }
-
-  public void addResolvedOrderByDescBool(boolean desc) {
-    resolvedOrderByDescBool.add(desc);
+  public void addResolvedOrderByColumnQuery(Entry<String, Boolean> resolvedColumnQuery) {
+    resolvedOrderByColumns.add(resolvedColumnQuery);
   }
 
   public void resetColumnRequestContext() {

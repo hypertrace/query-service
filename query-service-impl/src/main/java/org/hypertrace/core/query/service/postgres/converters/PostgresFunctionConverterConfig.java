@@ -17,7 +17,7 @@ public class PostgresFunctionConverterConfig {
   private static final String DATE_TIME_CONVERT_FUNCTION_CONFIG = "dateTimeConvertFunction";
   private static final String DISTINCT_COUNT_AGGREGATION_FUNCTION_CONFIG =
       "distinctCountAggFunction";
-  private static final String UNNEST_FUNCTION_CONFIG = "unnestFunction";
+
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION =
       "percentile_cont(%f) within group (order by (%s) asc)";
   private static final String DEFAULT_TDIGEST_PERCENTILE_AGGREGATION_FUNCTION =
@@ -25,14 +25,12 @@ public class PostgresFunctionConverterConfig {
   private static final String DEFAULT_TDIGEST_AVERAGE_AGGREGATION_FUNCTION = "tdigest_avg";
   private static final String DEFAULT_DATE_TIME_CONVERT_FUNCTION = "dateTimeConvert";
   private static final String DEFAULT_DISTINCT_COUNT_AGGREGATION_FUNCTION = "count(distinct %s)";
-  private static final String DEFAULT_UNNEST_FUNCTION = "unnest(%s)";
 
   String percentileAggregationFunction;
   String tdigestPercentileAggregationFunction;
   String tdigestAverageAggregationFunction;
   String dateTimeConvertFunction;
   String distinctCountAggregationFunction;
-  String unnestFunction;
 
   public PostgresFunctionConverterConfig(Config config) {
     if (config.hasPath(PERCENTILE_AGGREGATION_FUNCTION_CONFIG)) {
@@ -62,11 +60,6 @@ public class PostgresFunctionConverterConfig {
           config.getString(DISTINCT_COUNT_AGGREGATION_FUNCTION_CONFIG);
     } else {
       this.distinctCountAggregationFunction = DEFAULT_DISTINCT_COUNT_AGGREGATION_FUNCTION;
-    }
-    if (config.hasPath(UNNEST_FUNCTION_CONFIG)) {
-      this.unnestFunction = config.getString(UNNEST_FUNCTION_CONFIG);
-    } else {
-      this.unnestFunction = DEFAULT_UNNEST_FUNCTION;
     }
   }
 

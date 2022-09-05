@@ -87,11 +87,10 @@ class QueryRequestToPostgresSQLConverter {
         String orderByClause =
             columnRequestConverter.convertOrderByClause(
                 orderByExpression.getExpression(), paramsBuilder, postgresExecutionContext);
-        postgresExecutionContext.addResolvedOrderByColumnQuery(orderByClause);
-        postgresExecutionContext.addResolvedOrderByDescBool(
-            SortOrder.DESC.equals(orderByExpression.getOrder()));
+        postgresExecutionContext.addResolvedOrderByColumnQuery(
+            new SimpleEntry<>(orderByClause, SortOrder.DESC.equals(orderByExpression.getOrder())));
       }
-      postgresExecutionContext.addAllGroupByTableColumnNames(
+      postgresExecutionContext.addAllOrderByTableColumnNames(
           postgresExecutionContext.getActualTableColumnNames());
       postgresExecutionContext.clearActualTableColumnNames();
     }
@@ -110,11 +109,11 @@ class QueryRequestToPostgresSQLConverter {
       sqlBuilder.append("DISTINCT ");
     }
 
-    List<String> selectColumnQueries = postgresExecutionContext.getResolvedSelectColumnQueries();
-    for (int i = 0; i < selectColumnQueries.size(); i++) {
-      String selectedColumnQuery = selectColumnQueries.get(i);
-      if (!selectedColumnQuery.contains("?")) {
-        selectedColumnIndexMap.put(selectedColumnQuery, "" + (i + 1));
+    List<String> selectColumns = postgresExecutionContext.getResolvedSelectColumns();
+    for (int i = 0; i < selectColumns.size(); i++) {
+      String selectColumn = selectColumns.get(i);
+      if (!selectColumn.contains("?")) {
+        selectedColumnIndexMap.put(selectColumn, "" + (i + 1));
       }
     }
 
@@ -136,32 +135,22 @@ class QueryRequestToPostgresSQLConverter {
 
   private void buildSelectAndFromAndWhereClause(
       PostgresExecutionContext postgresExecutionContext, StringBuilder sqlBuilder) {
-    List<String> selectColumnQueries = postgresExecutionContext.getResolvedSelectColumnQueries();
-    IntStream.range(0, selectColumnQueries.size())
-        .boxed()
-        .forEach(
-            i -> {
-              if (i > 0) {
-                sqlBuilder.append(", ");
-              }
-              sqlBuilder.append(selectColumnQueries.get(i));
-            });
-
+    sqlBuilder.append(String.join(", ", postgresExecutionContext.getResolvedSelectColumns()));
     buildFromAndWhereClause(postgresExecutionContext, sqlBuilder);
   }
 
   private void buildUnnestSelectAndFromAndWhereClause(
       PostgresExecutionContext postgresExecutionContext, StringBuilder sqlBuilder) {
-    List<String> selectColumnQueries = postgresExecutionContext.getResolvedSelectColumnQueries();
+    List<String> selectColumns = postgresExecutionContext.getResolvedSelectColumns();
     List<String> actualSelectColumns = postgresExecutionContext.getSelectTableColumnNames();
     List<String> unnestColumnNames = postgresExecutionContext.getUnnestTableColumnNames();
-    if (selectColumnQueries.size() != actualSelectColumns.size()) {
+    if (selectColumns.size() != actualSelectColumns.size()) {
       throw new UnsupportedOperationException(
-          "No able to handle query where column queries and column names are of different sizes");
+          "Unable to handle query where column queries and column names are of different sizes");
     }
 
     Map<String, String> unnestColumnNameMap = new HashMap<>();
-    IntStream.range(0, selectColumnQueries.size())
+    IntStream.range(0, selectColumns.size())
         .boxed()
         .forEach(
             i -> {
@@ -174,9 +163,9 @@ class QueryRequestToPostgresSQLConverter {
                     unnestColumnNameMap.computeIfAbsent(
                         actualColumnName, key -> "column" + (i + 1));
                 sqlBuilder.append(
-                    selectColumnQueries.get(i).replace(actualSelectColumns.get(i), columnName));
+                    selectColumns.get(i).replace(actualSelectColumns.get(i), columnName));
               } else {
-                sqlBuilder.append(selectColumnQueries.get(i));
+                sqlBuilder.append(selectColumns.get(i));
               }
             });
 
@@ -184,23 +173,20 @@ class QueryRequestToPostgresSQLConverter {
     List<String> distinctActualSelectColumns =
         actualSelectColumns.stream().distinct().collect(Collectors.toList());
 
-    IntStream.range(0, distinctActualSelectColumns.size())
-        .boxed()
-        .forEach(
-            i -> {
-              if (i > 0) {
-                sqlBuilder.append(", ");
-              }
-              String actualColumnName = distinctActualSelectColumns.get(i);
-              if (unnestColumnNames.contains(actualColumnName)) {
-                sqlBuilder.append("UNNEST(");
-                sqlBuilder.append(actualColumnName);
-                sqlBuilder.append(") AS ");
-                sqlBuilder.append(unnestColumnNameMap.get(actualColumnName));
-              } else {
-                sqlBuilder.append(distinctActualSelectColumns.get(i));
-              }
-            });
+    sqlBuilder.append(
+        distinctActualSelectColumns.stream()
+            .map(
+                actualColumnName -> {
+                  if (unnestColumnNames.contains(actualColumnName)) {
+                    return "UNNEST("
+                        + actualColumnName
+                        + ") AS "
+                        + unnestColumnNameMap.get(actualColumnName);
+                  } else {
+                    return actualColumnName;
+                  }
+                })
+            .collect(Collectors.joining(", ")));
 
     buildFromAndWhereClause(postgresExecutionContext, sqlBuilder);
 
@@ -214,17 +200,11 @@ class QueryRequestToPostgresSQLConverter {
     // Add the tenantId filter
     sqlBuilder.append(" WHERE ").append(tableDefinition.getTenantIdColumn()).append(" = ?");
 
-    List<String> filterColumnQueries = postgresExecutionContext.getResolvedFilterColumnQueries();
-    IntStream.range(0, filterColumnQueries.size())
-        .boxed()
-        .forEach(
-            i -> {
-              if (i == 0) {
-                sqlBuilder.append(" ");
-              }
-              sqlBuilder.append("AND ");
-              sqlBuilder.append(filterColumnQueries.get(i));
-            });
+    List<String> filterColumns = postgresExecutionContext.getResolvedFilterColumns();
+    if (!filterColumns.isEmpty()) {
+      sqlBuilder.append(" AND ");
+      sqlBuilder.append(String.join(" AND ", filterColumns));
+    }
   }
 
   private void buildGroupByAndOrderByAndOffsetAndLimitClause(
@@ -233,41 +213,32 @@ class QueryRequestToPostgresSQLConverter {
       Map<String, String> selectedColumnIndexMap,
       StringBuilder sqlBuilder) {
 
-    List<String> groupByColumnQueries = postgresExecutionContext.getResolvedGroupByColumnQueries();
-    IntStream.range(0, groupByColumnQueries.size())
-        .boxed()
-        .forEach(
-            i -> {
-              if (i == 0) {
-                sqlBuilder.append(" GROUP BY ");
-              } else {
-                sqlBuilder.append(", ");
-              }
-              String groupByQuery = groupByColumnQueries.get(i);
-              sqlBuilder.append(
-                  Optional.ofNullable(selectedColumnIndexMap.get(groupByQuery))
-                      .orElse(groupByQuery));
-            });
+    List<String> groupByColumns = postgresExecutionContext.getResolvedGroupByColumns();
+    if (!groupByColumns.isEmpty()) {
+      sqlBuilder.append(" GROUP BY ");
+      sqlBuilder.append(
+          groupByColumns.stream()
+              .map(
+                  groupBy ->
+                      Optional.ofNullable(selectedColumnIndexMap.get(groupBy)).orElse(groupBy))
+              .collect(Collectors.joining(", ")));
+    }
 
-    List<String> orderByColumnQueries = postgresExecutionContext.getResolvedOrderByColumnQueries();
-    List<Boolean> orderByDescBool = postgresExecutionContext.getResolvedOrderByDescBool();
-    IntStream.range(0, orderByColumnQueries.size())
-        .boxed()
-        .forEach(
-            i -> {
-              if (i == 0) {
-                sqlBuilder.append(" ORDER BY ");
-              } else {
-                sqlBuilder.append(", ");
-              }
-              String orderByQuery = orderByColumnQueries.get(i);
-              sqlBuilder.append(
-                  Optional.ofNullable(selectedColumnIndexMap.get(orderByQuery))
-                      .orElse(orderByQuery));
-              if (orderByDescBool.get(i)) {
-                sqlBuilder.append(" DESC");
-              }
-            });
+    List<Entry<String, Boolean>> orderByColumns =
+        postgresExecutionContext.getResolvedOrderByColumns();
+    if (!orderByColumns.isEmpty()) {
+      sqlBuilder.append(" ORDER BY ");
+      sqlBuilder.append(
+          orderByColumns.stream()
+              .map(
+                  orderByEntry -> {
+                    String orderBy =
+                        Optional.ofNullable(selectedColumnIndexMap.get(orderByEntry.getKey()))
+                            .orElse(orderByEntry.getKey());
+                    return orderBy + (Boolean.TRUE.equals(orderByEntry.getValue()) ? " DESC" : "");
+                  })
+              .collect(Collectors.joining(", ")));
+    }
 
     if (request.getLimit() > 0) {
       if (request.getOffset() > 0) {
