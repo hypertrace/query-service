@@ -146,8 +146,16 @@ public class HTPostgresQueriesTest {
   }
 
   private static boolean bootstrapConfig() throws Exception {
-    String path1 = HTPostgresQueriesTest.class.getClassLoader().getResource("config-bootstapper/application.conf").getPath();
-    String path2 = HTPostgresQueriesTest.class.getClassLoader().getResource("config-bootstapper/attribute-service").getPath();
+    String path1 =
+        HTPostgresQueriesTest.class
+            .getClassLoader()
+            .getResource("config-bootstapper/application.conf")
+            .getPath();
+    String path2 =
+        HTPostgresQueriesTest.class
+            .getClassLoader()
+            .getResource("config-bootstapper/attribute-service")
+            .getPath();
 
     GenericContainer<?> bootstrapper =
         new GenericContainer<>(DockerImageName.parse("hypertrace/config-bootstrapper:main"))
@@ -155,8 +163,14 @@ public class HTPostgresQueriesTest {
             .dependsOn(attributeService)
             .withEnv("MONGO_HOST", "mongo")
             .withEnv("ATTRIBUTE_SERVICE_HOST_CONFIG", "attribute-service")
-            .withFileSystemBind(path1, "/home/test/configs/config-bootstrapper/application.conf", BindMode.READ_ONLY)
-            .withFileSystemBind(path2, "/home/test/configs/config-bootstrapper/attribute-service", BindMode.READ_ONLY)
+            .withFileSystemBind(
+                path1,
+                "/home/test/configs/config-bootstrapper/application.conf",
+                BindMode.READ_ONLY)
+            .withFileSystemBind(
+                path2,
+                "/home/test/configs/config-bootstrapper/attribute-service",
+                BindMode.READ_ONLY)
             .withCommand(
                 "-c",
                 "/home/test/configs/config-bootstrapper/application.conf",
@@ -168,17 +182,17 @@ public class HTPostgresQueriesTest {
 
     ManagedChannel channel =
         ManagedChannelBuilder.forAddress(
-            attributeService.getHost(), attributeService.getMappedPort(9012))
+                attributeService.getHost(), attributeService.getMappedPort(9012))
             .usePlaintext()
             .build();
     AttributeServiceClient client = new AttributeServiceClient(channel);
     int retry = 0;
     while (Streams.stream(
-        client.findAttributes(
-            TENANT_ID_MAP, AttributeMetadataFilter.getDefaultInstance()))
-        .collect(Collectors.toList())
-        .size()
-        == 0
+                    client.findAttributes(
+                        TENANT_ID_MAP, AttributeMetadataFilter.getDefaultInstance()))
+                .collect(Collectors.toList())
+                .size()
+            == 0
         && retry++ < 5) {
       Thread.sleep(2000);
     }
