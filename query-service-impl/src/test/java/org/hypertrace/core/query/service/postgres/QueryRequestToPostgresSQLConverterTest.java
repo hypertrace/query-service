@@ -342,14 +342,14 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "select service_name, span_name, count(*), avg(duration_millis) FROM public.\"span-event-view\""
+        "select count(*), avg(duration_millis) FROM public.\"span-event-view\""
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
-            + " group by 1, 2 limit 20",
+            + " group by service_name, span_name limit 20",
         tableDefinition,
         executionContext);
   }
@@ -364,14 +364,14 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "select service_name, span_name, count(*), avg(duration_millis) FROM public.\"span-event-view\""
+        "select count(*), avg(duration_millis) FROM public.\"span-event-view\""
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
-            + " group by 1, 2 order by 1, 4 desc, 3 desc limit 20",
+            + " group by service_name, span_name order by service_name, 2 desc, 1 desc limit 20",
         tableDefinition,
         executionContext);
   }
@@ -1165,7 +1165,6 @@ class QueryRequestToPostgresSQLConverterTest {
     Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
     QueryRequest queryRequest =
         QueryRequest.newBuilder()
-            .addSelection(createColumnExpression("Span.id"))
             .addGroupBy(createColumnExpression("Span.id"))
             .addAggregation(
                 createAliasedFunctionExpression(
@@ -1195,9 +1194,9 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "select encode(span_id, 'hex'), count(distinct column2),"
+        "select count(distinct column1),"
             + " avg(duration_millis), max(duration_millis) FROM"
-            + " ( select span_id, unnest(labels) as column2, duration_millis from public.\"span-event-view\""
+            + " ( select unnest(labels) as column1, duration_millis, span_id from public.\"span-event-view\""
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -1205,7 +1204,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " ) as intermediate_table"
-            + " group by span_id order by 2 limit 15",
+            + " group by span_id order by 1 limit 15",
         tableDefinition,
         executionContext);
   }
@@ -1450,7 +1449,6 @@ class QueryRequestToPostgresSQLConverterTest {
   private LinkedHashSet<Expression> createSelectionsFromQueryRequest(QueryRequest queryRequest) {
     LinkedHashSet<Expression> selections = new LinkedHashSet<>();
 
-    selections.addAll(queryRequest.getGroupByList());
     selections.addAll(queryRequest.getSelectionList());
     selections.addAll(queryRequest.getAggregationList());
 

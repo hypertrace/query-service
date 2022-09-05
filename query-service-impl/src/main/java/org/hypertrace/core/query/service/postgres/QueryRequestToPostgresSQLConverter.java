@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.postgres;
 
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.OrderByExpression;
@@ -143,6 +145,9 @@ class QueryRequestToPostgresSQLConverter {
       PostgresExecutionContext postgresExecutionContext, StringBuilder sqlBuilder) {
     List<String> selectColumns = postgresExecutionContext.getResolvedSelectColumns();
     List<String> actualSelectColumns = postgresExecutionContext.getSelectTableColumnNames();
+    List<String> actualGroupByColumns = postgresExecutionContext.getGroupByTableColumnNames();
+    List<String> actualOrderByColumns = postgresExecutionContext.getOrderByTableColumnNames();
+
     List<String> unnestColumnNames = postgresExecutionContext.getUnnestTableColumnNames();
     if (selectColumns.size() != actualSelectColumns.size()) {
       throw new UnsupportedOperationException(
@@ -171,7 +176,10 @@ class QueryRequestToPostgresSQLConverter {
 
     sqlBuilder.append(" FROM ( SELECT ");
     List<String> distinctActualSelectColumns =
-        actualSelectColumns.stream().distinct().collect(Collectors.toList());
+        Stream.of(actualSelectColumns, actualGroupByColumns, actualOrderByColumns)
+            .flatMap(Collection::stream)
+            .distinct()
+            .collect(Collectors.toList());
 
     sqlBuilder.append(
         distinctActualSelectColumns.stream()
