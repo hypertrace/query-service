@@ -9,6 +9,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.ConfigFactory;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +23,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.codec.binary.StringUtils;
+import org.hypertrace.core.attribute.service.client.AttributeServiceClient;
+import org.hypertrace.core.attribute.service.v1.AttributeMetadataFilter;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Row;
@@ -35,6 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -109,6 +114,8 @@ public class HTPostgresQueriesTest {
         "sql/raw-service-view-events.sql",
         "sql/raw-service-view-events-insert.sql");
 
+    assertTrue(bootstrapConfig());
+
     withEnvironmentVariable(
             "POSTGRES_CONNECT_STR",
             String.format(
@@ -136,6 +143,48 @@ public class HTPostgresQueriesTest {
     mongo.stop();
     postgresqlService.stop();
     network.close();
+  }
+
+  private static boolean bootstrapConfig() throws Exception {
+    String path1 = HTPostgresQueriesTest.class.getClassLoader().getResource("config-bootstapper/application.conf").getPath();
+    String path2 = HTPostgresQueriesTest.class.getClassLoader().getResource("config-bootstapper/attribute-service").getPath();
+
+    GenericContainer<?> bootstrapper =
+        new GenericContainer<>(DockerImageName.parse("hypertrace/config-bootstrapper:main"))
+            .withNetwork(network)
+            .dependsOn(attributeService)
+            .withEnv("MONGO_HOST", "mongo")
+            .withEnv("ATTRIBUTE_SERVICE_HOST_CONFIG", "attribute-service")
+            .withFileSystemBind(path1, "/home/test/configs/config-bootstrapper/application.conf", BindMode.READ_ONLY)
+            .withFileSystemBind(path2, "/home/test/configs/config-bootstrapper/attribute-service", BindMode.READ_ONLY)
+            .withCommand(
+                "-c",
+                "/home/test/configs/config-bootstrapper/application.conf",
+                "-C",
+                "/home/test/configs/config-bootstrapper/attribute-service",
+                "--upgrade")
+            .withLogConsumer(logConsumer);
+    bootstrapper.start();
+
+    ManagedChannel channel =
+        ManagedChannelBuilder.forAddress(
+            attributeService.getHost(), attributeService.getMappedPort(9012))
+            .usePlaintext()
+            .build();
+    AttributeServiceClient client = new AttributeServiceClient(channel);
+    int retry = 0;
+    while (Streams.stream(
+        client.findAttributes(
+            TENANT_ID_MAP, AttributeMetadataFilter.getDefaultInstance()))
+        .collect(Collectors.toList())
+        .size()
+        == 0
+        && retry++ < 5) {
+      Thread.sleep(2000);
+    }
+    channel.shutdown();
+    bootstrapper.stop();
+    return retry < 5;
   }
 
   private static void runSqlInPostgresDb(String... sqlFileNames)

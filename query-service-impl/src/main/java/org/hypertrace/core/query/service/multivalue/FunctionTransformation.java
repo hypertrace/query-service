@@ -48,7 +48,6 @@ public class FunctionTransformation {
         .flatMap(this.attributeClient::get)
         .doOnError(
             error -> log.error("Unable to get resolve attribute using attribute service", error))
-        .onErrorReturnItem(DEFAULT_ATTRIBUTE_METADATA)
         .map(
             metadata ->
                 isArray(metadata.getValueKind())
