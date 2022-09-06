@@ -307,7 +307,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "order by start_time_millis desc , end_time_millis limit 100",
+            + "order by 2 desc, 3 limit 100",
         tableDefinition,
         executionContext);
   }
@@ -327,7 +327,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "order by start_time_millis desc , end_time_millis offset 1000 limit 100",
+            + "order by 2 desc, 3 offset 1000 limit 100",
         tableDefinition,
         executionContext);
   }
@@ -342,7 +342,7 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "select service_name, span_name, count(*), avg(duration_millis) FROM public.\"span-event-view\""
+        "select count(*), avg(duration_millis) FROM public.\"span-event-view\""
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -364,14 +364,14 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "select service_name, span_name, count(*), avg(duration_millis) FROM public.\"span-event-view\""
+        "select count(*), avg(duration_millis) FROM public.\"span-event-view\""
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
-            + " group by service_name, span_name order by service_name, avg(duration_millis) desc , count(*) desc  limit 20",
+            + " group by service_name, span_name order by service_name, 2 desc, 1 desc limit 20",
         tableDefinition,
         executionContext);
   }
@@ -1052,7 +1052,7 @@ class QueryRequestToPostgresSQLConverterTest {
         executionContext);
   }
 
-  // @Test - need to fix test
+  @Test
   void testQueryWithPercentileAggregation() {
     Filter startTimeFilter =
         createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
@@ -1079,7 +1079,8 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "select PERCENTILETDIGEST99(duration_millis) FROM public.\"span-event-view\""
+        "select percentile_cont(0.990000) within group (order by (duration_millis) asc)"
+            + " FROM public.\"span-event-view\""
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -1150,9 +1151,138 @@ class QueryRequestToPostgresSQLConverterTest {
             + TENANT_ID
             + "' "
             + "and ( start_time_millis >= 1637297304041 and start_time_millis < 1637300904041 and service_id != 'null' ) "
-            + "group by service_id, service_name "
+            + "group by 1, 2 "
             + "order by SUM(error_count) / 3600.0 "
             + "limit 10000",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithDistinctCountAggregationAndGroupByForArrayColumn() {
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addGroupBy(createColumnExpression("Span.id"))
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "DISTINCTCOUNT", "Span.labels", "distinctcount_labels"))
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "AVG", "Span.duration_millis", "avg_duration_millis"))
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "MAX", "Span.duration_millis", "avg_duration_millis"))
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .addOrderBy(
+                createOrderByExpression(
+                    createAliasedFunctionExpression(
+                        "DISTINCTCOUNT", "Span.labels", "distinctcount_labels"),
+                    SortOrder.ASC))
+            .setLimit(15)
+            .build();
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "select count(distinct column1),"
+            + " avg(duration_millis), max(duration_millis) FROM"
+            + " ( select unnest(labels) as column1, duration_millis, span_id from public.\"span-event-view\""
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
+            + " ) as intermediate_table"
+            + " group by span_id order by 1 limit 15",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithPercentileForTdigestColumn() {
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addSelection(createColumnExpression("Span.id"))
+            .addGroupBy(createColumnExpression("Span.id"))
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "PERCENTILE99", "Span.response_time_millis", "P99_response_time"))
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .setLimit(15)
+            .build();
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "select encode(span_id, 'hex'), tdigest_percentile(response_time_millis_tdigest,0.99)"
+            + " from public.\"span-event-view\""
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
+            + " group by span_id limit 15",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithAvgForTdigestColumn() {
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addSelection(createColumnExpression("Span.id"))
+            .addGroupBy(createColumnExpression("Span.id"))
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "AVG", "Span.response_time_millis", "P99_response_time"))
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .setLimit(15)
+            .build();
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "select encode(span_id, 'hex'), tdigest_avg(response_time_millis_tdigest,0.001,0.999)"
+            + " from public.\"span-event-view\""
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
+            + " group by span_id limit 15",
         tableDefinition,
         executionContext);
   }
@@ -1319,7 +1449,6 @@ class QueryRequestToPostgresSQLConverterTest {
   private LinkedHashSet<Expression> createSelectionsFromQueryRequest(QueryRequest queryRequest) {
     LinkedHashSet<Expression> selections = new LinkedHashSet<>();
 
-    selections.addAll(queryRequest.getGroupByList());
     selections.addAll(queryRequest.getSelectionList());
     selections.addAll(queryRequest.getAggregationList());
 

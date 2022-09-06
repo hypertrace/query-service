@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -49,37 +48,51 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
   @Override
   public String convertSelectClause(
-      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
-    return convertExpressionToString(
-        expression, paramsBuilder, executionContext, createColumnRequestContext(SELECT));
+      Expression expression,
+      Builder paramsBuilder,
+      PostgresExecutionContext postgresExecutionContext) {
+    postgresExecutionContext.setColumnRequestContext(createColumnRequestContext(SELECT));
+    String selectClause =
+        convertExpressionToString(expression, paramsBuilder, postgresExecutionContext);
+    postgresExecutionContext.resetColumnRequestContext();
+    return selectClause;
   }
 
   @Override
   public String convertFilterClause(
-      Filter filter, Builder paramsBuilder, ExecutionContext executionContext) {
-    return convertFilterToString(
-        filter, paramsBuilder, executionContext, createColumnRequestContext(FILTER));
+      Filter filter, Builder paramsBuilder, PostgresExecutionContext postgresExecutionContext) {
+    postgresExecutionContext.setColumnRequestContext(createColumnRequestContext(FILTER));
+    String filterClause = convertFilterToString(filter, paramsBuilder, postgresExecutionContext);
+    postgresExecutionContext.resetColumnRequestContext();
+    return filterClause;
   }
 
   @Override
   public String convertGroupByClause(
-      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
-    return convertExpressionToString(
-        expression, paramsBuilder, executionContext, createColumnRequestContext(GROUP_BY));
+      Expression expression,
+      Builder paramsBuilder,
+      PostgresExecutionContext postgresExecutionContext) {
+    postgresExecutionContext.setColumnRequestContext(createColumnRequestContext(GROUP_BY));
+    String groupByClause =
+        convertExpressionToString(expression, paramsBuilder, postgresExecutionContext);
+    postgresExecutionContext.resetColumnRequestContext();
+    return groupByClause;
   }
 
   @Override
   public String convertOrderByClause(
-      Expression expression, Builder paramsBuilder, ExecutionContext executionContext) {
-    return convertExpressionToString(
-        expression, paramsBuilder, executionContext, createColumnRequestContext(ORDER_BY));
+      Expression expression,
+      Builder paramsBuilder,
+      PostgresExecutionContext postgresExecutionContext) {
+    postgresExecutionContext.setColumnRequestContext(createColumnRequestContext(ORDER_BY));
+    String orderByClause =
+        convertExpressionToString(expression, paramsBuilder, postgresExecutionContext);
+    postgresExecutionContext.resetColumnRequestContext();
+    return orderByClause;
   }
 
   private String convertFilterToString(
-      Filter filter,
-      Builder paramsBuilder,
-      ExecutionContext executionContext,
-      ColumnRequestContext context) {
+      Filter filter, Builder paramsBuilder, PostgresExecutionContext postgresExecutionContext) {
     StringBuilder builder = new StringBuilder();
     String operator = convertOperatorToString(filter.getOperator());
     if (filter.getChildFilterCount() > 0) {
@@ -87,15 +100,14 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       builder.append("( ");
       for (Filter childFilter : filter.getChildFilterList()) {
         builder.append(delim);
-        builder.append(
-            convertFilterToString(childFilter, paramsBuilder, executionContext, context));
+        builder.append(convertFilterToString(childFilter, paramsBuilder, postgresExecutionContext));
         builder.append(" ");
         delim = operator + " ";
       }
       builder.append(")");
     } else {
       String lhs =
-          convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext, context);
+          convertExpressionToString(filter.getLhs(), paramsBuilder, postgresExecutionContext);
       switch (filter.getOperator()) {
         case LIKE:
           builder.append(lhs);
@@ -103,7 +115,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           builder.append(operator);
           builder.append(" ");
           builder.append(
-              convertExpressionToString(filter.getRhs(), paramsBuilder, executionContext, context));
+              convertExpressionToString(filter.getRhs(), paramsBuilder, postgresExecutionContext));
           break;
         case CONTAINS_KEY:
           builder.append(lhs);
@@ -140,10 +152,10 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
                   convertMapLikeExpressionToLiterals(filter.getRhs()), paramsBuilder));
           break;
         default:
-          if (isFilterForBytesColumnType(filter, context)) {
+          if (isFilterForBytesColumnType(filter, postgresExecutionContext)) {
             handleConversionForBytesColumnExpression(
                 lhs, operator, filter.getRhs(), builder, paramsBuilder);
-          } else if (isFilterForArrayColumnType(filter, context)) {
+          } else if (isFilterForArrayColumnType(filter, postgresExecutionContext)) {
             handleConversionForArrayColumnExpression(
                 lhs, operator, filter.getRhs(), builder, paramsBuilder);
           } else {
@@ -153,17 +165,18 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
             builder.append(" ");
             builder.append(
                 convertExpressionToString(
-                    filter.getRhs(), paramsBuilder, executionContext, context));
+                    filter.getRhs(), paramsBuilder, postgresExecutionContext));
           }
       }
     }
     return builder.toString();
   }
 
-  private boolean isFilterForBytesColumnType(Filter filter, ColumnRequestContext context) {
+  private boolean isFilterForBytesColumnType(
+      Filter filter, PostgresExecutionContext postgresExecutionContext) {
     return isSimpleAttributeExpression(filter.getLhs())
         && filter.getRhs().getValueCase().equals(LITERAL)
-        && context.isBytesColumnType();
+        && postgresExecutionContext.getColumnRequestContext().isBytesColumnType();
   }
 
   /** Handles value conversion of a bytes expression based */
@@ -211,10 +224,11 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     return false;
   }
 
-  private boolean isFilterForArrayColumnType(Filter filter, ColumnRequestContext context) {
+  private boolean isFilterForArrayColumnType(
+      Filter filter, PostgresExecutionContext postgresExecutionContext) {
     return isSimpleAttributeExpression(filter.getLhs())
         && filter.getRhs().getValueCase().equals(LITERAL)
-        && context.isArrayColumnType();
+        && postgresExecutionContext.getColumnRequestContext().isArrayColumnType();
   }
 
   /** Handles value conversion of a array expression based */
@@ -334,8 +348,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
   private String convertExpressionToString(
       Expression expression,
       Builder paramsBuilder,
-      ExecutionContext executionContext,
-      ColumnRequestContext context) {
+      PostgresExecutionContext postgresExecutionContext) {
     switch (expression.getValueCase()) {
       case ATTRIBUTE_EXPRESSION:
         if (isAttributeExpressionWithSubpath(expression)) {
@@ -354,6 +367,8 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
         String logicalColumnName =
             getLogicalColumnName(expression).orElseThrow(IllegalArgumentException::new);
         String columnName = tableDefinition.getPhysicalColumnName(logicalColumnName);
+        postgresExecutionContext.addActualTableColumnName(columnName);
+        ColumnRequestContext context = postgresExecutionContext.getColumnRequestContext();
         context.setColumnValueType(tableDefinition.getColumnType(logicalColumnName));
         if (context.isSelect() && context.isBytesColumnType()) {
           return String.format("encode(%s, 'hex')", columnName);
@@ -366,14 +381,14 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:
         return this.functionConverter.convert(
-            executionContext,
+            postgresExecutionContext,
             expression.getFunction(),
             argExpression ->
-                convertExpressionToString(argExpression, paramsBuilder, executionContext, context));
+                convertExpressionToString(argExpression, paramsBuilder, postgresExecutionContext));
       case ORDERBY:
         OrderByExpression orderBy = expression.getOrderBy();
         return convertExpressionToString(
-            orderBy.getExpression(), paramsBuilder, executionContext, context);
+            orderBy.getExpression(), paramsBuilder, postgresExecutionContext);
       case VALUE_NOT_SET:
         break;
     }
