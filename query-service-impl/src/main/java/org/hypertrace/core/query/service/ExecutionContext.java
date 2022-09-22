@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service;
 
+import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryRequestUtil.getAlias;
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
@@ -171,6 +172,10 @@ public class ExecutionContext {
         break;
       case FUNCTION:
         Function function = expression.getFunction();
+        // ignore argument list for COUNT function as it is just converted to COUNT(*) at the end
+        if (function.getFunctionName().equalsIgnoreCase(QUERY_FUNCTION_COUNT)) {
+          break;
+        }
         for (Expression childExpression : function.getArgumentsList()) {
           extractColumns(columns, childExpression);
         }
