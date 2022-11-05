@@ -33,7 +33,7 @@ import org.jetbrains.annotations.NotNull;
 class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
   private static final String QUESTION_MARK = "?";
-  private static final String REGEX_OPERATOR = "LIKE";
+  private static final String REGEX_OPERATOR = "~";
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 
@@ -428,7 +428,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     if (expression.getValueCase() == LITERAL) {
       LiteralConstant value = expression.getLiteral();
       if (value.getValue().getValueType() == ValueType.STRING) {
-        literals.add("%\"" + value.getValue().getString() + "\":%");
+        literals.add(".*\"" + value.getValue().getString() + "\":.*");
       } else {
         throw new IllegalArgumentException("Unsupported arguments for CONTAINS_KEY_LIKE operator");
       }
