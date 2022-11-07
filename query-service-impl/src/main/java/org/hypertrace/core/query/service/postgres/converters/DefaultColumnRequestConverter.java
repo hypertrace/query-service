@@ -33,7 +33,7 @@ import org.jetbrains.annotations.NotNull;
 class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
   private static final String QUESTION_MARK = "?";
-  private static final String REGEX_OPERATOR = "~";
+  private static final String REGEX_OPERATOR = "~*";
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 

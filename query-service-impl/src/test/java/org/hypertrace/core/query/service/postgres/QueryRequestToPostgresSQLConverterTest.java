@@ -537,7 +537,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_name ~ '%test%'",
+            + "AND span_name ~* '%test%'",
         tableDefinition,
         executionContext);
   }
@@ -643,7 +643,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags::jsonb::text ~ '.*\"my_tag_name.*\":.*'",
+            + "AND tags::jsonb::text ~* '.*\"my_tag_name.*\":.*'",
         tableDefinition,
         executionContext);
   }
@@ -1047,7 +1047,7 @@ class QueryRequestToPostgresSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND duration_millis ~ 5000",
+            + "AND duration_millis ~* 5000",
         tableDefinition,
         executionContext);
   }
