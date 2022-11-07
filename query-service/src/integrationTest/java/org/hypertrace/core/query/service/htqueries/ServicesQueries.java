@@ -354,7 +354,7 @@ class ServicesQueries {
     builder.addSelection(serviceName);
 
     Filter filter =
-        createFilter("SERVICE.tags", Operator.CONTAINS_KEY_LIKE, ValueType.STRING, "key5.*");
+        createFilter("SERVICE.tags", Operator.CONTAINS_KEY_LIKE, ValueType.STRING, "KEY5.*");
 
     builder.setFilter(filter);
 
