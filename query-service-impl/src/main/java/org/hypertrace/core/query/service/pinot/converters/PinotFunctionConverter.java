@@ -44,7 +44,7 @@ public class PinotFunctionConverter {
         // and reasonably accurate, so support selecting the implementation to use
         return this.functionToString(this.toPinotPercentile(function), argumentConverter);
       case QUERY_FUNCTION_DISTINCTCOUNT:
-        return this.functionToString(this.toPinotDistinctCount(function), argumentConverter);
+        return this.functionToStringForDistinctCount(function, argumentConverter);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
       case QUERY_FUNCTION_AVGRATE:
@@ -70,6 +70,12 @@ public class PinotFunctionConverter {
             .collect(Collectors.joining(","));
 
     return function.getFunctionName() + "(" + argumentString + ")";
+  }
+
+  private String functionToStringForDistinctCount(
+      Function function, java.util.function.Function<Expression, String> argumentConverter) {
+    String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
+    return this.config.getDistinctCountFunction(columnName) + "(" + columnName + ")";
   }
 
   private String functionToStringForAvgRate(
@@ -117,12 +123,6 @@ public class PinotFunctionConverter {
     // We don't want to use pinot's built in concat, it has different null behavior.
     // Instead, use our custom UDF.
     return Function.newBuilder(function).setFunctionName(PINOT_CONCAT_FUNCTION).build();
-  }
-
-  private Function toPinotDistinctCount(Function function) {
-    return Function.newBuilder(function)
-        .setFunctionName(this.config.getDistinctCountAggregationFunction())
-        .build();
   }
 
   private boolean isHardcodedPercentile(Function function) {

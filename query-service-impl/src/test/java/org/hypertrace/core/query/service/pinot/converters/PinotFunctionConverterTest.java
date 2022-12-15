@@ -20,7 +20,9 @@ import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -104,7 +106,8 @@ class PinotFunctionConverterTest {
 
     assertEquals(
         expected,
-        new PinotFunctionConverter(new PinotFunctionConverterConfig("CUSTOMPERCENTILE", null))
+        new PinotFunctionConverter(
+                new PinotFunctionConverterConfig("CUSTOMPERCENTILE", null, Collections.emptySet()))
             .convert(mockingExecutionContext, percentileFunction, this.mockArgumentConverter));
   }
 
@@ -233,25 +236,42 @@ class PinotFunctionConverterTest {
 
   @Test
   void convertsDistinctCountFunction() {
-    Expression column = createColumnExpression("foo").build();
+    Expression column1 = createColumnExpression("foo").build();
+    Expression column2 = createColumnExpression("bar").build();
 
-    when(this.mockArgumentConverter.apply(column)).thenReturn("foo");
+    when(this.mockArgumentConverter.apply(column1)).thenReturn("foo");
+    when(this.mockArgumentConverter.apply(column2)).thenReturn("bar");
 
     assertEquals(
         "DISTINCTCOUNT(foo)",
         new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
-                buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column.toBuilder()),
+                buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column1.toBuilder()),
                 this.mockArgumentConverter));
-
     assertEquals(
-        "CUSTOM_DC(foo)",
-        new PinotFunctionConverter(new PinotFunctionConverterConfig(null, "CUSTOM_DC"))
+        "DISTINCTCOUNT(bar)",
+        new PinotFunctionConverter()
             .convert(
                 mockingExecutionContext,
-                buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column.toBuilder()),
+                buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column2.toBuilder()),
                 this.mockArgumentConverter));
+
+    PinotFunctionConverter converter =
+        new PinotFunctionConverter(
+            new PinotFunctionConverterConfig(null, "CUSTOM_DC", Set.of("bar")));
+    assertEquals(
+        "CUSTOM_DC(foo)",
+        converter.convert(
+            mockingExecutionContext,
+            buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column1.toBuilder()),
+            this.mockArgumentConverter));
+    assertEquals(
+        "DISTINCTCOUNT(bar)",
+        converter.convert(
+            mockingExecutionContext,
+            buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column2.toBuilder()),
+            this.mockArgumentConverter));
   }
 
   @Test
