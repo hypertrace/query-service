@@ -18,11 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.typesafe.config.ConfigFactory;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
@@ -107,7 +107,7 @@ class PinotFunctionConverterTest {
     assertEquals(
         expected,
         new PinotFunctionConverter(
-                new PinotFunctionConverterConfig("CUSTOMPERCENTILE", null, Collections.emptySet()))
+                new PinotFunctionConverterConfig("CUSTOMPERCENTILE", null, Collections.emptyMap()))
             .convert(mockingExecutionContext, percentileFunction, this.mockArgumentConverter));
   }
 
@@ -259,7 +259,8 @@ class PinotFunctionConverterTest {
 
     PinotFunctionConverter converter =
         new PinotFunctionConverter(
-            new PinotFunctionConverterConfig(null, "CUSTOM_DC", Set.of("bar")));
+            new PinotFunctionConverterConfig(
+                ConfigFactory.parseString("distinctCountAggOverrides = {foo=CUSTOM_DC, xyz=XYZ}")));
     assertEquals(
         "CUSTOM_DC(foo)",
         converter.convert(
