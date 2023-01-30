@@ -34,9 +34,9 @@ dependencies {
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
-  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.7.2")
-  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.7.2")
-  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.7.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.11.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.11.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.11.2")
   implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.12.3")
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.12.3")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.12.3")
@@ -47,7 +47,7 @@ dependencies {
   }
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("commons-codec:commons-codec:1.15")
-  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.37")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.47")
   implementation("com.google.protobuf:protobuf-java-util:3.20.1")
   implementation("com.google.guava:guava:31.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
