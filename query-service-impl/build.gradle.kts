@@ -16,7 +16,7 @@ dependencies {
     implementation("io.netty:netty-common:4.1.77.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-2812456")
     }
-    implementation("org.apache.zookeeper:zookeeper:3.6.2") {
+    implementation("org.apache.zookeeper:zookeeper:3.6.3") {
       because("Multiple vulnerabilities")
     }
     implementation("io.netty:netty-transport-native-epoll:4.1.71.Final") {
@@ -41,18 +41,38 @@ dependencies {
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.12.3")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.12.3")
   implementation("com.google.inject:guice:5.0.1")
-  implementation("org.apache.pinot:pinot-java-client:0.6.0") {
+  implementation("org.apache.pinot:pinot-java-client:0.12.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
     exclude("org.slf4j", "slf4j-log4j12")
   }
+  constraints {
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.2") {
+      because("version 2.12.7.1 has a vulnerability https://snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-3038424")
+    }
+    implementation("org.apache.calcite:calcite-core:1.32.0") {
+      because("version 1.29.0 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECALCITE-3021143")
+    }
+    implementation("org.apache.calcite.avatica:avatica-core:1.22.0") {
+      because("version 1.20.0 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECALCITEAVATICA-2961770")
+    }
+    implementation("commons-httpclient:commons-httpclient:3.1-jenkins-3") {
+      because("version 3.1 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-COMMONSHTTPCLIENT-30083")
+    }
+    implementation("io.netty:netty-codec-http:4.1.71.Final") {
+      because("version 4.1.60.Final has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-IONETTY-2314893")
+    }
+    implementation("org.webjars:swagger-ui:4.1.3") {
+      because("version 3.23.11 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARS-2314887")
+    }
+  }
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("commons-codec:commons-codec:1.15")
-  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.47")
-  implementation("com.google.protobuf:protobuf-java-util:3.20.1")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.48")
+  implementation("com.google.protobuf:protobuf-java-util:3.20.3")
   implementation("com.google.guava:guava:31.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.9.3")
-  implementation("org.postgresql:postgresql:42.4.1")
+  implementation("org.postgresql:postgresql:42.4.3")
 
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
@@ -63,4 +83,9 @@ dependencies {
   testImplementation("org.mockito:mockito-junit-jupiter:3.8.0")
   testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
   testImplementation("com.squareup.okhttp3:mockwebserver:4.9.3")
+  constraints {
+    testImplementation("junit:junit:4.13.1") {
+      because("version 4.13 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-JUNIT-1017047")
+    }
+  }
 }

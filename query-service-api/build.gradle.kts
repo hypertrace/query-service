@@ -66,11 +66,11 @@ tasks.test {
 }
 
 dependencies {
-  api(platform("io.grpc:grpc-bom:1.45.1"))
+  api(platform("io.grpc:grpc-bom:1.45.2"))
   api("io.grpc:grpc-protobuf")
   api("io.grpc:grpc-stub")
   api("javax.annotation:javax.annotation-api:1.3.2")
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
-  testImplementation("com.google.protobuf:protobuf-java-util:3.20.1")
+  testImplementation("com.google.protobuf:protobuf-java-util:3.20.3")
 }
