@@ -44,6 +44,7 @@ dependencies {
   implementation("org.apache.pinot:pinot-java-client:0.12.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
     exclude("org.slf4j", "slf4j-log4j12")
+    exclude("log4j", "log4j")
   }
   constraints {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.2") {
