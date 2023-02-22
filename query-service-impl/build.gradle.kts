@@ -68,7 +68,7 @@ dependencies {
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("commons-codec:commons-codec:1.15")
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.49")
-  implementation("com.google.protobuf:protobuf-java-util:3.20.3")
+  implementation("com.google.protobuf:protobuf-java-util:3.22.0")
   implementation("com.google.guava:guava:31.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.9.3")
@@ -83,9 +83,4 @@ dependencies {
   testImplementation("org.mockito:mockito-junit-jupiter:3.8.0")
   testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
   testImplementation("com.squareup.okhttp3:mockwebserver:4.9.3")
-  constraints {
-    testImplementation("junit:junit:4.13.1") {
-      because("version 4.13 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-JUNIT-1017047")
-    }
-  }
 }
