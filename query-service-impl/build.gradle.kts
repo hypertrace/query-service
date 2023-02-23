@@ -31,6 +31,9 @@ dependencies {
           "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10"
       )
     }
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.2") {
+      because("Multiple vulnerabilities")
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
@@ -41,30 +44,10 @@ dependencies {
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.12.3")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.12.3")
   implementation("com.google.inject:guice:5.0.1")
-  implementation("org.apache.pinot:pinot-java-client:0.12.0") {
+  implementation("org.apache.pinot:pinot-java-client:0.10.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
     exclude("org.slf4j", "slf4j-log4j12")
     exclude("log4j", "log4j")
-  }
-  constraints {
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.2") {
-      because("version 2.12.7.1 has a vulnerability https://snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-3038424")
-    }
-    implementation("org.apache.calcite:calcite-core:1.32.0") {
-      because("version 1.29.0 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECALCITE-3021143")
-    }
-    implementation("org.apache.calcite.avatica:avatica-core:1.22.0") {
-      because("version 1.20.0 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECALCITEAVATICA-2961770")
-    }
-    implementation("commons-httpclient:commons-httpclient:3.1-jenkins-3") {
-      because("version 3.1 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-COMMONSHTTPCLIENT-30083")
-    }
-    implementation("io.netty:netty-codec-http:4.1.71.Final") {
-      because("version 4.1.60.Final has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-IONETTY-2314893")
-    }
-    implementation("org.webjars:swagger-ui:4.1.3") {
-      because("version 3.23.11 has a vulnerability https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARS-2314887")
-    }
   }
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("commons-codec:commons-codec:1.15")
