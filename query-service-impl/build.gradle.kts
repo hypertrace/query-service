@@ -31,7 +31,7 @@ dependencies {
           "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10"
       )
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.2") {
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2") {
       because("Multiple vulnerabilities")
     }
   }

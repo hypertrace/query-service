@@ -28,11 +28,6 @@ dependencies {
   integrationTestImplementation("org.apache.kafka:kafka-clients:5.5.1-ccs")
   integrationTestImplementation("org.apache.kafka:kafka-streams:5.5.1-ccs")
   integrationTestImplementation("org.apache.avro:avro:1.11.1")
-  constraints {
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.2") {
-      because("version 2.12.7.1 has a vulnerability https://snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-3038424")
-    }
-  }
   integrationTestImplementation("com.google.guava:guava:31.1-jre")
   integrationTestImplementation("org.hypertrace.core.datamodel:data-model:0.1.12")
   integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.1.13")
