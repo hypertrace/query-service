@@ -19,45 +19,19 @@ import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
-import org.hypertrace.core.query.service.pinot.PinotBasedRequestHandler;
-import org.hypertrace.core.query.service.pinot.PinotClientFactory;
-import org.hypertrace.core.query.service.pinot.QueryRequestToPinotSQLConverterTest;
 import org.hypertrace.core.query.service.pinot.ResultSetTypePredicateProvider;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class PostgresBasedRequestHandlerTest {
-  // Test subject
-  private PostgresBasedRequestHandler postgresBasedRequestHandler;
-  private final ObjectMapper objectMapper = new ObjectMapper();
   private final Config serviceConfig =
       ConfigFactory.parseURL(
-          Objects.requireNonNull(
-              QueryRequestToPostgresSQLConverterTest.class
-                  .getClassLoader()
-                  .getResource("application.conf")))
+              Objects.requireNonNull(
+                  QueryRequestToPostgresSQLConverterTest.class
+                      .getClassLoader()
+                      .getResource("application.conf")))
           .getConfig("service.config");
-
-  @BeforeEach
-  public void setUp() {
-    // Mocks
-    PostgresClientFactory postgresClientFactory = mock(PostgresClientFactory.class);
-    ResultSetTypePredicateProvider resultSetTypePredicateProviderMock =
-        mock(ResultSetTypePredicateProvider.class);
-
-    Config handlerConfig = firstOf(serviceConfig.getConfigList("queryRequestHandlersConfig"));
-    postgresBasedRequestHandler =
-        new PostgresBasedRequestHandler(
-            handlerConfig.getString("name"),
-            handlerConfig.getConfig("requestHandlerInfo"));
-
-    // Test ResultTableResultSet result set format parsing
-    when(resultSetTypePredicateProviderMock.isSelectionResultSetType(any(ResultSet.class)))
-        .thenReturn(false);
-    when(resultSetTypePredicateProviderMock.isResultTableResultSetType(any(ResultSet.class)))
-        .thenReturn(true);
-  }
 
   @Test
   public void testCanHandle() {
@@ -71,7 +45,9 @@ public class PostgresBasedRequestHandlerTest {
               config.getString("name"), config.getConfig("requestHandlerInfo"));
 
       // Verify that the traces handler can traces query.
-      if (config.getString("name").equals("backend-traces-from-bare-span-event-view-aggr-handler")) {
+      if (config
+          .getString("name")
+          .equals("backend-traces-from-bare-span-event-view-aggr-handler")) {
         QueryRequest.Builder builder = QueryRequest.newBuilder();
         long startTimeInMillis = TimeUnit.MILLISECONDS.convert(Duration.ofHours(24));
         Filter startTimeFilter =
@@ -89,8 +65,9 @@ public class PostgresBasedRequestHandlerTest {
                 .addChildFilter(endTimeFilter)
                 .build();
         builder.setFilter(andFilter);
-        builder.addSelection(QueryRequestBuilderUtils.createColumnExpression("BACKEND_TRACE.backendId"));
-        
+        builder.addSelection(
+            QueryRequestBuilderUtils.createColumnExpression("BACKEND_TRACE.backendId"));
+
         QueryRequest request = builder.build();
         ExecutionContext context = new ExecutionContext("__default", request);
         QueryCost cost = handler.canHandle(request, context);
@@ -102,5 +79,4 @@ public class PostgresBasedRequestHandlerTest {
   private boolean isPostgresConfig(Config config) {
     return config.getString("type").equals("postgres");
   }
-
 }
