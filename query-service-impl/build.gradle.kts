@@ -16,7 +16,7 @@ dependencies {
     implementation("io.netty:netty-common:4.1.77.Final") {
       because("https://snyk.io/vuln/SNYK-JAVA-IONETTY-2812456")
     }
-    implementation("org.apache.zookeeper:zookeeper:3.6.2") {
+    implementation("org.apache.zookeeper:zookeeper:3.6.3") {
       because("Multiple vulnerabilities")
     }
     implementation("io.netty:netty-transport-native-epoll:4.1.71.Final") {
@@ -31,6 +31,9 @@ dependencies {
           "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10"
       )
     }
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2") {
+      because("Multiple vulnerabilities")
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
@@ -41,18 +44,19 @@ dependencies {
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.12.3")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.12.3")
   implementation("com.google.inject:guice:5.0.1")
-  implementation("org.apache.pinot:pinot-java-client:0.6.0") {
+  implementation("org.apache.pinot:pinot-java-client:0.10.0") {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
     exclude("org.slf4j", "slf4j-log4j12")
+    exclude("log4j", "log4j")
   }
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("commons-codec:commons-codec:1.15")
-  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.47")
-  implementation("com.google.protobuf:protobuf-java-util:3.20.1")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.49")
+  implementation("com.google.protobuf:protobuf-java-util:3.22.0")
   implementation("com.google.guava:guava:31.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.9.3")
-  implementation("org.postgresql:postgresql:42.4.1")
+  implementation("org.postgresql:postgresql:42.4.3")
 
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
