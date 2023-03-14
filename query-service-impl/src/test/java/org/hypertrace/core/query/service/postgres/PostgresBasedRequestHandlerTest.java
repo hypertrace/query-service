@@ -103,7 +103,7 @@ public class PostgresBasedRequestHandlerTest {
     // verify that default handler is selected
     Assertions.assertFalse(selectedRequestHandler.isEmpty());
     Assertions.assertEquals(
-        "backend-traces-from-bare-span-event-view-30secs-aggr-handler",
+        "backend-traces-from-bare-span-event-view-3hrs-aggr-handler",
         selectedRequestHandler.get().getName());
   }
 
