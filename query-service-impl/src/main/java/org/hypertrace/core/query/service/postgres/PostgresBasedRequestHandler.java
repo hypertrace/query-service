@@ -19,6 +19,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -63,9 +64,11 @@ public class PostgresBasedRequestHandler implements RequestHandler {
   private static final String COUNT_COLUMN_NAME_CONFIG_KEY = "countColumnName";
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
+  private static final String MIN_REQUEST_DURATION_KEY = "minRequestDuration";
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
+  private static final Set<Operator> LTE_OPERATORS = Set.of(Operator.LE, Operator.LT);
 
   // string values equivalent for null value of different data types
   // this is required to keep null values equivalent to default values for
@@ -92,6 +95,7 @@ public class PostgresBasedRequestHandler implements RequestHandler {
 
   private Timer postgresQueryExecutionTimer;
   private int slowQueryThreshold = DEFAULT_SLOW_QUERY_THRESHOLD_MS;
+  private Duration minRequestDuration = Duration.ZERO;
 
   PostgresBasedRequestHandler(String name, Config config) {
     this(name, config, PostgresClientFactory.get());
@@ -152,6 +156,11 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     if (config.hasPath(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
       this.slowQueryThreshold = config.getInt(SLOW_QUERY_THRESHOLD_MS_CONFIG);
     }
+
+    if (config.hasPath(MIN_REQUEST_DURATION_KEY)) {
+      this.minRequestDuration = config.getDuration(MIN_REQUEST_DURATION_KEY);
+    }
+
     LOG.info(
         "Using {}ms as the threshold for logging slow queries of handler: {}",
         slowQueryThreshold,
@@ -196,6 +205,13 @@ public class PostgresBasedRequestHandler implements RequestHandler {
       cost = tableDefinition.getTimeGranularityMillis() / (Long.MAX_VALUE * 2D);
     }
 
+    long requestEndTime = getRequestEndTime(request.getFilter());
+    Duration requestDuration = Duration.ofMillis(requestEndTime - requestStartTime);
+
+    // choose this handler if requestDuration >= minRequestDuration
+    if (requestDuration.compareTo(minRequestDuration) >= 0) {
+      cost /= 2;
+    }
     return new QueryCost(cost);
   }
 
@@ -222,6 +238,23 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     }
 
     return requestStartTime;
+  }
+
+  private long getRequestEndTime(Filter filter) {
+    long requestEndTime = Long.MIN_VALUE;
+
+    if (lhsIsStartTimeAttribute(filter.getLhs())
+        && LTE_OPERATORS.contains(filter.getOperator())
+        && rhsHasLongValue(filter.getRhs())) {
+      long filterEndTime = filter.getRhs().getLiteral().getValue().getLong();
+      requestEndTime = Math.max(requestEndTime, filterEndTime);
+    }
+
+    for (Filter childFilter : filter.getChildFilterList()) {
+      requestEndTime = Math.max(requestEndTime, getRequestEndTime(childFilter));
+    }
+
+    return requestEndTime;
   }
 
   private boolean lhsIsStartTimeAttribute(Expression lhs) {
