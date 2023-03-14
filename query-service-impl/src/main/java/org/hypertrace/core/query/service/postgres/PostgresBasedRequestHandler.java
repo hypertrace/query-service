@@ -208,8 +208,8 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     long requestEndTime = getRequestEndTime(request.getFilter());
     Duration requestDuration = Duration.ofMillis(requestEndTime - requestStartTime);
 
-    // check: requestDuration < minRequestDuration
-    if (!(requestDuration.compareTo(minRequestDuration) < 0)) {
+    // choose this handler if requestDuration >= minRequestDuration
+    if (requestDuration.compareTo(minRequestDuration) >= 0) {
       cost /= 2;
     }
     return new QueryCost(cost);
