@@ -554,6 +554,7 @@ public class PostgresBasedRequestHandler implements RequestHandler {
     switch (columnType) {
       case Types.BIGINT:
       case Types.INTEGER:
+      case Types.NUMERIC:
         return NULL_INTEGER_EQ_STRING_VALUE;
       case Types.FLOAT:
       case Types.DOUBLE:
