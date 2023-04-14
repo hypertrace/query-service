@@ -34,6 +34,9 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2") {
       because("Multiple vulnerabilities")
     }
+    implementation("com.101tec:zkclient:0.11") {
+      because("Multiple vulnerabilities")
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
