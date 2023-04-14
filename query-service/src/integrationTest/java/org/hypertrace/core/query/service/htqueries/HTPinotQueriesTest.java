@@ -207,12 +207,12 @@ public class HTPinotQueriesTest {
                 .collect(Collectors.toList())
                 .size()
             == 0
-        && retry++ < 5) {
+        && retry++ < 10) {
       Thread.sleep(2000);
     }
     channel.shutdown();
     bootstrapper.stop();
-    return retry < 5;
+    return retry < 10;
   }
 
   private static boolean generateData() throws Exception {

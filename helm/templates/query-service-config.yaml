@@ -26,7 +26,8 @@ data:
           type = postgres
           connectionString = "{{ .Values.queryServiceConfig.data.postgresConnectionString }}"
           user = "{{ .Values.queryServiceConfig.data.postgresUser }}"
-          maxConnections = "{{ .Values.queryServiceConfig.data.postgresMaxConnections }}"
+          maxConnectionAttempts = "{{ .Values.queryServiceConfig.data.postgresMaxConnectionAttempts }}"
+          connectionRetryBackoff = "{{ .Values.queryServiceConfig.data.postgresConnectionRetryBackoff }}"
         }
       ]
       {{- if or .Values.handlers .Values.extraHandlers }}
