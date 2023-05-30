@@ -1,3 +1,4 @@
+{{- if eq .Values.chartType "application" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -82,6 +83,13 @@ spec:
               value: "/var/{{ .Chart.Name }}/log/log4j2.properties"
             - name: JAVA_OPTS
               value: {{ .Values.javaOpts | quote }}
+            {{- if eq .Values.queryServiceConfig.clientType "postgres" }}
+            - name: {{ .Values.queryServiceConfig.data.postgresPasswordEnvVariable }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.queryServiceConfig.data.postgresPasswordSecretName }}
+                  key: {{ .Values.queryServiceConfig.data.postgresqlPasswordSecretKey }}
+            {{- end }}
           volumeMounts:
             - name: service-config
               mountPath: /app/resources/configs/{{ .Chart.Name }}/application.conf
@@ -104,3 +112,4 @@ spec:
               port: {{ .Values.containerHealthProbePort }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

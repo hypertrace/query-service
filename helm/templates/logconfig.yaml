@@ -1,3 +1,4 @@
+{{- if eq .Values.chartType "application" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -42,3 +43,4 @@ data:
     loggers = PINOT_HANDLER
     logger.PINOT_HANDLER.name = org.hypertrace.core.query.service.pinot.PinotBasedRequestHandler
     logger.PINOT_HANDLER.level = INFO
+{{- end }}
