@@ -18,19 +18,27 @@ data:
         mode = {{ .Values.queryServiceConfig.data.validation.limit.mode }}
       }
       clients = [
+        {{- if eq .Values.queryServiceConfig.clientType "pinot" }}
         {
           type = zookeeper
           connectionString = "{{ .Values.queryServiceConfig.data.zookeeperConnectionString }}"
         }
+        {{- end }}
+        {{- if eq .Values.queryServiceConfig.clientType "postgres" }}
         {
           type = postgres
           connectionString = "{{ .Values.queryServiceConfig.data.postgresConnectionString }}"
           user = "{{ .Values.queryServiceConfig.data.postgresUser }}"
+          password = ${? {{ .Values.queryServiceConfig.data.postgresPasswordEnvVariable }} }
           maxConnections = "{{ .Values.queryServiceConfig.data.postgresMaxConnections }}"
+          maxConnectionAttempts = "{{ .Values.queryServiceConfig.data.postgresMaxConnectionAttempts }}"
+          connectionRetryBackoff = "{{ .Values.queryServiceConfig.data.postgresConnectionRetryBackoff }}"
         }
+        {{- end }}
       ]
-      {{- if or .Values.handlers .Values.extraHandlers }}
+      {{- if or .Values.handlers .Values.extraHandlers .Values.postgresHandlers }}
       queryRequestHandlersConfig = [
+      {{- if eq .Values.queryServiceConfig.clientType "pinot" }}
       {{- range .Values.handlers }}
         {
 {{ tpl . $ | indent 10 }}
@@ -40,6 +48,14 @@ data:
         {
 {{ tpl . $ | indent 10 }}
         }
+      {{- end }}
+      {{- end }}
+      {{- if eq .Values.queryServiceConfig.clientType "postgres" }}
+      {{- range .Values.postgresHandlers }}
+        {
+{{ tpl . $ | indent 10 }}
+        }
+      {{- end }}
       {{- end }}
       ]
       {{- end }}

@@ -4,6 +4,8 @@
 replicaCount: 1
 maxUnavailable: 0
 
+chartType: application
+
 image:
   repository: hypertrace/query-service
   pullPolicy: IfNotPresent
@@ -13,6 +15,7 @@ containerPort: 8090
 containerHealthProbePort: 8091
 
 service:
+  name: query-service
   type: ClusterIP
   port: 8090
 
@@ -66,11 +69,17 @@ serviceSelectorLabels:
 ###########
 queryServiceConfig:
   name: query-service-config
+  clientType: pinot
   data:
     zookeeperConnectionString: zookeeper:2181/pinot/my-views
     postgresConnectionString: jdbc:postgresql://postgres:5432/postgres
     postgresUser: postgres
     postgresMaxConnections: 5
+    postgresPasswordEnvVariable: POSTGRESQL_PASSWORD
+    postgresPasswordSecretName: postgresql
+    postgresqlPasswordSecretKey: password
+    postgresMaxConnectionAttempts: 200
+    postgresConnectionRetryBackoff: 5s
     tenantColumnName: tenant_id
     attributeClient:
       host: attribute-service
@@ -80,9 +89,12 @@ queryServiceConfig:
         min: 1
         max: 10000
         mode: WARN
+
 handlers: []
 
 extraHandlers: []
+
+postgresHandlers: []
 
 logConfig:
   name: query-service-log-appender-config
