@@ -1005,14 +1005,14 @@ public class QueryRequestToPinotSQLConverterTest {
     Filter likeFilter =
         Filter.newBuilder()
             .setOperator(Operator.LIKE)
-            .setLhs(createColumnExpression("Span.attributes.response_body"))
+            .setLhs(createColumnExpression("Span.displaySpanName"))
             .setRhs(createStringLiteralValueExpression("abc"))
             .build();
     builder.setFilter(likeFilter);
 
     builder
         .addSelection(createColumnExpression("Span.id"))
-        .addSelection(createColumnExpression("Span.attributes.response_body"))
+        .addSelection(createColumnExpression("Span.displaySpanName"))
         .setFilter(createCompositeFilter(Operator.AND, startTimeFilter, endTimeFilter, likeFilter))
         .setLimit(15);
 
@@ -1021,7 +1021,7 @@ public class QueryRequestToPinotSQLConverterTest {
 
     assertPQLQuery(
         builder.build(),
-        "select span_id, response_body from spanEventView "
+        "select span_id, span_name from spanEventView "
             + "where "
             + viewDefinition.getTenantIdColumn()
             + " = '"
@@ -1030,7 +1030,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " and "
             + "( start_time_millis > 1570658506605 and end_time_millis < 1570744906673"
             + " and "
-            + "text_match(response_body,'/abc/') ) "
+            + "text_match(span_name,'/abc/') ) "
             + "limit 15",
         viewDefinition,
         executionContext);
