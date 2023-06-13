@@ -151,8 +151,7 @@ class QueryRequestToPinotSQLConverter {
            */
           operator = handleLikeOperatorConversion(filter.getLhs());
           Expression rhs =
-              handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          rhs = postProcessValueConversionForLikeOperator(operator, rhs);
+              handleValueConversionForLikeArgument(operator, filter.getLhs(), filter.getRhs());
 
           builder.append(operator);
           builder.append("(");
@@ -293,17 +292,20 @@ class QueryRequestToPinotSQLConverter {
     return REGEX_OPERATOR;
   }
 
+  private Expression handleValueConversionForLikeArgument(
+      String likeOperatorStr, Expression lhsExpression, Expression rhsExpression) {
+    return postProcessValueConversionForLikeOperator(
+        likeOperatorStr, handleValueConversionForLiteralExpression(lhsExpression, rhsExpression));
+  }
+
   private Expression postProcessValueConversionForLikeOperator(
       String likeOperatorStr, Expression rhsExpression) {
+    Expression.Builder builder = rhsExpression.toBuilder();
     if (likeOperatorStr.equals(TEXT_MATCH_OPERATOR)) {
       String strValue = "/" + rhsExpression.getLiteral().getValue().getString() + "/";
-      Value value = Value.newBuilder().setValueType(ValueType.STRING).setString(strValue).build();
-
-      return Expression.newBuilder()
-          .setLiteral(LiteralConstant.newBuilder().setValue(value))
-          .build();
+      builder.getLiteralBuilder().getValueBuilder().setString(strValue);
     }
-    return rhsExpression;
+    return builder.build();
   }
 
   private String convertExpressionToString(
