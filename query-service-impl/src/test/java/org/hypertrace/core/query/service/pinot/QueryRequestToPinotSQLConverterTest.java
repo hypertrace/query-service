@@ -977,9 +977,6 @@ public class QueryRequestToPinotSQLConverterTest {
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
 
-    /*
-     * select span_id, service_name from spaneventview where tenant_id = '__default' and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 and regexp_like(service_name,'abc') ) limit 15
-     * */
     assertPQLQuery(
         builder.build(),
         "select span_id, service_name from spanEventView "
@@ -1022,9 +1019,6 @@ public class QueryRequestToPinotSQLConverterTest {
     ViewDefinition viewDefinition = getDefaultViewDefinition();
     defaultMockingForExecutionContext();
 
-    /*
-     * select span_id, service_name from spaneventview where tenant_id = '__default' and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 and regexp_like(service_name,'abc') ) limit 15
-     * */
     assertPQLQuery(
         builder.build(),
         "select span_id, response_body from spanEventView "
