@@ -3,7 +3,6 @@ package org.hypertrace.core.query.service.pinot;
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isAttributeExpressionWithSubpath;
 import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttributeExpression;
-import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
 import com.google.common.base.Joiner;
@@ -13,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Optional;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -36,6 +36,7 @@ class QueryRequestToPinotSQLConverter {
 
   private static final String QUESTION_MARK = "?";
   private static final String REGEX_OPERATOR = "REGEXP_LIKE";
+  private static final String TEXT_MATCH_OPERATOR = "TEXT_MATCH";
   private static final String MAP_VALUE = "mapValue";
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
@@ -144,9 +145,14 @@ class QueryRequestToPinotSQLConverter {
     } else {
       switch (filter.getOperator()) {
         case LIKE:
-          // The like operation in PQL looks like `regexp_like(lhs, rhs)`
+          /**
+           * If the text index is not enabled on lhs expression, - the pql looks like
+           * `regexp_like(lhs, rhs)` else - the pql looks like `text_match(lhs, rhs)`
+           */
+          operator = handleLikeOperatorConversion(filter.getLhs());
           Expression rhs =
-              handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+              handleValueConversionForLikeArgument(operator, filter.getLhs(), filter.getRhs());
+
           builder.append(operator);
           builder.append("(");
           builder.append(
@@ -274,6 +280,32 @@ class QueryRequestToPinotSQLConverter {
       default:
         throw new UnsupportedOperationException("Unknown operator:" + operator);
     }
+  }
+
+  private String handleLikeOperatorConversion(Expression expression) {
+    Optional<String> logicalColumnName = getLogicalColumnName(expression);
+    if (logicalColumnName.isPresent()
+        && isSimpleAttributeExpression(expression)
+        && viewDefinition.hasTextIndex(logicalColumnName.get())) {
+      return TEXT_MATCH_OPERATOR;
+    }
+    return REGEX_OPERATOR;
+  }
+
+  private Expression handleValueConversionForLikeArgument(
+      String likeOperatorStr, Expression lhsExpression, Expression rhsExpression) {
+    return postProcessValueConversionForLikeOperator(
+        likeOperatorStr, handleValueConversionForLiteralExpression(lhsExpression, rhsExpression));
+  }
+
+  private Expression postProcessValueConversionForLikeOperator(
+      String likeOperatorStr, Expression rhsExpression) {
+    Expression.Builder builder = rhsExpression.toBuilder();
+    if (likeOperatorStr.equals(TEXT_MATCH_OPERATOR)) {
+      String strValue = "/" + rhsExpression.getLiteral().getValue().getString() + "/";
+      builder.getLiteralBuilder().getValueBuilder().setString(strValue);
+    }
+    return builder.build();
   }
 
   private String convertExpressionToString(

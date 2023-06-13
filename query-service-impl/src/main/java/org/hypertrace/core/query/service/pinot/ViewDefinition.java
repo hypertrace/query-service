@@ -29,6 +29,7 @@ public class ViewDefinition {
   private static final String MAP_FIELDS_CONFIG_KEY = "mapFields";
   private static final String FILTERS_CONFIG_KEY = "filters";
   private static final String COLUMN_CONFIG_KEY = "column";
+  private static final String TEXT_INDEXES_FIELDS_CONFIG_KEY = "textIndexes";
 
   private static final long DEFAULT_RETENTION_TIME = TimeUnit.DAYS.toMillis(8);
   private static final long DEFAULT_TIME_GRANULARITY = TimeUnit.MINUTES.toMillis(1);
@@ -102,6 +103,13 @@ public class ViewDefinition {
                 ? config.getStringList(BYTES_FIELDS_CONFIG_KEY)
                 : List.of());
 
+    // get all the String fields that have enabled text Indexes
+    final Set<String> textIndexFields =
+        new HashSet<>(
+            config.hasPath(TEXT_INDEXES_FIELDS_CONFIG_KEY)
+                ? config.getStringList(TEXT_INDEXES_FIELDS_CONFIG_KEY)
+                : List.of());
+
     Map<String, PinotColumnSpec> columnSpecMap = new HashMap<>();
     for (Map.Entry<String, String> entry : fieldMap.entrySet()) {
       String logicalName = entry.getKey();
@@ -120,6 +128,11 @@ public class ViewDefinition {
         spec.addColumnName(physName);
         spec.setType(ValueType.STRING);
       }
+
+      if (textIndexFields.contains(physName)) {
+        spec.setTextIndex();
+      }
+
       columnSpecMap.put(logicalName, spec);
     }
 
@@ -173,6 +186,10 @@ public class ViewDefinition {
 
   public ValueType getColumnType(String logicalName) {
     return columnSpecMap.get(logicalName).getType();
+  }
+
+  public boolean hasTextIndex(String logicalName) {
+    return columnSpecMap.get(logicalName).hasTextIndex();
   }
 
   public String getKeyColumnNameForMap(String logicalName) {
