@@ -3,6 +3,7 @@ package org.hypertrace.core.query.service.pinot;
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
@@ -947,6 +948,96 @@ public class QueryRequestToPinotSQLConverterTest {
             + "group by service_id, service_name "
             + "order by SUM(error_count) / 3600.0 "
             + "limit 10000",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithLikeOperatorForServiceNameNotHavingTextIndex() {
+    Builder builder = QueryRequest.newBuilder();
+
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.LIKE)
+            .setLhs(createColumnExpression("Span.serviceName"))
+            .setRhs(createStringLiteralValueExpression("abc"))
+            .build();
+    builder.setFilter(likeFilter);
+
+    builder
+        .addSelection(createColumnExpression("Span.id"))
+        .addSelection(createColumnExpression("Span.serviceName"))
+        .setFilter(createCompositeFilter(Operator.AND, startTimeFilter, endTimeFilter, likeFilter))
+        .setLimit(15);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    /*
+    * select span_id, service_name from spaneventview where tenant_id = '__default' and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 and regexp_like(service_name,'abc') ) limit 15
+    * */
+    assertPQLQuery(
+        builder.build(),
+        "select span_id, service_name from spanEventView "
+            + "where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'"
+            + " and "
+            + "( start_time_millis > 1570658506605 and end_time_millis < 1570744906673"
+            + " and "
+            + "regexp_like(service_name,'abc') ) "
+            + "limit 15",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithLikeOperatorForResponseBodyHavingTextIndex() {
+    Builder builder = QueryRequest.newBuilder();
+
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+
+    Filter likeFilter =
+        Filter.newBuilder()
+            .setOperator(Operator.LIKE)
+            .setLhs(createColumnExpression("Span.attributes.response_body"))
+            .setRhs(createStringLiteralValueExpression("abc"))
+            .build();
+    builder.setFilter(likeFilter);
+
+    builder
+        .addSelection(createColumnExpression("Span.id"))
+        .addSelection(createColumnExpression("Span.attributes.response_body"))
+        .setFilter(createCompositeFilter(Operator.AND, startTimeFilter, endTimeFilter, likeFilter))
+        .setLimit(15);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    /*
+     * select span_id, service_name from spaneventview where tenant_id = '__default' and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 and regexp_like(service_name,'abc') ) limit 15
+     * */
+    assertPQLQuery(
+        builder.build(),
+        "select span_id, response_body from spanEventView "
+            + "where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'"
+            + " and "
+            + "( start_time_millis > 1570658506605 and end_time_millis < 1570744906673"
+            + " and "
+            + "text_match(response_body,'/abc/') ) "
+            + "limit 15",
         viewDefinition,
         executionContext);
   }

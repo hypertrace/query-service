@@ -8,9 +8,11 @@ public class PinotColumnSpec {
 
   private final List<String> columnNames;
   private ValueType type;
+  private boolean textIndex;
 
   public PinotColumnSpec() {
     columnNames = new ArrayList<>();
+    textIndex = false;
   }
 
   public List<String> getColumnNames() {
@@ -27,5 +29,13 @@ public class PinotColumnSpec {
 
   public void setType(ValueType type) {
     this.type = type;
+  }
+
+  public boolean hasTextIndex() {
+    return textIndex;
+  }
+
+  public void setTextIndex() {
+    this.textIndex = true;
   }
 }
