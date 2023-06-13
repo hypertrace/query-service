@@ -146,10 +146,8 @@ class QueryRequestToPinotSQLConverter {
       switch (filter.getOperator()) {
         case LIKE:
           /**
-           * If the text index is not enabled on lhs expression,
-           *  - the pql looks like `regexp_like(lhs, rhs)`
-           * else
-           *  - the pql looks like `text_match(lhs, rhs)`
+           * If the text index is not enabled on lhs expression, - the pql looks like
+           * `regexp_like(lhs, rhs)` else - the pql looks like `text_match(lhs, rhs)`
            */
           operator = handleLikeOperator(filter.getLhs());
           Expression rhs =
@@ -287,7 +285,7 @@ class QueryRequestToPinotSQLConverter {
 
   private String handleLikeOperator(Expression expression) {
     Optional<String> logicalColumnName = getLogicalColumnName(expression);
-    if(logicalColumnName.isPresent()
+    if (logicalColumnName.isPresent()
         && isSimpleAttributeExpression(expression)
         && viewDefinition.hasTextIndex(logicalColumnName.get())) {
       return TEXT_MATCH_OPERATOR;
@@ -296,7 +294,7 @@ class QueryRequestToPinotSQLConverter {
   }
 
   private Expression prefixValueForLikeOperator(String likeOperatorStr, Expression rhsExpression) {
-    if(likeOperatorStr.equals(TEXT_MATCH_OPERATOR)) {
+    if (likeOperatorStr.equals(TEXT_MATCH_OPERATOR)) {
       String strValue = "/" + rhsExpression.getLiteral().getValue().getString() + "/";
       Value value = Value.newBuilder().setValueType(ValueType.STRING).setString(strValue).build();
 

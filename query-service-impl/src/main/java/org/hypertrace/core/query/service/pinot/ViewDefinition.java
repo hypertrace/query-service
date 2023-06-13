@@ -104,11 +104,11 @@ public class ViewDefinition {
                 : List.of());
 
     // get all the String fields that have enabled text Indexes
-    final Set<String> textIndexFields = new HashSet<>(
-        config.hasPath(TEXT_INDEXES_FIELDS_CONFIG_KEY)
-            ? config.getStringList(TEXT_INDEXES_FIELDS_CONFIG_KEY)
-            : List.of()
-    );
+    final Set<String> textIndexFields =
+        new HashSet<>(
+            config.hasPath(TEXT_INDEXES_FIELDS_CONFIG_KEY)
+                ? config.getStringList(TEXT_INDEXES_FIELDS_CONFIG_KEY)
+                : List.of());
 
     Map<String, PinotColumnSpec> columnSpecMap = new HashMap<>();
     for (Map.Entry<String, String> entry : fieldMap.entrySet()) {
