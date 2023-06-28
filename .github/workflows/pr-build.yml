@@ -30,7 +30,7 @@ jobs:
         with: 
           args: build dockerBuildImages
 
-      - name: Run Trivy vulnerability scanner for ingester
+      - name: Run Trivy vulnerability scanner for query service
         uses: hypertrace/github-actions/trivy-image-scan@main
         with:
           image: hypertrace/query-service

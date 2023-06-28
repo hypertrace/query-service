@@ -8,4 +8,63 @@
     <cpe>cpe:/a:grpc:grpc</cpe>
     <cpe>cpe:/a:utils_project:utils</cpe>
   </suppress>
+
+  <!-- This is the final version, and its coming via transitive dep. -->
+  <suppress>
+    <notes><![CDATA[
+   file name: commons-httpclient-3.1.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/commons\-httpclient/commons\-httpclient@.*$</packageUrl>
+    <cpe>cpe:/a:apache:commons-httpclient</cpe>
+    <cpe>cpe:/a:apache:httpclient</cpe>
+    <cve>CVE-2012-5783</cve>
+  </suppress>
+
+  <!-- This is the final version -->
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-api-1.2.0.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.helix/zookeeper\-api@.*$</packageUrl>
+    <cpe>cpe:/a:apache:zookeeper</cpe>
+    <cpe>cpe:/a:apache:helix</cpe>
+  </suppress>
+
+  <!-- This is the final version -->
+  <suppress>
+    <notes><![CDATA[
+   file name: snakeyaml-1.33.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.yaml/snakeyaml@.*$</packageUrl>
+    <cpe>cpe:/a:snakeyaml_project:snakeyaml</cpe>
+    <cve>CVE-2022-1471</cve>
+  </suppress>
+
+  <!-- Same vulnerability even in latest version -->
+  <suppress>
+    <notes><![CDATA[
+   file name: commons-compiler-3.1.8.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/commons\-compiler@.*$</packageUrl>
+    <cpe>cpe:/a:janino_project:janino</cpe>
+  </suppress>
+
+  <!-- Same vulnerability even in latest version -->
+  <suppress>
+    <notes><![CDATA[
+   file name: janino-3.1.8.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/janino@.*$</packageUrl>
+    <cpe>cpe:/a:janino_project:janino</cpe>
+    <cve>CVE-2023-33546</cve>
+  </suppress>
+
+  <!-- Disputed vulnerability -->
+  <suppress>
+    <notes><![CDATA[
+     file name: jackson-databind-2.14.2.jar
+     ]]></notes>
+    <packageUrl regex="true">^pkg:maven/com\.fasterxml\.jackson\.core/jackson\-databind@.*$</packageUrl>
+    <cpe>cpe:/a:fasterxml:jackson-databind</cpe>
+  </suppress>
 </suppressions> 
