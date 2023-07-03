@@ -19,6 +19,9 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2") {
       because("Multiple vulnerabilities")
     }
+    implementation("org.apache.calcite:calcite-core:1.34.0") {
+      because("CVE-2022-39135")
+    }
     implementation("org.apache.calcite:calcite-babel:1.34.0") {
       because("CVE-2022-39135")
     }
@@ -37,6 +40,11 @@ dependencies {
     implementation("org.xerial.snappy:snappy-java:1.1.10.1") {
       because("CVE-2023-34453, CVE-2023-34454, CVE-2023-34455")
     }
+    implementation("org.yaml:snakeyaml:2.0") {
+      because("CVE-2022-1471")
+    }
+    implementation("org.codehaus.janino:commons-compiler:3.1.9")
+    implementation("org.codehaus.janino:janino:3.1.9")
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")

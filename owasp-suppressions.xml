@@ -12,15 +12,14 @@
   <!-- This is the final version, and its coming via transitive dep. -->
   <suppress>
     <notes><![CDATA[
-   file name: commons-httpclient-3.1.jar
+    We need to get pinot to upgrade this dep, it's 16 years old. Upgrades fix this issue but have changed package/group names
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/commons\-httpclient/commons\-httpclient@.*$</packageUrl>
-    <cpe>cpe:/a:apache:commons-httpclient</cpe>
-    <cpe>cpe:/a:apache:httpclient</cpe>
     <cve>CVE-2012-5783</cve>
+    <cve>CVE-2020-13956</cve>
   </suppress>
 
-  <!-- This is the final version -->
+  <!-- This is the latest version -->
   <suppress>
     <notes><![CDATA[
    file name: zookeeper-api-1.2.0.jar
@@ -30,29 +29,19 @@
     <cpe>cpe:/a:apache:helix</cpe>
   </suppress>
 
-  <!-- This is the final version -->
+  <!-- This is the latest version -->
   <suppress>
     <notes><![CDATA[
-   file name: snakeyaml-1.33.jar
-   ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.yaml/snakeyaml@.*$</packageUrl>
-    <cpe>cpe:/a:snakeyaml_project:snakeyaml</cpe>
-    <cve>CVE-2022-1471</cve>
-  </suppress>
-
-  <!-- Same vulnerability even in latest version -->
-  <suppress>
-    <notes><![CDATA[
-   file name: commons-compiler-3.1.8.jar
+   file name: commons-compiler-3.1.9.jar
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/commons\-compiler@.*$</packageUrl>
     <cpe>cpe:/a:janino_project:janino</cpe>
   </suppress>
 
-  <!-- Same vulnerability even in latest version -->
+  <!-- This is the latest version -->
   <suppress>
     <notes><![CDATA[
-   file name: janino-3.1.8.jar
+   file name: janino-3.1.9.jar
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/janino@.*$</packageUrl>
     <cpe>cpe:/a:janino_project:janino</cpe>
