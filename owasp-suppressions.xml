@@ -25,8 +25,9 @@
    file name: zookeeper-api-1.2.0.jar
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.apache\.helix/zookeeper\-api@.*$</packageUrl>
-    <cpe>cpe:/a:apache:zookeeper</cpe>
-    <cpe>cpe:/a:apache:helix</cpe>
+    <cve>CVE-2016-5017</cve>
+    <cve>CVE-2018-8012</cve>
+    <cve>CVE-2019-0201</cve>
   </suppress>
 
   <!-- This is the latest version -->
@@ -35,7 +36,7 @@
    file name: commons-compiler-3.1.9.jar
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/commons\-compiler@.*$</packageUrl>
-    <cpe>cpe:/a:janino_project:janino</cpe>
+    <cve>CVE-2023-33546</cve>
   </suppress>
 
   <!-- This is the latest version -->
@@ -44,7 +45,6 @@
    file name: janino-3.1.9.jar
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/janino@.*$</packageUrl>
-    <cpe>cpe:/a:janino_project:janino</cpe>
     <cve>CVE-2023-33546</cve>
   </suppress>
 
@@ -54,6 +54,6 @@
      file name: jackson-databind-2.14.2.jar
      ]]></notes>
     <packageUrl regex="true">^pkg:maven/com\.fasterxml\.jackson\.core/jackson\-databind@.*$</packageUrl>
-    <cpe>cpe:/a:fasterxml:jackson-databind</cpe>
+    <cve>CVE-2023-35116</cve>
   </suppress>
 </suppressions> 
