@@ -9,7 +9,6 @@
     <cpe>cpe:/a:utils_project:utils</cpe>
   </suppress>
 
-  <!-- This is the final version, and its coming via transitive dep. -->
   <suppress>
     <notes><![CDATA[
     We need to get pinot to upgrade this dep, it's 16 years old. Upgrades fix this issue but have changed package/group names
@@ -19,8 +18,7 @@
     <cve>CVE-2020-13956</cve>
   </suppress>
 
-  <!-- This is the latest version -->
-  <suppress>
+  <suppress until="2023-07-30Z">
     <notes><![CDATA[
    file name: zookeeper-api-1.2.0.jar
    ]]></notes>
@@ -30,30 +28,30 @@
     <cve>CVE-2019-0201</cve>
   </suppress>
 
-  <!-- This is the latest version -->
-  <suppress>
+  <suppress until="2023-07-30Z">
     <notes><![CDATA[
    file name: commons-compiler-3.1.9.jar
+   https://github.com/janino-compiler/janino/issues/201
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/commons\-compiler@.*$</packageUrl>
     <cve>CVE-2023-33546</cve>
   </suppress>
 
-  <!-- This is the latest version -->
-  <suppress>
+  <suppress until="2023-07-30Z">
     <notes><![CDATA[
-   file name: janino-3.1.9.jar
+    Same series of issues that also impacts jackson, vendor disputed and not currently fixed
+    https://github.com/janino-compiler/janino/issues/201
    ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/janino@.*$</packageUrl>
+    <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/.*@.*$</packageUrl>
     <cve>CVE-2023-33546</cve>
   </suppress>
 
-  <!-- Disputed vulnerability -->
-  <suppress>
+  <suppress until="2023-07-30Z">
     <notes><![CDATA[
      file name: jackson-databind-2.14.2.jar
+     This is currently disputed.
      ]]></notes>
     <packageUrl regex="true">^pkg:maven/com\.fasterxml\.jackson\.core/jackson\-databind@.*$</packageUrl>
     <cve>CVE-2023-35116</cve>
   </suppress>
-</suppressions> 
+</suppressions>
