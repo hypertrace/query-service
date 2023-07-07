@@ -20,7 +20,7 @@ import org.hypertrace.core.query.service.api.ValueType;
 
 public class PinotFunctionConverter {
   private static final String PINOT_CONCAT_FUNCTION = "CONCATSKIPNULL";
-  private static final String QUERY_FUNCTION_DISTINCTCOUNT_MV_INTERNAL = "DISTINCTCOUNTMV";
+  private static final String PINOT_DISTINCT_COUNT_MV_FUNCTION = "DISTINCTCOUNTMV";
 
   private static final String DEFAULT_AVG_RATE_SIZE = "PT1S";
   private final PinotFunctionConverterConfig config;
@@ -48,7 +48,7 @@ public class PinotFunctionConverter {
         return this.functionToStringForDistinctCount(function, argumentConverter);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
-      case QUERY_FUNCTION_DISTINCTCOUNT_MV_INTERNAL:
+      case PINOT_DISTINCT_COUNT_MV_FUNCTION:
         return this.functionToStringForDistinctCountMv(function, argumentConverter);
       case QUERY_FUNCTION_AVGRATE:
         // AVGRATE not supported directly in Pinot. So AVG_RATE is computed by summing over all
