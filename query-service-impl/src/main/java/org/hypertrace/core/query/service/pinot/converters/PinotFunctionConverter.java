@@ -20,6 +20,7 @@ import org.hypertrace.core.query.service.api.ValueType;
 
 public class PinotFunctionConverter {
   private static final String PINOT_CONCAT_FUNCTION = "CONCATSKIPNULL";
+  private static final String QUERY_FUNCTION_DISTINCTCOUNT_MV_INTERNAL = "DISTINCTCOUNTMV";
 
   private static final String DEFAULT_AVG_RATE_SIZE = "PT1S";
   private final PinotFunctionConverterConfig config;
@@ -47,6 +48,8 @@ public class PinotFunctionConverter {
         return this.functionToStringForDistinctCount(function, argumentConverter);
       case QUERY_FUNCTION_CONCAT:
         return this.functionToString(this.toPinotConcat(function), argumentConverter);
+      case QUERY_FUNCTION_DISTINCTCOUNT_MV_INTERNAL:
+        return this.functionToStringForDistinctCountMv(function, argumentConverter);
       case QUERY_FUNCTION_AVGRATE:
         // AVGRATE not supported directly in Pinot. So AVG_RATE is computed by summing over all
         // values and then dividing by a constant.
@@ -76,6 +79,12 @@ public class PinotFunctionConverter {
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
     return this.config.getDistinctCountFunction(columnName) + "(" + columnName + ")";
+  }
+
+  private String functionToStringForDistinctCountMv(
+      Function function, java.util.function.Function<Expression, String> argumentConverter) {
+    String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
+    return this.config.getDistinctCountMvFunction(columnName) + "(" + columnName + ")";
   }
 
   private String functionToStringForAvgRate(
