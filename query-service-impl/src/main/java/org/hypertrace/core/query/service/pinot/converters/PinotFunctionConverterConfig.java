@@ -18,12 +18,16 @@ public class PinotFunctionConverterConfig {
   private static final String PERCENTILE_AGGREGATION_FUNCTION_CONFIG = "percentileAggFunction";
   private static final String DISTINCT_COUNT_AGGREGATION_FUNCTION_CONFIG =
       "distinctCountAggFunction";
+  private static final String DISTINCT_COUNT_MV_AGGREGATION_FUNCTION_CONFIG =
+      "distinctCountMvAggFunction";
   private static final String DISTINCT_COUNT_AGGREGATION_OVERRIDES = "distinctCountAggOverrides";
   private static final String DEFAULT_PERCENTILE_AGGREGATION_FUNCTION = "PERCENTILETDIGEST";
   private static final String DEFAULT_DISTINCT_COUNT_AGGREGATION_FUNCTION = "DISTINCTCOUNT";
+  private static final String DEFAULT_DISTINCT_COUNT_MV_AGGREGATION_FUNCTION = "DISTINCTCOUNTMV";
 
   String percentileAggregationFunction;
   String distinctCountAggregationFunction;
+  String distinctCountMvAggregationFunction;
   @Nonnull Map<String, String> distinctCountAggOverrides;
 
   public PinotFunctionConverterConfig(Config config) {
@@ -37,6 +41,12 @@ public class PinotFunctionConverterConfig {
           config.getString(DISTINCT_COUNT_AGGREGATION_FUNCTION_CONFIG);
     } else {
       this.distinctCountAggregationFunction = DEFAULT_DISTINCT_COUNT_AGGREGATION_FUNCTION;
+    }
+    if (config.hasPath(DISTINCT_COUNT_MV_AGGREGATION_FUNCTION_CONFIG)) {
+      this.distinctCountMvAggregationFunction =
+          config.getString(DISTINCT_COUNT_MV_AGGREGATION_FUNCTION_CONFIG);
+    } else {
+      this.distinctCountMvAggregationFunction = DEFAULT_DISTINCT_COUNT_MV_AGGREGATION_FUNCTION;
     }
     if (config.hasPath(DISTINCT_COUNT_AGGREGATION_OVERRIDES)) {
       Config overridesConfig = config.getConfig(DISTINCT_COUNT_AGGREGATION_OVERRIDES);
@@ -57,5 +67,10 @@ public class PinotFunctionConverterConfig {
   public String getDistinctCountFunction(String arg) {
     return Optional.ofNullable(distinctCountAggOverrides.get(arg))
         .orElse(distinctCountAggregationFunction);
+  }
+
+  public String getDistinctCountMvFunction(String arg) {
+    return Optional.ofNullable(distinctCountAggOverrides.get(arg))
+        .orElse(distinctCountMvAggregationFunction);
   }
 }

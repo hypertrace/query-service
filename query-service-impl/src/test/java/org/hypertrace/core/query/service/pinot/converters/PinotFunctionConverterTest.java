@@ -107,7 +107,8 @@ class PinotFunctionConverterTest {
     assertEquals(
         expected,
         new PinotFunctionConverter(
-                new PinotFunctionConverterConfig("CUSTOMPERCENTILE", null, Collections.emptyMap()))
+                new PinotFunctionConverterConfig(
+                    "CUSTOMPERCENTILE", null, null, Collections.emptyMap()))
             .convert(mockingExecutionContext, percentileFunction, this.mockArgumentConverter));
   }
 
@@ -272,6 +273,41 @@ class PinotFunctionConverterTest {
         converter.convert(
             mockingExecutionContext,
             buildFunction(QUERY_FUNCTION_DISTINCTCOUNT, column2.toBuilder()),
+            this.mockArgumentConverter));
+  }
+
+  @Test
+  void convertsDistinctCountMvFunction() {
+    Expression column1 = createColumnExpression("foo").build();
+    Expression column2 = createColumnExpression("bar").build();
+
+    when(this.mockArgumentConverter.apply(column1)).thenReturn("foo");
+    when(this.mockArgumentConverter.apply(column2)).thenReturn("bar");
+
+    assertEquals(
+        "DISTINCTCOUNTMV(foo)",
+        new PinotFunctionConverter()
+            .convert(
+                mockingExecutionContext,
+                buildFunction("DISTINCTCOUNTMV", column1.toBuilder()),
+                this.mockArgumentConverter));
+
+    PinotFunctionConverter converter =
+        new PinotFunctionConverter(
+            new PinotFunctionConverterConfig(
+                ConfigFactory.parseString(
+                    "{distinctCountMvAggFunction = DISTINCTCOUNTHLLMV, distinctCountAggOverrides = {foo=CUSTOM_DC, xyz=XYZ}}")));
+    assertEquals(
+        "CUSTOM_DC(foo)",
+        converter.convert(
+            mockingExecutionContext,
+            buildFunction("DISTINCTCOUNTMV", column1.toBuilder()),
+            this.mockArgumentConverter));
+    assertEquals(
+        "DISTINCTCOUNTHLLMV(bar)",
+        converter.convert(
+            mockingExecutionContext,
+            buildFunction("DISTINCTCOUNTMV", column2.toBuilder()),
             this.mockArgumentConverter));
   }
 
