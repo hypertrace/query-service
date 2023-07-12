@@ -78,13 +78,13 @@ public class PinotFunctionConverter {
   private String functionToStringForDistinctCount(
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
-    return this.config.getDistinctCountFunction(columnName) + "(" + columnName + ")";
+    return String.format("%s(%s)", this.config.getDistinctCountFunction(columnName), columnName);
   }
 
   private String functionToStringForDistinctCountMv(
       Function function, java.util.function.Function<Expression, String> argumentConverter) {
     String columnName = argumentConverter.apply(function.getArgumentsList().get(0));
-    return this.config.getDistinctCountMvFunction(columnName) + "(" + columnName + ")";
+    return String.format("%s(%s)", this.config.getDistinctCountMvFunction(columnName), columnName);
   }
 
   private String functionToStringForAvgRate(
