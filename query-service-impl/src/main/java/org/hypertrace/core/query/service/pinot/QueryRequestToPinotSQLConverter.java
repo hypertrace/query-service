@@ -203,7 +203,7 @@ class QueryRequestToPinotSQLConverter {
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-          applyValueFilterForMapColumn(filter, paramsBuilder, executionContext, builder, rhs);
+          applyValuesFilterForMapColumn(filter, paramsBuilder, executionContext, builder, rhs);
           builder.append(
               convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(" ");
@@ -225,7 +225,7 @@ class QueryRequestToPinotSQLConverter {
    * CONTAINS_KEYVALUE, we also added the "__values" filter. By including this additional filter, if
    * there is an inverted index on a map field, it can be utilized to improve performance.
    */
-  private void applyValueFilterForMapColumn(
+  private void applyValuesFilterForMapColumn(
       Filter filter,
       Builder paramsBuilder,
       ExecutionContext executionContext,
