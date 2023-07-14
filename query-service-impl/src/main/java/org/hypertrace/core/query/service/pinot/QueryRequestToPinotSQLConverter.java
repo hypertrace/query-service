@@ -203,12 +203,7 @@ class QueryRequestToPinotSQLConverter {
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
-
-          Optional<String> valueFilter =
-              getValuesFilterForMapColumn(
-                  filter.getLhs(), rhs, filter.getOperator(), paramsBuilder, executionContext);
-          valueFilter.stream().forEach(str -> builder.append(str));
-
+          applyValueFilterForMapColumn(filter, paramsBuilder, executionContext, builder, rhs);
           builder.append(
               convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(" ");
@@ -230,22 +225,33 @@ class QueryRequestToPinotSQLConverter {
    * CONTAINS_KEYVALUE, we also added the "__values" filter. By including this additional filter, if
    * there is an inverted index on a map field, it can be utilized to improve performance.
    */
-  private Optional<String> getValuesFilterForMapColumn(
-      Expression lhs,
-      Expression rhs,
-      Operator operator,
+  private void applyValueFilterForMapColumn(
+      Filter filter,
       Builder paramsBuilder,
-      ExecutionContext executionContext) {
-    if (isAttributeExpressionWithSubpath(lhs) && operator.equals(Operator.EQ)) {
-      String valCol = convertExpressionToMapValueColumn(lhs);
-      return Optional.of(
-          String.format(
-              "%s %s %s AND ",
-              valCol,
-              convertOperatorToString(Operator.EQ),
-              convertExpressionToString(rhs, paramsBuilder, executionContext)));
+      ExecutionContext executionContext,
+      StringBuilder builder,
+      Expression rhs) {
+    if (isAttributeExpressionWithSubpath(filter.getLhs())
+        && filter.getOperator().equals(Operator.EQ)) {
+      String valueFilter =
+          getValuesFilterForMapColumn(filter.getLhs(), rhs, paramsBuilder, executionContext);
+      builder.append(valueFilter);
+      builder.append(" AND ");
     }
-    return Optional.empty();
+  }
+
+  /**
+   * This helper method constructs a "__values" filter for a map column. For example, if the map
+   * column is called "tags", it returns "tags__VALUES = 'value'".
+   */
+  private String getValuesFilterForMapColumn(
+      Expression lhs, Expression rhs, Builder paramsBuilder, ExecutionContext executionContext) {
+    String valCol = convertExpressionToMapValueColumn(lhs);
+    return String.format(
+        "%s %s %s",
+        valCol,
+        convertOperatorToString(Operator.EQ),
+        convertExpressionToString(rhs, paramsBuilder, executionContext));
   }
   /**
    * Handles value conversion of a literal expression based on its associated column.
