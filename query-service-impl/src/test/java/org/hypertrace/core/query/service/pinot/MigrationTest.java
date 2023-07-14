@@ -406,7 +406,7 @@ public class MigrationTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( tags__keys = 'flags' and mapvalue(tags__keys,'flags',tags__values) = '0' )",
+            + "AND ( tags__keys = 'flags' and tags__values = '0' and mapvalue(tags__keys,'flags',tags__values) = '0' )",
         viewDefinition,
         executionContext);
   }
