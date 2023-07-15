@@ -203,6 +203,7 @@ class QueryRequestToPinotSQLConverter {
           break;
         default:
           rhs = handleValueConversionForLiteralExpression(filter.getLhs(), filter.getRhs());
+          applyValuesFilterForMapColumn(filter, paramsBuilder, executionContext, builder, rhs);
           builder.append(
               convertExpressionToString(filter.getLhs(), paramsBuilder, executionContext));
           builder.append(" ");
@@ -214,6 +215,44 @@ class QueryRequestToPinotSQLConverter {
     return builder.toString();
   }
 
+  /**
+   * This helper method adds an additional "__values" filter when dealing with complex attribute
+   * expressions with an equal filter. This approach is similar to the deprecated
+   * "CONTAINS_KEYVALUE" filter.
+   *
+   * <p>We always include the "contains_key" filter {@link
+   * AttributeExpressionSubpathExistsFilteringTransformation}. In the previous implementation of
+   * CONTAINS_KEYVALUE, we also added the "__values" filter. By including this additional filter, if
+   * there is an inverted index on a map field, it can be utilized to improve performance.
+   */
+  private void applyValuesFilterForMapColumn(
+      Filter filter,
+      Builder paramsBuilder,
+      ExecutionContext executionContext,
+      StringBuilder builder,
+      Expression rhs) {
+    if (isAttributeExpressionWithSubpath(filter.getLhs())
+        && filter.getOperator().equals(Operator.EQ)) {
+      String valueFilter =
+          getValuesFilterForMapColumn(filter.getLhs(), rhs, paramsBuilder, executionContext);
+      builder.append(valueFilter);
+      builder.append(" AND ");
+    }
+  }
+
+  /**
+   * This helper method constructs a "__values" filter for a map column. For example, if the map
+   * column is called "tags", it returns "tags__VALUES = 'value'".
+   */
+  private String getValuesFilterForMapColumn(
+      Expression lhs, Expression rhs, Builder paramsBuilder, ExecutionContext executionContext) {
+    String valCol = convertExpressionToMapValueColumn(lhs);
+    return String.format(
+        "%s %s %s",
+        valCol,
+        convertOperatorToString(Operator.EQ),
+        convertExpressionToString(rhs, paramsBuilder, executionContext));
+  }
   /**
    * Handles value conversion of a literal expression based on its associated column.
    *
