@@ -45,6 +45,9 @@ dependencies {
     }
     implementation("org.codehaus.janino:commons-compiler:3.1.9")
     implementation("org.codehaus.janino:janino:3.1.9")
+    implementation("com.squareup.okio:okio:3.4.0") {
+      because("CVE-2023-3635")
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
@@ -66,7 +69,7 @@ dependencies {
   implementation("com.google.protobuf:protobuf-java-util:3.22.0")
   implementation("com.google.guava:guava:32.0.1-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
-  implementation("com.squareup.okhttp3:okhttp:4.9.3")
+  implementation("com.squareup.okhttp3:okhttp:4.11.0")
   implementation("org.postgresql:postgresql:42.4.3")
 
   annotationProcessor("org.projectlombok:lombok:1.18.20")
@@ -77,5 +80,5 @@ dependencies {
   testImplementation("org.mockito:mockito-core:3.8.0")
   testImplementation("org.mockito:mockito-junit-jupiter:3.8.0")
   testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
-  testImplementation("com.squareup.okhttp3:mockwebserver:4.9.3")
+  testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
 }
