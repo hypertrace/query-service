@@ -28,7 +28,7 @@ dependencies {
     implementation("org.apache.avro:avro:1.11.1") {
       because("CVE-2021-43045")
     }
-    implementation("org.apache.helix:helix-core:1.2.0") {
+    implementation("org.apache.helix:helix-core:1.3.0") {
       because("CVE-2022-47500")
     }
     implementation("org.webjars:swagger-ui:5.1.0") {
