@@ -18,7 +18,7 @@
     <cve>CVE-2020-13956</cve>
   </suppress>
 
-  <suppress until="2023-07-30Z">
+  <suppress until="2023-09-30Z">
     <notes><![CDATA[
    file name: zookeeper-api-1.2.0.jar
    ]]></notes>
@@ -28,7 +28,7 @@
     <cve>CVE-2019-0201</cve>
   </suppress>
 
-  <suppress until="2023-07-30Z">
+  <suppress until="2023-09-30Z">
     <notes><![CDATA[
    file name: commons-compiler-3.1.9.jar
    https://github.com/janino-compiler/janino/issues/201
@@ -37,7 +37,7 @@
     <cve>CVE-2023-33546</cve>
   </suppress>
 
-  <suppress until="2023-07-30Z">
+  <suppress until="2023-09-30Z">
     <notes><![CDATA[
     Same series of issues that also impacts jackson, vendor disputed and not currently fixed
     https://github.com/janino-compiler/janino/issues/201
@@ -46,7 +46,7 @@
     <cve>CVE-2023-33546</cve>
   </suppress>
 
-  <suppress until="2023-07-30Z">
+  <suppress until="2023-09-30Z">
     <notes><![CDATA[
      file name: jackson-databind-2.14.2.jar
      This is currently disputed.
