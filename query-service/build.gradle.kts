@@ -11,7 +11,7 @@ plugins {
 dependencies {
   implementation(project(":query-service-factory"))
   implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.12.1")
-  implementation("org.hypertrace.core.serviceframework:platform-grpc-service-framework:0.1.53")
+  implementation("org.hypertrace.core.serviceframework:platform-grpc-service-framework:0.1.59")
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("com.typesafe:config:1.4.1")
 
@@ -22,15 +22,15 @@ dependencies {
   integrationTestImplementation("org.testcontainers:testcontainers:1.16.2")
   integrationTestImplementation("org.testcontainers:junit-jupiter:1.16.2")
   integrationTestImplementation("org.testcontainers:kafka:1.16.2")
-  integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.49")
+  integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.59")
   integrationTestImplementation("com.github.stefanbirkner:system-lambda:1.2.0")
 
-  integrationTestImplementation("org.apache.kafka:kafka-clients:5.5.1-ccs")
-  integrationTestImplementation("org.apache.kafka:kafka-streams:5.5.1-ccs")
+  integrationTestImplementation("org.apache.kafka:kafka-clients:7.2.1-ccs")
+  integrationTestImplementation("org.apache.kafka:kafka-streams:7.2.1-ccs")
   integrationTestImplementation("org.apache.avro:avro:1.11.1")
   integrationTestImplementation("com.google.guava:guava:32.0.1-jre")
   integrationTestImplementation("org.hypertrace.core.datamodel:data-model:0.1.12")
-  integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.1.13")
+  integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.3.2")
 
   integrationTestImplementation(project(":query-service-client"))
   integrationTestImplementation("org.hypertrace.core.attribute.service:attribute-service-client:0.14.26")

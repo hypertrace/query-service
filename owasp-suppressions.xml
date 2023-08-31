@@ -27,25 +27,6 @@
     <cve>CVE-2018-8012</cve>
     <cve>CVE-2019-0201</cve>
   </suppress>
-
-  <suppress until="2023-09-30Z">
-    <notes><![CDATA[
-   file name: commons-compiler-3.1.9.jar
-   https://github.com/janino-compiler/janino/issues/201
-   ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/commons\-compiler@.*$</packageUrl>
-    <cve>CVE-2023-33546</cve>
-  </suppress>
-
-  <suppress until="2023-09-30Z">
-    <notes><![CDATA[
-    Same series of issues that also impacts jackson, vendor disputed and not currently fixed
-    https://github.com/janino-compiler/janino/issues/201
-   ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.codehaus\.janino/.*@.*$</packageUrl>
-    <cve>CVE-2023-33546</cve>
-  </suppress>
-
   <suppress until="2023-09-30Z">
     <notes><![CDATA[
      file name: jackson-databind-2.14.2.jar
@@ -53,5 +34,12 @@
      ]]></notes>
     <packageUrl regex="true">^pkg:maven/com\.fasterxml\.jackson\.core/jackson\-databind@.*$</packageUrl>
     <cve>CVE-2023-35116</cve>
+  </suppress>
+  <suppress until="2023-09-30Z">
+    <notes><![CDATA[
+   file name: netty-handler-4.1.94.Final.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-handler@.*$</packageUrl>
+    <vulnerabilityName>CVE-2023-4586</vulnerabilityName>
   </suppress>
 </suppressions>
