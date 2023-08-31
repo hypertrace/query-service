@@ -2,6 +2,7 @@ package org.hypertrace.core.query.service.pinot;
 
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createBooleanInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
@@ -511,6 +512,29 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "AND span_name IN ('1'') OR tenant_id = ''tenant2'' and span_name IN (''1')",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testSQLiWithBooleanArrayFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.displaySpanName"));
+
+    Filter filter = createBooleanInFilter("Span.displaySpanName", List.of(true));
+    builder.setFilter(filter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT span_name FROM SpanEventView WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND span_name IN (true)",
         viewDefinition,
         executionContext);
   }

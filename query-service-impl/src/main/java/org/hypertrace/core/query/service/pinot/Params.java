@@ -17,6 +17,7 @@ public class Params {
   private final Map<Integer, Float> floatParams;
   private final Map<Integer, Double> doubleParams;
   private final Map<Integer, ByteString> byteStringParams;
+  private final Map<Integer, Boolean> booleanParams;
 
   private Params(
       Map<Integer, Integer> integerParams,
@@ -24,13 +25,15 @@ public class Params {
       Map<Integer, String> stringParams,
       Map<Integer, Float> floatParams,
       Map<Integer, Double> doubleParams,
-      Map<Integer, ByteString> byteStringParams) {
+      Map<Integer, ByteString> byteStringParams,
+      Map<Integer, Boolean> booleanParams) {
     this.integerParams = integerParams;
     this.longParams = longParams;
     this.stringParams = stringParams;
     this.floatParams = floatParams;
     this.doubleParams = doubleParams;
     this.byteStringParams = byteStringParams;
+    this.booleanParams = booleanParams;
   }
 
   public Map<Integer, Integer> getIntegerParams() {
@@ -55,6 +58,10 @@ public class Params {
 
   public Map<Integer, ByteString> getByteStringParams() {
     return byteStringParams;
+  }
+
+  public Map<Integer, Boolean> getBooleanParams() {
+    return booleanParams;
   }
 
   @Override
@@ -101,6 +108,9 @@ public class Params {
     if (!doubleParams.equals(params.doubleParams)) {
       return false;
     }
+    if (!booleanParams.equals(params.booleanParams)) {
+      return false;
+    }
     return byteStringParams.equals(params.byteStringParams);
   }
 
@@ -112,6 +122,7 @@ public class Params {
     result = 31 * result + floatParams.hashCode();
     result = 31 * result + doubleParams.hashCode();
     result = 31 * result + byteStringParams.hashCode();
+    result = 31 * result + booleanParams.hashCode();
     return result;
   }
 
@@ -128,6 +139,7 @@ public class Params {
     private final Map<Integer, Float> floatParams;
     private final Map<Integer, Double> doubleParams;
     private final Map<Integer, ByteString> byteStringParams;
+    private final Map<Integer, Boolean> booleanParams;
 
     private Builder() {
       nextIndex = 0;
@@ -137,6 +149,7 @@ public class Params {
       floatParams = new HashMap<>();
       doubleParams = new HashMap<>();
       byteStringParams = new HashMap<>();
+      booleanParams = new HashMap<>();
     }
 
     public Builder addIntegerParam(int paramValue) {
@@ -169,9 +182,20 @@ public class Params {
       return this;
     }
 
+    public Builder addBooleanParam(Boolean paramValue) {
+      booleanParams.put(nextIndex++, paramValue);
+      return this;
+    }
+
     public Params build() {
       return new Params(
-          integerParams, longParams, stringParams, floatParams, doubleParams, byteStringParams);
+          integerParams,
+          longParams,
+          stringParams,
+          floatParams,
+          doubleParams,
+          byteStringParams,
+          booleanParams);
     }
   }
 }
