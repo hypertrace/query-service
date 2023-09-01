@@ -108,6 +108,8 @@ public class PinotClientFactory {
           .forEach((i, b) -> preparedStatement.setString(i, Hex.encodeHexString(b.toByteArray())));
       params
           .getBooleanParams()
+          // preparedStatement doesn't support boolean interface out of box. So,
+          // using string representation of boolean, internally supported by Pinot.
           .forEach((i, v) -> preparedStatement.setString(i, String.valueOf(v)));
       return preparedStatement;
     }

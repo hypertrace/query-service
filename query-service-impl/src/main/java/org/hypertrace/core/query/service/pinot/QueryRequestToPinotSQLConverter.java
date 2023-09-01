@@ -472,6 +472,18 @@ class QueryRequestToPinotSQLConverter {
         builder.append(")");
         ret = builder.toString();
         break;
+      case BOOLEAN_ARRAY:
+        builder = new StringBuilder("(");
+        delim = "";
+        for (Boolean item : value.getBooleanArrayList()) {
+          builder.append(delim);
+          builder.append(QUESTION_MARK);
+          paramsBuilder.addBooleanParam(item);
+          delim = ", ";
+        }
+        builder.append(")");
+        ret = builder.toString();
+        break;
       case STRING:
         ret = QUESTION_MARK;
         paramsBuilder.addStringParam(value.getString());
@@ -511,18 +523,6 @@ class QueryRequestToPinotSQLConverter {
       case NULL_STRING:
         ret = QUESTION_MARK;
         paramsBuilder.addStringParam("null");
-        break;
-      case BOOLEAN_ARRAY:
-        builder = new StringBuilder("(");
-        delim = "";
-        for (Boolean item : value.getBooleanArrayList()) {
-          builder.append(delim);
-          builder.append(QUESTION_MARK);
-          paramsBuilder.addBooleanParam(item);
-          delim = ", ";
-        }
-        builder.append(")");
-        ret = builder.toString();
         break;
       case LONG_ARRAY:
       case INT_ARRAY:

@@ -79,6 +79,8 @@ public class Params {
         + doubleParams
         + ", byteStringParams="
         + byteStringParams
+        + ", booleanParams="
+        + booleanParams
         + '}';
   }
 
