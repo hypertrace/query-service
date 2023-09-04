@@ -71,6 +71,7 @@ dependencies {
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.11.0")
   implementation("org.postgresql:postgresql:42.4.3")
+  implementation("io.trino:trino-jdbc:423")
 
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
