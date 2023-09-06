@@ -534,7 +534,7 @@ public class QueryRequestToPinotSQLConverterTest {
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_name IN (true)",
+            + "AND span_name IN ('true')",
         viewDefinition,
         executionContext);
   }

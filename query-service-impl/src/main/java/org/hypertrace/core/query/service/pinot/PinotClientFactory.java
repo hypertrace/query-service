@@ -106,11 +106,6 @@ public class PinotClientFactory {
       params
           .getByteStringParams()
           .forEach((i, b) -> preparedStatement.setString(i, Hex.encodeHexString(b.toByteArray())));
-      params
-          .getBooleanParams()
-          // preparedStatement doesn't support boolean interface out of box. So,
-          // using string representation of boolean, internally supported by Pinot.
-          .forEach((i, v) -> preparedStatement.setString(i, String.valueOf(v)));
       return preparedStatement;
     }
 
@@ -146,7 +141,6 @@ public class PinotClientFactory {
       params
           .getByteStringParams()
           .forEach((i, p) -> parameters[i] = getStringParam(Hex.encodeHexString(p.toByteArray())));
-      params.getBooleanParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
 
       StringBuilder sb = new StringBuilder();
       for (int i = 0; i < queryParts.length; i++) {

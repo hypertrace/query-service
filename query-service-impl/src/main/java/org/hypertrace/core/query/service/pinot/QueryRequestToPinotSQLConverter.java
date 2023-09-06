@@ -478,7 +478,7 @@ class QueryRequestToPinotSQLConverter {
         for (Boolean item : value.getBooleanArrayList()) {
           builder.append(delim);
           builder.append(QUESTION_MARK);
-          paramsBuilder.addBooleanParam(item);
+          paramsBuilder.addStringParam(String.valueOf(item));
           delim = ", ";
         }
         builder.append(")");
