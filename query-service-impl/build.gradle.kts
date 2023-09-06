@@ -43,8 +43,8 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.0") {
       because("CVE-2022-1471")
     }
-    implementation("org.codehaus.janino:commons-compiler:3.1.9")
-    implementation("org.codehaus.janino:janino:3.1.9")
+    implementation("org.codehaus.janino:commons-compiler:3.1.10")
+    implementation("org.codehaus.janino:janino:3.1.10")
     implementation("com.squareup.okio:okio:3.4.0") {
       because("CVE-2023-3635")
     }
