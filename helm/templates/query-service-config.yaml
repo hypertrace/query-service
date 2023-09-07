@@ -65,13 +65,13 @@ data:
         }
       {{- end }}
       {{- end }}
-      {{ - if eq .Values.queryServiceConfig.clientType "trino" }}
-      {{ - range .Values.trinoHandlers }}
+      {{- if eq .Values.queryServiceConfig.clientType "trino" }}
+      {{- range .Values.trinoHandlers }}
       {
 {{ tpl . $ | indent 10 }}
       }
-      {{ - end }}
-      {{ - end }}
+      {{- end }}
+      {{- end }}
       ]
       {{- end }}
     }
