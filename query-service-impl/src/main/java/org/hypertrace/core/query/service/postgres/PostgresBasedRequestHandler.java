@@ -180,6 +180,10 @@ public class PostgresBasedRequestHandler implements RequestHandler {
    */
   @Override
   public QueryCost canHandle(QueryRequest request, ExecutionContext executionContext) {
+    if (request.getInteractive()) {
+      return QueryCost.UNSUPPORTED;
+    }
+
     Set<String> referencedColumns = executionContext.getReferencedColumns();
 
     Preconditions.checkArgument(!referencedColumns.isEmpty());

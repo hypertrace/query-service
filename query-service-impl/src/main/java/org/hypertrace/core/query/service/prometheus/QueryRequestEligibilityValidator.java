@@ -31,6 +31,10 @@ class QueryRequestEligibilityValidator {
 
   QueryCost calculateCost(QueryRequest queryRequest, ExecutionContext executionContext) {
     try {
+      if (queryRequest.getInteractive()) {
+        return QueryCost.UNSUPPORTED;
+      }
+
       // orderBy to be supported later
       if (queryRequest.getOrderByCount() > 0) {
         return QueryCost.UNSUPPORTED;
