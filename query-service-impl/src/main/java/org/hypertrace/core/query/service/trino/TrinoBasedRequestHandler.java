@@ -112,27 +112,11 @@ public class TrinoBasedRequestHandler implements RequestHandler {
             + "where customer_id = 'b227d0f9-98e1-4eff-acf5-ab129d416914' "
             + "and start_time_millis >= 1692943200000  and start_time_millis < 1692946800000 "
             + "AND api_id != 'null' AND api_discovery_state IN ('DISCOVERED', 'UNDER_DISCOVERY') "
-            + "GROUP BY api_id, api_name, service_name, service_id limit 10000";
+            + "GROUP BY api_id, api_name, service_name, service_id limit 20";
     Connection connection = trinoClient.getConnection();
     try (Statement statement = connection.createStatement();
         ResultSet resultSet = statement.executeQuery(sql)) {
       LOG.debug("Query results: [ {} ]", resultSet);
-
-      String api_id, api_name, service_name, service_id = null;
-      int count = 0;
-      int total = 0;
-      while (resultSet.next()) {
-        api_id = resultSet.getString("api_id");
-        api_name = resultSet.getString("api_name");
-        service_id = resultSet.getString("service_id");
-        service_name = resultSet.getString("service_name");
-        count = resultSet.getInt("count");
-        System.out.println(
-            String.format("%s, %s, %s, %s, %d", api_id, api_name, service_id, service_name, count));
-        total++;
-      }
-      System.out.println("total: " + total);
-
       return convert(resultSet);
     } catch (Exception ex) {
       // Catch this exception to log the Postgres SQL query that caused the issue
@@ -144,6 +128,9 @@ public class TrinoBasedRequestHandler implements RequestHandler {
 
   @SneakyThrows
   Observable<Row> convert(ResultSet resultSet) {
+    String api_id, api_name, service_name, service_id = null;
+    int count = 0;
+    int total = 0;
     List<Row> rowList = new ArrayList<>();
     while (resultSet.next()) {
       Builder builder = Row.newBuilder();
@@ -173,7 +160,17 @@ public class TrinoBasedRequestHandler implements RequestHandler {
         }
       }
       rowList.add(builder.build());
+
+      api_id = resultSet.getString("api_id");
+      api_name = resultSet.getString("api_name");
+      service_id = resultSet.getString("service_id");
+      service_name = resultSet.getString("service_name");
+      count = resultSet.getInt("count");
+      System.out.println(
+          String.format("%s, %s, %s, %s, %d", api_id, api_name, service_id, service_name, count));
+      total++;
     }
+    System.out.println("total: " + total);
     return Observable.fromIterable(rowList).doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
