@@ -37,16 +37,17 @@ public class TrinoQueriesTest {
     List<ResultSetChunk> list = Streams.stream(itr).collect(Collectors.toList());
     List<Row> rows = list.get(0).getRowList();
     assertEquals(20, rows.size());
-    rows.forEach(row -> {
-      String api_id = row.getColumn(0).getString();
-      String api_name = row.getColumn(1).getString();
-      String service_id = row.getColumn(2).getString();
-      String service_name = row.getColumn(3).getString();
-      int count = row.getColumn(4).getInt();
-      System.out.println(
-          String.format("%s, %s, %s, %s, %d", api_id, api_name, service_id, service_name, count));
-    });
-
+    rows.forEach(
+        row -> {
+          String api_id = row.getColumn(0).getString();
+          String api_name = row.getColumn(1).getString();
+          String service_id = row.getColumn(2).getString();
+          String service_name = row.getColumn(3).getString();
+          int count = row.getColumn(4).getInt();
+          System.out.println(
+              String.format(
+                  "%s, %s, %s, %s, %d", api_id, api_name, service_id, service_name, count));
+        });
   }
 
   private QueryRequest buildTrinoQuery() {

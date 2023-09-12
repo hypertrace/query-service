@@ -14,10 +14,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.SneakyThrows;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
+import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.api.Row.Builder;
@@ -30,10 +32,17 @@ import org.slf4j.LoggerFactory;
 public class TrinoBasedRequestHandler implements RequestHandler {
   private static final Logger LOG = LoggerFactory.getLogger(TrinoBasedRequestHandler.class);
 
+  public static final String TABLE_DEFINITION_CONFIG_KEY = "tableDefinition";
   private static final String TENANT_COLUMN_NAME_CONFIG_KEY = "tenantColumnName";
+  private static final String COUNT_COLUMN_NAME_CONFIG_KEY = "countColumnName";
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
+  private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
+  private static final String MIN_REQUEST_DURATION_KEY = "minRequestDuration";
 
-  private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
+  private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
+  private static final Set<Operator> LTE_OPERATORS = Set.of(Operator.LE, Operator.LT);
+
   // string values equivalent for null value of different data types
   // this is required to keep null values equivalent to default values for
   // various data types in pinot implementation
@@ -45,6 +54,8 @@ public class TrinoBasedRequestHandler implements RequestHandler {
       Value.newBuilder().setValueType(ValueType.STRING).setString("0.0").build();
   private static final Value NULL_BOOLEAN_EQ_STRING_VALUE =
       Value.newBuilder().setValueType(ValueType.STRING).setString("false").build();
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final String name;
   private Optional<String> startTimeAttributeName;
