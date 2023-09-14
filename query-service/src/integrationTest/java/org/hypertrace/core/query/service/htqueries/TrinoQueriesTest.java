@@ -7,7 +7,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
 import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.client.QueryServiceClient;
@@ -52,9 +51,5 @@ public class TrinoQueriesTest {
     System.out.println(
         "total rows: "
             + resultSetChunks.stream().mapToInt(chunk -> chunk.getRowList().size()).sum());
-  }
-
-  private QueryRequest buildTrinoQuery() {
-    return QueryRequest.newBuilder().setInteractive(true).build();
   }
 }

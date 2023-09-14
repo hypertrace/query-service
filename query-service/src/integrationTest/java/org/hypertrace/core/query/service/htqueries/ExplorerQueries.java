@@ -96,7 +96,6 @@ class ExplorerQueries {
 
   static QueryRequest buildQuery2() {
     Builder builder = QueryRequest.newBuilder();
-    builder.setInteractive(true);
 
     ColumnIdentifier apiId = ColumnIdentifier.newBuilder().setColumnName("EVENT.id").build();
     ColumnIdentifier apiName = ColumnIdentifier.newBuilder().setColumnName("EVENT.apiName").build();
