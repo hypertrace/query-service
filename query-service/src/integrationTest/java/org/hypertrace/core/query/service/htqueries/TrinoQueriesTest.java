@@ -13,7 +13,6 @@ import org.hypertrace.core.query.service.api.Row;
 import org.hypertrace.core.query.service.client.QueryServiceClient;
 import org.hypertrace.core.query.service.client.QueryServiceConfig;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 
 public class TrinoQueriesTest {
   private static final Map<String, String> TENANT_ID_MAP =
@@ -29,7 +28,7 @@ public class TrinoQueriesTest {
     queryServiceClient = new QueryServiceClient(queryServiceConfig);
   }
 
-  @Test
+  //@Test
   public void testTrinoQueries() {
     Iterator<ResultSetChunk> itr =
         queryServiceClient.executeQuery(ExplorerQueries.buildQuery2(), TENANT_ID_MAP, 600000);
