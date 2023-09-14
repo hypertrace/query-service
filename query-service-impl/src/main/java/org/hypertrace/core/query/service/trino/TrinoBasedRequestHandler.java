@@ -193,9 +193,6 @@ public class TrinoBasedRequestHandler implements RequestHandler {
 
   @SneakyThrows
   Observable<Row> convert(ResultSet resultSet) {
-    String id, api_name, service_name, service_id = null;
-    int count = 0;
-    int total = 0;
     List<Row> rowList = new ArrayList<>();
     while (resultSet.next()) {
       Builder builder = Row.newBuilder();
@@ -225,16 +222,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
         }
       }
       rowList.add(builder.build());
-
-      id = resultSet.getString("id");
-      api_name = resultSet.getString("api_name");
-      service_id = resultSet.getString("service_id");
-      service_name = resultSet.getString("service_name");
-      // count = resultSet.getInt("count");
-      System.out.printf("%s, %s, %s, %s\n", id, api_name, service_id, service_name);
-      total++;
     }
-    System.out.println("total: " + total);
     return Observable.fromIterable(rowList).doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
