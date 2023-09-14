@@ -70,6 +70,7 @@ serviceSelectorLabels:
 queryServiceConfig:
   name: query-service-config
   clientType: pinot
+  interactiveClientType: ""
   data:
     zookeeperConnectionString: zookeeper:2181/pinot/my-views
     postgresConnectionString: jdbc:postgresql://postgres:5432/postgres
@@ -95,6 +96,8 @@ handlers: []
 extraHandlers: []
 
 postgresHandlers: []
+
+trinoHandlers: []
 
 logConfig:
   name: query-service-log-appender-config

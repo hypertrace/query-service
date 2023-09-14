@@ -35,7 +35,7 @@ data:
           connectionRetryBackoff = "{{ .Values.queryServiceConfig.data.postgresConnectionRetryBackoff }}"
         }
         {{- end }}
-        {{- if eq .Values.queryServiceConfig.clientType "trino" }}
+        {{- if eq .Values.queryServiceConfig.interactiveClientType "trino" }}
         {
           type = trino
           connectionString = "{{ .Values.queryServiceConfig.data.trinoConnectionString }}"
@@ -65,7 +65,7 @@ data:
         }
       {{- end }}
       {{- end }}
-      {{- if eq .Values.queryServiceConfig.clientType "trino" }}
+      {{- if eq .Values.queryServiceConfig.interactiveClientType "trino" }}
       {{- range .Values.trinoHandlers }}
       {
 {{ tpl . $ | indent 10 }}
