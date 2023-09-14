@@ -1,10 +1,12 @@
 package org.hypertrace.core.query.service.trino;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.reactivex.rxjava3.core.Observable;
 import java.sql.Array;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -13,6 +15,7 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import lombok.SneakyThrows;
@@ -26,6 +29,8 @@ import org.hypertrace.core.query.service.api.Row.Builder;
 import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.api.ValueType;
 import org.hypertrace.core.query.service.trino.TrinoClientFactory.TrinoClient;
+import org.hypertrace.core.query.service.trino.converters.TrinoFunctionConverter;
+import org.hypertrace.core.query.service.trino.converters.TrinoFunctionConverterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,8 +63,13 @@ public class TrinoBasedRequestHandler implements RequestHandler {
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final String name;
+  private TableDefinition tableDefinition;
   private Optional<String> startTimeAttributeName;
+  private QueryRequestToTrinoSQLConverter request2TrinoSqlConverter;
   private final TrinoClientFactory trinoClientFactory;
+
+  private final JsonFormat.Printer protoJsonPrinter =
+      JsonFormat.printer().omittingInsignificantWhitespace();
 
   TrinoBasedRequestHandler(String name, Config config) {
     this(name, config, TrinoClientFactory.get());
@@ -94,7 +104,14 @@ public class TrinoBasedRequestHandler implements RequestHandler {
   @Override
   public Observable<Row> handleRequest(QueryRequest request, ExecutionContext executionContext) {
     try {
-      return executeQuery();
+      Entry<String, Params> sql =
+          request2TrinoSqlConverter.toSQL(
+              executionContext, request, executionContext.getAllSelections());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Trying to execute SQL: [ {} ] by RequestHandler: [ {} ]", sql, this.getName());
+      }
+
+      return executeQuery(sql.getKey(), sql.getValue());
     } catch (Throwable t) {
       return Observable.error(t);
     }
@@ -106,16 +123,47 @@ public class TrinoBasedRequestHandler implements RequestHandler {
       throw new RuntimeException(
           TENANT_COLUMN_NAME_CONFIG_KEY + " is not defined in the " + name + " request handler.");
     }
+    String tenantColumnName = config.getString(TENANT_COLUMN_NAME_CONFIG_KEY);
+
+    Optional<String> countColumnName =
+        config.hasPath(COUNT_COLUMN_NAME_CONFIG_KEY)
+            ? Optional.of(config.getString(COUNT_COLUMN_NAME_CONFIG_KEY))
+            : Optional.empty();
 
     this.startTimeAttributeName =
         config.hasPath(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY)
             ? Optional.of(config.getString(START_TIME_ATTRIBUTE_NAME_CONFIG_KEY))
             : Optional.empty();
 
+    this.tableDefinition =
+        TableDefinition.parse(
+            config.getConfig(TABLE_DEFINITION_CONFIG_KEY), tenantColumnName, countColumnName);
+
+    this.request2TrinoSqlConverter =
+        new QueryRequestToTrinoSQLConverter(
+            tableDefinition,
+            new TrinoFunctionConverter(tableDefinition, new TrinoFunctionConverterConfig(config)));
+
     // TODO
   }
 
-  private Observable<Row> executeQuery() throws SQLException {
+  public Observable<Row> executeQuery(String statement, Params params) throws SQLException {
+    final TrinoClient trinoClient = trinoClientFactory.getTrinoClient(this.getName());
+    String resolvedStatement = request2TrinoSqlConverter.resolveStatement(statement, params);
+    Connection connection = trinoClient.getConnection();
+    try (PreparedStatement preparedStatement = connection.prepareStatement(resolvedStatement);
+        ResultSet resultSet = preparedStatement.executeQuery()) {
+      LOG.debug("Query results: [ {} ]", resultSet);
+      return convert(resultSet);
+    } catch (Exception ex) {
+      // Catch this exception to log the Postgres SQL query that caused the issue
+      LOG.error("An error occurred while executing: {}", resolvedStatement, ex);
+      // Rethrow for the caller to return an error.
+      throw new RuntimeException(ex);
+    }
+  }
+
+  private Observable<Row> executeQuery1() throws SQLException {
     final TrinoClient trinoClient = trinoClientFactory.getTrinoClient(this.getName());
     String sql =
         "Select api_id, api_name, service_id, service_name, COUNT(*) as count "
@@ -139,7 +187,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
 
   @SneakyThrows
   Observable<Row> convert(ResultSet resultSet) {
-    String api_id, api_name, service_name, service_id = null;
+    String id, api_name, service_name, service_id = null;
     int count = 0;
     int total = 0;
     List<Row> rowList = new ArrayList<>();
@@ -172,13 +220,12 @@ public class TrinoBasedRequestHandler implements RequestHandler {
       }
       rowList.add(builder.build());
 
-      api_id = resultSet.getString("api_id");
+      id = resultSet.getString("id");
       api_name = resultSet.getString("api_name");
       service_id = resultSet.getString("service_id");
       service_name = resultSet.getString("service_name");
-      count = resultSet.getInt("count");
-      System.out.println(
-          String.format("%s, %s, %s, %s, %d", api_id, api_name, service_id, service_name, count));
+      // count = resultSet.getInt("count");
+      System.out.printf("%s, %s, %s, %s\n", id, api_name, service_id, service_name);
       total++;
     }
     System.out.println("total: " + total);

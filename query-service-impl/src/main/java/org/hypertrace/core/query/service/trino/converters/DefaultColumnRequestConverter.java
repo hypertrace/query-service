@@ -360,13 +360,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
         trinoExecutionContext.addActualTableColumnName(columnName);
         ColumnRequestContext context = trinoExecutionContext.getColumnRequestContext();
         context.setColumnValueType(tableDefinition.getColumnType(logicalColumnName));
-        if (context.isSelect() && context.isBytesColumnType()) {
-          return String.format("encode(%s, 'hex')", columnName);
-        } else if (context.isSelect() && context.isMapColumnType()) {
-          return String.format("CAST(%s as text)", columnName);
-        } else {
-          return columnName;
-        }
+        return columnName;
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);
       case FUNCTION:

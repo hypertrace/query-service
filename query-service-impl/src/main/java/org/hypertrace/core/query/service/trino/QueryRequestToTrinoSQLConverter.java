@@ -199,7 +199,8 @@ class QueryRequestToTrinoSQLConverter {
 
   private void buildFromAndWhereClause(
       TrinoExecutionContext trinoExecutionContext, StringBuilder sqlBuilder) {
-    sqlBuilder.append(" FROM public.\"").append(tableDefinition.getTableName()).append("\"");
+    // Add the table name
+    sqlBuilder.append(" FROM ").append(tableDefinition.getTableName());
 
     // Add the tenantId filter
     sqlBuilder.append(" WHERE ").append(tableDefinition.getTenantIdColumn()).append(" = ?");
