@@ -1,6 +1,7 @@
 package org.hypertrace.core.query.service.trino;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.util.JsonFormat;
 import com.typesafe.config.Config;
 import io.reactivex.rxjava3.core.Observable;
@@ -92,11 +93,16 @@ public class TrinoBasedRequestHandler implements RequestHandler {
   }
 
   @Override
-  public QueryCost canHandle(QueryRequest request, ExecutionContext context) {
-    // Only interactive queries are supported
-    if (!request.getInteractive()) {
-      return QueryCost.UNSUPPORTED;
+  public QueryCost canHandle(QueryRequest request, ExecutionContext executionContext) {
+    Set<String> referencedColumns = executionContext.getReferencedColumns();
+
+    Preconditions.checkArgument(!referencedColumns.isEmpty());
+    for (String referencedColumn : referencedColumns) {
+      if (!tableDefinition.containsColumn(referencedColumn)) {
+        return QueryCost.UNSUPPORTED;
+      }
     }
+
     // TODO: add logic
     return new QueryCost(0);
   }

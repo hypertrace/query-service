@@ -29,7 +29,6 @@ message QueryRequest {
   int32 limit = 7;
   int32 offset = 8;
   bool distinctSelections = 9;
-  bool interactive = 10;
 }
 
 message Filter {
