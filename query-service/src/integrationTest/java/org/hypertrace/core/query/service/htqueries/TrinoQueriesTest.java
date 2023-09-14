@@ -28,7 +28,7 @@ public class TrinoQueriesTest {
     queryServiceClient = new QueryServiceClient(queryServiceConfig);
   }
 
-  //@Test
+  // @Test
   public void testTrinoQueries() {
     Iterator<ResultSetChunk> itr =
         queryServiceClient.executeQuery(ExplorerQueries.buildQuery2(), TENANT_ID_MAP, 600000);
