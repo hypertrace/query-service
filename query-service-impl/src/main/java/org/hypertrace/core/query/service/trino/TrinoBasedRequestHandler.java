@@ -161,7 +161,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
       LOG.debug("Query results: [ {} ]", resultSet);
       return convert(resultSet);
     } catch (Exception ex) {
-      // Catch this exception to log the Postgres SQL query that caused the issue
+      // Catch this exception to log the Trino SQL query that caused the issue
       LOG.error("An error occurred while executing: {}", resolvedStatement, ex);
       // Rethrow for the caller to return an error.
       throw new RuntimeException(ex);

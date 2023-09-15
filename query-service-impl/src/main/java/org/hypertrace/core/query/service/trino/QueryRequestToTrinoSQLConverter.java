@@ -24,7 +24,7 @@ import org.hypertrace.core.query.service.trino.converters.TrinoFunctionConverter
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Converts {@link QueryRequest} to Postgres SQL query */
+/** Converts {@link QueryRequest} to Trino SQL query */
 class QueryRequestToTrinoSQLConverter {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryRequestToTrinoSQLConverter.class);
@@ -125,7 +125,7 @@ class QueryRequestToTrinoSQLConverter {
         request, trinoExecutionContext, selectedColumnIndexMap, sqlBuilder);
 
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Converted QueryRequest to Postgres SQL: {}", sqlBuilder);
+      LOG.debug("Converted QueryRequest to Trino SQL: {}", sqlBuilder);
     }
 
     return sqlBuilder.toString();
