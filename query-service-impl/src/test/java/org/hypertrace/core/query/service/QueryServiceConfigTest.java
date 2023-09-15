@@ -33,8 +33,8 @@ public class QueryServiceConfigTest {
     assertEquals("query-service", appConfig.getString("service.name"));
     assertEquals(8091, appConfig.getInt("service.admin.port"));
     assertEquals(8090, appConfig.getInt("service.port"));
-    assertEquals(9, queryServiceConfig.getQueryRequestHandlersConfigs().size());
-    assertEquals(2, queryServiceConfig.getRequestHandlerClientConfigs().size());
+    assertEquals(10, queryServiceConfig.getQueryRequestHandlersConfigs().size());
+    assertEquals(3, queryServiceConfig.getRequestHandlerClientConfigs().size());
 
     RequestHandlerConfig handler0 = queryServiceConfig.getQueryRequestHandlersConfigs().get(0);
     assertEquals("trace-view-handler", handler0.getName());
@@ -60,6 +60,14 @@ public class QueryServiceConfigTest {
     RequestHandlerClientConfig clientConfig1 = clientConfigMap.get(handler1.getClientConfig());
     assertEquals("zookeeper", clientConfig1.getType());
     assertEquals("pinotCluster1:2181", clientConfig1.getConnectionString());
+
+    RequestHandlerConfig handler9 = queryServiceConfig.getQueryRequestHandlersConfigs().get(9);
+    assertEquals("span-event-view-handler", handler9.getName());
+    assertEquals("trino", handler9.getType());
+    RequestHandlerClientConfig clientConfig9 = clientConfigMap.get(handler9.getClientConfig());
+    assertEquals("trino", clientConfig9.getType());
+    assertEquals(
+        "jdbc:trino://localhost:8080/iceberg/iceberg_gcs", clientConfig9.getConnectionString());
 
     assertEquals("localhost", queryServiceConfig.getAttributeClientConfig().getHost());
     assertEquals(9012, queryServiceConfig.getAttributeClientConfig().getPort());
