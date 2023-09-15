@@ -11,7 +11,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -164,28 +163,6 @@ public class TrinoBasedRequestHandler implements RequestHandler {
     } catch (Exception ex) {
       // Catch this exception to log the Postgres SQL query that caused the issue
       LOG.error("An error occurred while executing: {}", resolvedStatement, ex);
-      // Rethrow for the caller to return an error.
-      throw new RuntimeException(ex);
-    }
-  }
-
-  private Observable<Row> executeQuery1() throws SQLException {
-    final TrinoClient trinoClient = trinoClientFactory.getTrinoClient(this.getName());
-    String sql =
-        "Select api_id, api_name, service_id, service_name, COUNT(*) as count "
-            + "from span_event_view_staging_test "
-            + "where customer_id = 'b227d0f9-98e1-4eff-acf5-ab129d416914' "
-            + "and start_time_millis >= 1692943200000  and start_time_millis < 1692946800000 "
-            + "AND api_id != 'null' AND api_discovery_state IN ('DISCOVERED', 'UNDER_DISCOVERY') "
-            + "GROUP BY api_id, api_name, service_name, service_id limit 20";
-    Connection connection = trinoClient.getConnection();
-    try (Statement statement = connection.createStatement();
-        ResultSet resultSet = statement.executeQuery(sql)) {
-      LOG.debug("Query results: [ {} ]", resultSet);
-      return convert(resultSet);
-    } catch (Exception ex) {
-      // Catch this exception to log the Postgres SQL query that caused the issue
-      LOG.error("An error occurred while executing: {}", sql, ex);
       // Rethrow for the caller to return an error.
       throw new RuntimeException(ex);
     }
