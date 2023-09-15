@@ -81,7 +81,7 @@ queryServiceConfig:
     postgresqlPasswordSecretKey: password
     postgresMaxConnectionAttempts: 200
     postgresConnectionRetryBackoff: 5s
-    trinogresConnectionString: jdbc:trino://localhosttrino:8080/iceberg/iceberg_gcs
+    trinogresConnectionString: jdbc:trino://localhost:8080/iceberg/iceberg_gcs
     trinoUser: trino
     trinoPasswordEnvVariable: TRINO_PASSWORD
     trinoPasswordSecretName: trino
