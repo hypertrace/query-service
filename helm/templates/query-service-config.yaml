@@ -44,7 +44,7 @@ data:
         }
         {{- end }}
       ]
-      {{- if or .Values.handlers .Values.extraHandlers .Values.postgresHandlers }}
+      {{- if or .Values.handlers .Values.extraHandlers .Values.postgresHandlers .Values.trinoHandlers }}
       queryRequestHandlersConfig = [
       {{- if eq .Values.queryServiceConfig.clientType "pinot" }}
       {{- range .Values.handlers }}
