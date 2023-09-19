@@ -1,8 +1,9 @@
 package org.hypertrace.core.query.service.pinot;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.RateLimiter;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.ConnectionFactory;
@@ -13,6 +14,7 @@ import org.apache.pinot.client.ResultSetGroup;
 /*
  * Factory to create PinotClient based on given zookeeper path.
  */
+@Slf4j
 public class PinotClientFactory {
 
   private static final org.slf4j.Logger LOG =
@@ -57,6 +59,7 @@ public class PinotClientFactory {
     private static final String SQL_FORMAT = "sql";
 
     private final Connection connection;
+    private final RateLimiter rateLimiter = RateLimiter.create(1 / 60d);
 
     @VisibleForTesting
     public PinotClient(Connection connection) {
@@ -84,15 +87,24 @@ public class PinotClientFactory {
       PreparedStatement preparedStatement = buildPreparedStatement(statement, params);
       return preparedStatement.execute();
       */
-      return connection.execute(new Request(SQL_FORMAT, resolveStatement(statement, params)));
-    }
-
-    public Future<ResultSetGroup> executeQueryAsync(String statement, Params params) {
-      /*
-      PreparedStatement preparedStatement = buildPreparedStatement(statement, params);
-      return preparedStatement.executeAsync();
-      */
-      return connection.executeAsync(new Request(SQL_FORMAT, resolveStatement(statement, params)));
+      try {
+        return connection.execute(new Request(SQL_FORMAT, resolveStatement(statement, params)));
+      } catch (Exception ex) {
+        if (rateLimiter.tryAcquire()) {
+          log.info(
+              "Error while handling the request - statement: {}, params: {}",
+              statement,
+              params,
+              ex);
+        } else if (log.isDebugEnabled()) {
+          log.debug(
+              "Error while handling the request - statement: {}, params: {}",
+              statement,
+              params,
+              ex);
+        }
+        throw ex;
+      }
     }
 
     private PreparedStatement buildPreparedStatement(String statement, Params params) {
