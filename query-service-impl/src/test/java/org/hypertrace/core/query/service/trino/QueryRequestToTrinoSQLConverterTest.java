@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -51,8 +50,6 @@ class QueryRequestToTrinoSQLConverterTest {
   private static final String TENANT_COLUMN_NAME = "customer_id";
 
   private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "trino_request_handler.conf";
-  private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
-      "trino_service_request_handler.conf";
 
   private ExecutionContext executionContext;
 
@@ -1137,27 +1134,6 @@ class QueryRequestToTrinoSQLConverterTest {
   }
 
   // @Test
-  void testQueryWithAverageRateInOrderBy() {
-    TableDefinition tableDefinition = getTableDefinition();
-    defaultMockingForExecutionContext();
-    when(executionContext.getTimeRangeDuration()).thenReturn(Optional.of(Duration.ofMinutes(60)));
-
-    assertSQLQuery(
-        buildAvgRateQueryForOrderBy(),
-        "select service_id, service_name, count(*) FROM public.\"raw-service-view-events\" WHERE "
-            + tableDefinition.getTenantIdColumn()
-            + " = '"
-            + TENANT_ID
-            + "' "
-            + "and ( start_time_millis >= 1637297304041 and start_time_millis < 1637300904041 and service_id != 'null' ) "
-            + "group by 1, 2 "
-            + "order by SUM(error_count) / 3600.0 "
-            + "limit 10000",
-        tableDefinition,
-        executionContext);
-  }
-
-  // @Test
   void testQueryWithDistinctCountAggregationAndGroupByForArrayColumn() {
     Filter startTimeFilter =
         createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
@@ -1463,20 +1439,6 @@ class QueryRequestToTrinoSQLConverterTest {
 
     return TableDefinition.parse(
         fileConfig.getConfig("requestHandlerInfo.tableDefinition"),
-        TENANT_COLUMN_NAME,
-        Optional.empty());
-  }
-
-  private TableDefinition getTableDefinition() {
-    Config serviceFileConfig =
-        ConfigFactory.parseURL(
-            requireNonNull(
-                QueryRequestToTrinoSQLConverterTest.class
-                    .getClassLoader()
-                    .getResource(TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE)));
-
-    return TableDefinition.parse(
-        serviceFileConfig.getConfig("requestHandlerInfo.tableDefinition"),
         TENANT_COLUMN_NAME,
         Optional.empty());
   }

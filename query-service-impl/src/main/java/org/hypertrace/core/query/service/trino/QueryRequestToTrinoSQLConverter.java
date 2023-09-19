@@ -115,6 +115,7 @@ class QueryRequestToTrinoSQLConverter {
       }
     }
 
+    // TODO: revisit when adding support for maps in Trino
     if (trinoExecutionContext.getUnnestTableColumnNames().isEmpty()) {
       buildSelectAndFromAndWhereClause(trinoExecutionContext, sqlBuilder);
     } else {
@@ -137,6 +138,8 @@ class QueryRequestToTrinoSQLConverter {
     buildFromAndWhereClause(trinoExecutionContext, sqlBuilder);
   }
 
+  // TODO: This is not applicable in Trino world for now. This will be useful if any column is
+  //  stored as json string in Trino.s
   private void buildUnnestSelectAndFromAndWhereClause(
       TrinoExecutionContext trinoExecutionContext, StringBuilder sqlBuilder) {
     List<String> selectColumns = trinoExecutionContext.getResolvedSelectColumns();

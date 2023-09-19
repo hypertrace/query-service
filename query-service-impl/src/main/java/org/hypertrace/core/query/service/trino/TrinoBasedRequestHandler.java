@@ -148,8 +148,6 @@ public class TrinoBasedRequestHandler implements RequestHandler {
         new QueryRequestToTrinoSQLConverter(
             tableDefinition,
             new TrinoFunctionConverter(tableDefinition, new TrinoFunctionConverterConfig(config)));
-
-    // TODO
   }
 
   public Observable<Row> executeQuery(String statement, Params params) throws SQLException {
