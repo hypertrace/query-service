@@ -28,6 +28,7 @@ public class TableDefinition {
   private static final String FILTERS_CONFIG_KEY = "filters";
   private static final String COLUMN_CONFIG_KEY = "column";
 
+  // TODO: revise this default value for Trino setup
   private static final long DEFAULT_RETENTION_TIME = TimeUnit.DAYS.toMillis(8);
   private static final long DEFAULT_TIME_GRANULARITY = TimeUnit.MINUTES.toMillis(1);
 
