@@ -70,6 +70,7 @@ serviceSelectorLabels:
 queryServiceConfig:
   name: query-service-config
   clientType: pinot
+  interactiveClientType: ""
   data:
     zookeeperConnectionString: zookeeper:2181/pinot/my-views
     postgresConnectionString: jdbc:postgresql://postgres:5432/postgres
@@ -80,6 +81,11 @@ queryServiceConfig:
     postgresqlPasswordSecretKey: password
     postgresMaxConnectionAttempts: 200
     postgresConnectionRetryBackoff: 5s
+    trinogresConnectionString: jdbc:trino://localhost:8080/iceberg/iceberg_gcs
+    trinoUser: trino
+    trinoPasswordEnvVariable: TRINO_PASSWORD
+    trinoPasswordSecretName: trino
+    trinoPasswordSecretKey: password
     tenantColumnName: tenant_id
     attributeClient:
       host: attribute-service
@@ -95,6 +101,8 @@ handlers: []
 extraHandlers: []
 
 postgresHandlers: []
+
+trinoHandlers: []
 
 logConfig:
   name: query-service-log-appender-config

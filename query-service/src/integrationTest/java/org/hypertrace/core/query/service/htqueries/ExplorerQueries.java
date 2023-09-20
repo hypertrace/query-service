@@ -93,4 +93,34 @@ class ExplorerQueries {
     builder.addGroupBy(Expression.newBuilder().setFunction(dateTimeConvert).build());
     return builder.build();
   }
+
+  static QueryRequest buildQuery2() {
+    Builder builder = QueryRequest.newBuilder();
+
+    ColumnIdentifier apiId = ColumnIdentifier.newBuilder().setColumnName("EVENT.id").build();
+    ColumnIdentifier apiName = ColumnIdentifier.newBuilder().setColumnName("EVENT.apiName").build();
+    ColumnIdentifier serviceId =
+        ColumnIdentifier.newBuilder().setColumnName("EVENT.serviceId").build();
+    ColumnIdentifier serviceName =
+        ColumnIdentifier.newBuilder().setColumnName("EVENT.serviceName").build();
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(apiId));
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(apiName));
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId));
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName));
+    builder.setDistinctSelections(true);
+
+    Filter filter1 = createFilter("EVENT.startTime", Operator.GE, ValueType.LONG, 1692943200000L);
+    Filter filter2 = createFilter("EVENT.startTime", Operator.LT, ValueType.LONG, 1692946800000L);
+
+    builder.setFilter(
+        Filter.newBuilder()
+            .setOperator(Operator.AND)
+            .addChildFilter(filter1)
+            .addChildFilter(filter2)
+            .build());
+
+    builder.setLimit(100);
+
+    return builder.build();
+  }
 }

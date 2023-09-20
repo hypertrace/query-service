@@ -1,0 +1,42 @@
+package org.hypertrace.core.query.service.trino;
+
+import java.sql.SQLException;
+import javax.inject.Inject;
+import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerClientConfig;
+import org.hypertrace.core.query.service.QueryServiceConfig.RequestHandlerConfig;
+import org.hypertrace.core.query.service.RequestHandler;
+import org.hypertrace.core.query.service.RequestHandlerBuilder;
+import org.hypertrace.core.query.service.RequestHandlerClientConfigRegistry;
+
+public class TrinoRequestHandlerBuilder implements RequestHandlerBuilder {
+  private final RequestHandlerClientConfigRegistry clientConfigRegistry;
+
+  @Inject
+  TrinoRequestHandlerBuilder(RequestHandlerClientConfigRegistry clientConfigRegistry) {
+    this.clientConfigRegistry = clientConfigRegistry;
+  }
+
+  @Override
+  public boolean canBuild(RequestHandlerConfig config) {
+    return "trino".equals(config.getType());
+  }
+
+  @Override
+  public RequestHandler build(RequestHandlerConfig config) {
+    RequestHandlerClientConfig clientConfig =
+        this.clientConfigRegistry
+            .get(config.getClientConfig())
+            .orElseThrow(
+                () ->
+                    new UnsupportedOperationException(
+                        "Client config requested but not registered: " + config.getClientConfig()));
+
+    try {
+      TrinoClientFactory.createTrinoClient(config.getName(), clientConfig);
+    } catch (SQLException ex) {
+      throw new RuntimeException(ex);
+    }
+
+    return new TrinoBasedRequestHandler(config.getName(), config.getRequestHandlerInfo());
+  }
+}
