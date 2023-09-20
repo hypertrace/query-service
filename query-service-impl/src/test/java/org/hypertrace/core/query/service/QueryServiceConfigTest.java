@@ -62,7 +62,7 @@ public class QueryServiceConfigTest {
     assertEquals("pinotCluster1:2181", clientConfig1.getConnectionString());
 
     RequestHandlerConfig handler9 = queryServiceConfig.getQueryRequestHandlersConfigs().get(9);
-    assertEquals("span-event-view-handler", handler9.getName());
+    assertEquals("span-event-view-trino-handler", handler9.getName());
     assertEquals("trino", handler9.getType());
     RequestHandlerClientConfig clientConfig9 = clientConfigMap.get(handler9.getClientConfig());
     assertEquals("trino", clientConfig9.getType());
