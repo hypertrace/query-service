@@ -389,7 +389,12 @@ public class PinotBasedRequestHandler implements RequestHandler {
                 () -> pinotClient.executeQuery(pql.getKey(), pql.getValue()));
       } catch (Exception ex) {
         // Catch this exception to log the Pinot SQL query that caused the issue
-        LOG.error("An error occurred while executing: {}", pql.getKey(), ex);
+        LOG.error(
+            "An error occurred while executing: {}, params: {}, queryRequest: {}",
+            pql.getKey(),
+            pql.getValue(),
+            protoJsonPrinter.print(request),
+            ex);
         // Rethrow for the caller to return an error.
         throw new RuntimeException(ex);
       }
