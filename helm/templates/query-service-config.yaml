@@ -35,8 +35,16 @@ data:
           connectionRetryBackoff = "{{ .Values.queryServiceConfig.data.postgresConnectionRetryBackoff }}"
         }
         {{- end }}
+        {{- if eq .Values.queryServiceConfig.interactiveClientType "trino" }}
+        {
+          type = trino
+          connectionString = "{{ .Values.queryServiceConfig.data.trinoConnectionString }}"
+          user = "{{ .Values.queryServiceConfig.data.trinoUser }}"
+          password = ${? {{ .Values.queryServiceConfig.data.trinoPasswordEnvVariable }} }
+        }
+        {{- end }}
       ]
-      {{- if or .Values.handlers .Values.extraHandlers .Values.postgresHandlers }}
+      {{- if or .Values.handlers .Values.extraHandlers .Values.postgresHandlers .Values.trinoHandlers }}
       queryRequestHandlersConfig = [
       {{- if eq .Values.queryServiceConfig.clientType "pinot" }}
       {{- range .Values.handlers }}
@@ -55,6 +63,13 @@ data:
         {
 {{ tpl . $ | indent 10 }}
         }
+      {{- end }}
+      {{- end }}
+      {{- if eq .Values.queryServiceConfig.interactiveClientType "trino" }}
+      {{- range .Values.trinoHandlers }}
+      {
+{{ tpl . $ | indent 10 }}
+      }
       {{- end }}
       {{- end }}
       ]

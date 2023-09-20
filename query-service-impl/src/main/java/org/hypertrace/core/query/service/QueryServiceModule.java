@@ -13,6 +13,7 @@ import org.hypertrace.core.query.service.pinot.PinotModule;
 import org.hypertrace.core.query.service.postgres.PostgresModule;
 import org.hypertrace.core.query.service.projection.ProjectionModule;
 import org.hypertrace.core.query.service.prometheus.PrometheusModule;
+import org.hypertrace.core.query.service.trino.TrinoModule;
 import org.hypertrace.core.query.service.validation.QueryValidationModule;
 
 class QueryServiceModule extends AbstractModule {
@@ -36,6 +37,7 @@ class QueryServiceModule extends AbstractModule {
         .in(Singleton.class);
     install(new PinotModule());
     install(new PostgresModule());
+    install(new TrinoModule());
     install(new ProjectionModule());
     install(new MutliValueModule());
     install(new PrometheusModule());

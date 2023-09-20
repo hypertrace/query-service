@@ -1507,6 +1507,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testWithMockPinotClient() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       if (!config.getString("name").equals("trace-view-handler")) {
         continue;
       }
@@ -1560,6 +1564,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testViewColumnFilterRemoval() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       if (!config.getString("name").equals("span-event-view-handler")) {
         continue;
       }
@@ -1640,6 +1648,10 @@ public class PinotBasedRequestHandlerTest {
   @Test
   public void testViewColumnFilterRemovalComplexCase() throws IOException {
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
       if (!config.getString("name").equals("error-entry-span-view-handler")) {
         continue;
       }
