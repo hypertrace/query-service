@@ -486,7 +486,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
         break;
       case BOOL:
         ret = QUESTION_MARK;
-        paramsBuilder.addStringParam(String.valueOf(value.getBoolean()));
+        paramsBuilder.addBooleanParam(value.getBoolean());
         break;
       case TIMESTAMP:
         ret = QUESTION_MARK;
