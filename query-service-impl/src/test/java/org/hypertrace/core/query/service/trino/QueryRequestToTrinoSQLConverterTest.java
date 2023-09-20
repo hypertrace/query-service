@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
@@ -195,21 +196,24 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithBooleanFilter() {
+    Filter isEntryFilter = createEqualsFilter("Span.is_entry", true);
+    Filter isBareFilter = createEqualsFilter("Span.isBare", false);
     QueryRequest queryRequest =
-        buildSimpleQueryWithFilter(createEqualsFilter("Span.is_entry", true));
+        buildSimpleQueryWithFilter(
+            createCompositeFilter(Operator.AND, isEntryFilter, isBareFilter).build());
     TableDefinition tableDefinition = getDefaultTableDefinition();
     defaultMockingForExecutionContext();
 
     assertSQLQuery(
         queryRequest,
-        "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
+        "Select span_id FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND is_entry = 'true'",
+            + "AND ( is_entry = true AND is_bare = false )",
         tableDefinition,
         executionContext);
   }

@@ -272,6 +272,7 @@ class QueryRequestToTrinoSQLConverter {
     params.getLongParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
     params.getDoubleParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
     params.getFloatParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
+    params.getBooleanParams().forEach((i, p) -> parameters[i] = String.valueOf(p));
 
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < queryParts.length; i++) {
