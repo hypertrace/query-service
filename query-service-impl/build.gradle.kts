@@ -13,7 +13,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.6.0") {
       because(
         "Improper Locking [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-ORGJETBRAINSKOTLIN-2628385] " +
-          "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10"
+          "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10",
       )
     }
     implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2") {
@@ -67,7 +67,7 @@ dependencies {
   implementation("commons-codec:commons-codec:1.15")
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.60")
   implementation("com.google.protobuf:protobuf-java-util:3.22.0")
-  implementation("com.google.guava:guava:32.0.1-jre")
+  implementation("com.google.guava:guava:32.1.2-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.11.0")
   implementation("org.postgresql:postgresql:42.4.3")
