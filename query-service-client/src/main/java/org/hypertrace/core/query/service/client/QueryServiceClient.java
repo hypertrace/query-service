@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 public class QueryServiceClient {
   private static final Logger LOG = LoggerFactory.getLogger(QueryServiceClient.class);
+
   /**
    * Since Pinot truncates the GroupBy results to 10, we need to set higher value when we need more
    * values than 10 or all results. We might need to increase it to even higher but starting with a

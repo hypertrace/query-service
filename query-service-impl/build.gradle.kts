@@ -13,7 +13,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.6.0") {
       because(
         "Improper Locking [Medium Severity][https://snyk.io/vuln/SNYK-JAVA-ORGJETBRAINSKOTLIN-2628385] " +
-          "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10"
+          "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10",
       )
     }
     implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2") {
