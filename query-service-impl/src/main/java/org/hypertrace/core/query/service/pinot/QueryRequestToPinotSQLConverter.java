@@ -253,6 +253,7 @@ class QueryRequestToPinotSQLConverter {
         convertOperatorToString(Operator.EQ),
         convertExpressionToString(rhs, paramsBuilder, executionContext));
   }
+
   /**
    * Handles value conversion of a literal expression based on its associated column.
    *

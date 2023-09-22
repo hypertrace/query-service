@@ -46,7 +46,7 @@ dependencies {
   api("io.grpc:grpc-stub")
   api("javax.annotation:javax.annotation-api:1.3.2")
   constraints {
-    implementation("com.google.guava:guava:32.0.1-jre") {
+    implementation("com.google.guava:guava:32.1.2-jre") {
       because("Multiple vulnerabilities")
     }
   }
