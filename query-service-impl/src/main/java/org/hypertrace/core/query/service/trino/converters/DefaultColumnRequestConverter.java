@@ -188,8 +188,6 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     }
 
     String convertedLiteral = convertLiteralToString(rhs.getLiteral(), paramsBuilder);
-    // add decode for all string values
-    convertedLiteral = convertedLiteral.replace("?", "decode(?, 'hex')");
 
     builder.append(lhs);
     builder.append(" ");
@@ -360,6 +358,9 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
         trinoExecutionContext.addActualTableColumnName(columnName);
         ColumnRequestContext context = trinoExecutionContext.getColumnRequestContext();
         context.setColumnValueType(tableDefinition.getColumnType(logicalColumnName));
+        if (context.isBytesColumnType()) {
+          return String.format("lower(to_hex(%s))", columnName);
+        }
         return columnName;
       case LITERAL:
         return convertLiteralToString(expression.getLiteral(), paramsBuilder);

@@ -83,7 +83,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "select span_id, tags, request_headers "
+        "select lower(to_hex(span_id)), tags, request_headers "
             + "FROM span-event-view "
             + "where "
             + tableDefinition.getTenantIdColumn()
@@ -104,7 +104,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "Select span_id FROM span-event-view "
+        "Select lower(to_hex(span_id)) FROM span-event-view "
             + "where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -123,7 +123,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "Select distinct span_id FROM span-event-view "
+        "Select distinct lower(to_hex(span_id)) FROM span-event-view "
             + "where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -146,7 +146,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "Select distinct span_id, span_name, service_name FROM span-event-view "
+        "Select distinct lower(to_hex(span_id)), span_name, service_name FROM span-event-view "
             + "where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -165,7 +165,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "Select span_id FROM span-event-view "
+        "Select lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -208,7 +208,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "Select span_id FROM span-event-view WHERE "
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -246,7 +246,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "Select span_id FROM span-event-view WHERE "
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -265,7 +265,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "Select span_id FROM span-event-view WHERE "
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -285,7 +285,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "Select span_id FROM span-event-view WHERE "
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -455,7 +455,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithStringArray() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
@@ -470,19 +470,18 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_id IN ("
-            + "decode('"
+            + "AND lower(to_hex(span_id)) IN "
+            + "('"
             + spanId1
-            + "', 'hex'), "
-            + "decode('"
+            + "', '"
             + spanId2
-            + "', 'hex'))",
+            + "')",
         tableDefinition,
         executionContext);
   }
@@ -679,7 +678,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithBytesColumnWithValidId() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
@@ -697,18 +696,18 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( parent_span_id = decode('042e5523ff6b2506', 'hex') ) limit 5",
+            + "AND ( lower(to_hex(parent_span_id)) = '042e5523ff6b2506' ) limit 5",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithBytesColumnWithInValidId() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
@@ -723,10 +722,11 @@ class QueryRequestToTrinoSQLConverterTest {
     assertExceptionOnSQLQuery(
         builder.build(),
         IllegalArgumentException.class,
-        "Invalid input:{ 042e5523ff6b250L" + " } for bytes column:{ parent_span_id }");
+        "Invalid input:{ 042e5523ff6b250L"
+            + " } for bytes column:{ lower(to_hex(parent_span_id)) }");
   }
 
-  // @Test
+  @Test
   void testQueryWithBytesColumnWithNullId() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
@@ -743,18 +743,18 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( parent_span_id != '' ) limit 5",
+            + "AND ( lower(to_hex(parent_span_id)) != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithBytesColumnWithEmptyId() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
@@ -771,18 +771,18 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( parent_span_id != '' ) limit 5",
+            + "AND ( lower(to_hex(parent_span_id)) != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithBytesColumnInFilter() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.metrics.duration_millis"));
@@ -795,13 +795,13 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT duration_millis FROM public.\"span-event-view\" "
+        "SELECT duration_millis FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_id in (decode('042e5523ff6b2506', 'hex'))",
+            + "AND lower(to_hex(span_id)) in ('042e5523ff6b2506')",
         tableDefinition,
         executionContext);
   }
