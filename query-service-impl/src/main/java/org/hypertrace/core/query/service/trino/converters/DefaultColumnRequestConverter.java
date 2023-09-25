@@ -188,8 +188,6 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     }
 
     String convertedLiteral = convertLiteralToString(rhs.getLiteral(), paramsBuilder);
-    // add decode for all string values
-    convertedLiteral = convertedLiteral.replace("?", "decode(?, 'hex')");
 
     builder.append(lhs);
     builder.append(" ");
