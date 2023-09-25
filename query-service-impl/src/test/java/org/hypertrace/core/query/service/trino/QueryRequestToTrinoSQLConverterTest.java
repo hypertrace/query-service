@@ -707,7 +707,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithBytesColumnWithInValidId() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
@@ -722,7 +722,7 @@ class QueryRequestToTrinoSQLConverterTest {
     assertExceptionOnSQLQuery(
         builder.build(),
         IllegalArgumentException.class,
-        "Invalid input:{ 042e5523ff6b250L" + " } for bytes column:{ parent_span_id }");
+        "Invalid input:{ 042e5523ff6b250L" + " } for bytes column:{ lower(to_hex(parent_span_id)) }");
   }
 
   @Test
