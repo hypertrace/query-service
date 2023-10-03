@@ -13,7 +13,6 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createL
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullNumberLiteralValueExpression;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createOrderByExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createStringArrayLiteralValueExpression;
@@ -541,7 +540,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithContainsKeyOperator() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.tags"));
@@ -552,18 +551,18 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
+        "SELECT tags FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags->>'flags' IS NOT NULL",
+            + "AND element_at(tags, 'flags') IS NOT NULL",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithNotContainsKeyOperator() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.tags"));
@@ -574,18 +573,18 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
+        "SELECT tags FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags->>'flags' IS NULL",
+            + "AND element_at(tags, 'flags') IS NULL",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithContainsKeyValueOperator() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanTag = createColumnExpression("Span.tags").build();
@@ -605,13 +604,13 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
+        "SELECT tags FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags->>'flags' = '0'",
+            + "AND element_at(tags, 'flags') = '0'",
         tableDefinition,
         executionContext);
   }
@@ -647,7 +646,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithComplexKeyValueOperator() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanTag = createColumnExpression("Span.tags").build();
@@ -667,13 +666,13 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
+        "SELECT tags FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags->>'flags' = '0'",
+            + "AND element_at(tags, 'flags') = '0'",
         tableDefinition,
         executionContext);
   }
@@ -1270,41 +1269,6 @@ class QueryRequestToTrinoSQLConverterTest {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
     builder.setFilter(filter);
-    return builder.build();
-  }
-
-  private QueryRequest buildAvgRateQueryForOrderBy() {
-    Builder builder = QueryRequest.newBuilder();
-
-    Expression serviceId = createColumnExpression("SERVICE.id").build();
-    Expression serviceName = createColumnExpression("SERVICE.name").build();
-    Expression serviceErrorCount = createColumnExpression("SERVICE.errorCount").build();
-
-    Expression countFunction = createFunctionExpression("COUNT", serviceId);
-    Expression avgrateFunction = createFunctionExpression("AVGRATE", serviceErrorCount);
-
-    Filter nullCheckFilter = createNullStringFilter("SERVICE.id", Operator.NEQ);
-    Filter startTimeFilter = createTimeFilter("SERVICE.startTime", Operator.GE, 1637297304041L);
-    Filter endTimeFilter = createTimeFilter("SERVICE.startTime", Operator.LT, 1637300904041L);
-    Filter andFilter =
-        Filter.newBuilder()
-            .setOperator(Operator.AND)
-            .addChildFilter(startTimeFilter)
-            .addChildFilter(endTimeFilter)
-            .addChildFilter(nullCheckFilter)
-            .build();
-    builder.setFilter(andFilter);
-
-    builder.addSelection(serviceId);
-    builder.addSelection(serviceName);
-    builder.addSelection(countFunction);
-
-    builder.addGroupBy(serviceId);
-    builder.addGroupBy(serviceName);
-
-    builder.addOrderBy(createOrderByExpression(avgrateFunction.toBuilder(), SortOrder.ASC));
-
-    builder.setLimit(10000);
     return builder.build();
   }
 
