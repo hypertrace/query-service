@@ -95,7 +95,7 @@ public class HTPinotQueriesTest {
     kafkaZk.start();
 
     pinotServiceManager =
-        new GenericContainer<>(DockerImageName.parse("hypertrace/pinot-servicemanager:0.6.6"))
+        new GenericContainer<>(DockerImageName.parse("hypertrace/pinot-servicemanager:main"))
             .withNetwork(network)
             .withNetworkAliases("pinot-controller", "pinot-server", "pinot-broker")
             .withExposedPorts(8099, 9000)
@@ -218,7 +218,7 @@ public class HTPinotQueriesTest {
   private static boolean generateData() throws Exception {
     // start view-gen service
     GenericContainer<?> viewGen =
-        new GenericContainer(DockerImageName.parse("hypertrace/hypertrace-view-generator:main"))
+        new GenericContainer(DockerImageName.parse("hypertrace/hypertrace-view-generator:0.9.20"))
             .withNetwork(network)
             .dependsOn(kafkaZk)
             .withEnv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
