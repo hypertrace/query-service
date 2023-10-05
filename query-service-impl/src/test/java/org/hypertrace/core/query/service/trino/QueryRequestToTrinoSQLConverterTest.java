@@ -510,7 +510,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithLikeOperator() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanId = createColumnExpression("Span.displaySpanName").build();
@@ -520,7 +520,7 @@ class QueryRequestToTrinoSQLConverterTest {
         Filter.newBuilder()
             .setOperator(Operator.LIKE)
             .setLhs(spanId)
-            .setRhs(createStringLiteralValueExpression("%test%"))
+            .setRhs(createStringLiteralValueExpression("order"))
             .build();
     builder.setFilter(likeFilter);
 
@@ -529,13 +529,13 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT span_name FROM public.\"span-event-view\" "
+        "SELECT span_name FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND span_name ~* '%test%'",
+            + "AND regexp_like(span_name, 'order')",
         tableDefinition,
         executionContext);
   }
@@ -615,7 +615,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithContainsKeyLikeOperator() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanTag = createColumnExpression("Span.tags").build();
@@ -635,13 +635,13 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT cast(tags as text) FROM public.\"span-event-view\" "
+        "SELECT tags FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND tags::jsonb::text ~* '.*\"my_tag_name.*\":.*'",
+            + "AND any_match(map_keys(tags), k -> regexp_like(k, 'my_tag_name.*'))",
         tableDefinition,
         executionContext);
   }

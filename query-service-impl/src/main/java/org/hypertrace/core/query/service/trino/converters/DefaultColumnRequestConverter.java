@@ -33,7 +33,7 @@ import org.jetbrains.annotations.NotNull;
 class DefaultColumnRequestConverter implements ColumnRequestConverter {
   private static final String MAP_KEY_OPERATOR = "element_at";
   private static final String QUESTION_MARK = "?";
-  private static final String REGEX_OPERATOR = "~*";
+  private static final String REGEX_OPERATOR = "regexp_like";
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 
@@ -103,12 +103,13 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       String lhs = convertExpressionToString(filter.getLhs(), paramsBuilder, trinoExecutionContext);
       switch (filter.getOperator()) {
         case LIKE:
-          builder.append(lhs);
-          builder.append(" ");
           builder.append(operator);
-          builder.append(" ");
+          builder.append("(");
+          builder.append(lhs);
+          builder.append(", ");
           builder.append(
               convertExpressionToString(filter.getRhs(), paramsBuilder, trinoExecutionContext));
+          builder.append(")");
           break;
         case CONTAINS_KEY:
           builder.append(operator);
@@ -144,14 +145,19 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder));
           break;
         case CONTAINS_KEY_LIKE:
+          // any_match(map_keys(tags), k -> regexp_like(k, pattern))
+          builder.append("any_match");
+          builder.append("(");
+          builder.append("map_keys");
+          builder.append("(");
           builder.append(lhs);
-          builder.append("::jsonb::text");
-          builder.append(" ");
-          builder.append(operator);
-          builder.append(" ");
+          builder.append(")");
+          builder.append(", k -> regexp_like(k, ");
           builder.append(
               convertLiteralToString(
-                  convertMapLikeExpressionToLiterals(filter.getRhs()), paramsBuilder));
+                  convertMapKeyExpressionToLiteral(filter.getRhs()), paramsBuilder));
+          builder.append(")");
+          builder.append(")");
           break;
         default:
           if (isFilterForBytesColumnType(filter, trinoExecutionContext)) {
@@ -330,8 +336,9 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case LE:
         return "<=";
       case LIKE:
-      case CONTAINS_KEY_LIKE:
         return REGEX_OPERATOR;
+      case CONTAINS_KEY_LIKE:
+        return "";
       case CONTAINS_KEY:
       case NOT_CONTAINS_KEY:
       case CONTAINS_KEYVALUE:
@@ -418,19 +425,6 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     return getLiteralConstants(literals);
   }
 
-  private LiteralConstant convertMapLikeExpressionToLiterals(Expression expression) {
-    List<String> literals = new ArrayList<>(1);
-    if (expression.getValueCase() == LITERAL) {
-      LiteralConstant value = expression.getLiteral();
-      if (value.getValue().getValueType() == ValueType.STRING) {
-        literals.add(".*\"" + value.getValue().getString() + "\":.*");
-      } else {
-        throw new IllegalArgumentException("Unsupported arguments for CONTAINS_KEY_LIKE operator");
-      }
-    }
-    return getLiteralConstants(literals).get(0);
-  }
-
   @NotNull
   private LiteralConstant getLiteralConstant(String literal) {
     return LiteralConstant.newBuilder().setValue(Value.newBuilder().setString(literal)).build();
@@ -438,13 +432,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
   @NotNull
   private List<LiteralConstant> getLiteralConstants(List<String> literals) {
-    return literals.stream()
-        .map(
-            literal ->
-                LiteralConstant.newBuilder()
-                    .setValue(Value.newBuilder().setString(literal))
-                    .build())
-        .collect(Collectors.toUnmodifiableList());
+    return literals.stream().map(this::getLiteralConstant).collect(Collectors.toUnmodifiableList());
   }
 
   /** TODO:Handle all types */
