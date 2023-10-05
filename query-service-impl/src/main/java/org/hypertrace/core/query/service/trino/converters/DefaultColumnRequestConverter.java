@@ -31,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
 
 /** Converts {@link QueryRequest} to Trino SQL query */
 class DefaultColumnRequestConverter implements ColumnRequestConverter {
-  private static final String MAP_KEY_FUNCTION = "element_at";
+  private static final String MAP_KEY_OPERATOR = "element_at";
   private static final String QUESTION_MARK = "?";
   private static final String REGEX_OPERATOR = "~*";
   private static final int MAP_KEY_INDEX = 0;
@@ -111,7 +111,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
               convertExpressionToString(filter.getRhs(), paramsBuilder, trinoExecutionContext));
           break;
         case CONTAINS_KEY:
-          builder.append(MAP_KEY_FUNCTION);
+          builder.append(operator);
           builder.append("(");
           builder.append(lhs);
           builder.append(", ");
@@ -122,7 +122,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           builder.append(" IS NOT NULL");
           break;
         case NOT_CONTAINS_KEY:
-          builder.append(MAP_KEY_FUNCTION);
+          builder.append(operator);
           builder.append("(");
           builder.append(lhs);
           builder.append(", ");
@@ -134,7 +134,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           break;
         case CONTAINS_KEYVALUE:
           List<LiteralConstant> kvp = convertMapKeyValueExpressionToLiterals(filter.getRhs());
-          builder.append(MAP_KEY_FUNCTION);
+          builder.append(operator);
           builder.append("(");
           builder.append(lhs);
           builder.append(", ");
@@ -335,7 +335,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case CONTAINS_KEY:
       case NOT_CONTAINS_KEY:
       case CONTAINS_KEYVALUE:
-        return "";
+        return MAP_KEY_OPERATOR;
       case RANGE:
         throw new UnsupportedOperationException("RANGE NOT supported use >= and <=");
       case UNRECOGNIZED:
@@ -360,7 +360,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
           return String.format(
               "%s(%s, %s)",
-              MAP_KEY_FUNCTION,
+              MAP_KEY_OPERATOR,
               columnName,
               convertLiteralToString(pathExpressionLiteral, paramsBuilder));
         }
