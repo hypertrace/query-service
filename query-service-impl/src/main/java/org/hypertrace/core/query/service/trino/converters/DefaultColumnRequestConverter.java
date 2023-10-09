@@ -33,7 +33,7 @@ import org.jetbrains.annotations.NotNull;
 class DefaultColumnRequestConverter implements ColumnRequestConverter {
   private static final String MAP_FUNCTION = "element_at";
   private static final String QUESTION_MARK = "?";
-  private static final String REGEX_OPERATOR = "regexp_like";
+  private static final String LIKE_FUNCTION = "regexp_like";
   private static final int MAP_KEY_INDEX = 0;
   private static final int MAP_VALUE_INDEX = 1;
 
@@ -336,7 +336,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case LE:
         return "<=";
       case LIKE:
-        return REGEX_OPERATOR;
+        return LIKE_FUNCTION;
       case CONTAINS_KEY_LIKE:
         return "";
       case CONTAINS_KEY:
