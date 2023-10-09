@@ -25,8 +25,11 @@ dependencies {
     implementation("org.apache.calcite:calcite-babel:1.34.0") {
       because("CVE-2022-39135")
     }
-    implementation("org.apache.avro:avro:1.11.1") {
-      because("CVE-2021-43045")
+    implementation("org.apache.avro:avro:1.11.3") {
+      because("CVE-2023-39410")
+    }
+    implementation("org.apache.commons:commons-compress:1.24.0") {
+      because("CVE-2023-42503")
     }
     implementation("org.apache.helix:helix-core:1.3.0") {
       because("CVE-2022-47500")
@@ -37,8 +40,8 @@ dependencies {
     implementation("net.minidev:json-smart:2.4.11") {
       because("CVE-2023-1370")
     }
-    implementation("org.xerial.snappy:snappy-java:1.1.10.1") {
-      because("CVE-2023-34453, CVE-2023-34454, CVE-2023-34455")
+    implementation("org.xerial.snappy:snappy-java:1.1.10.5") {
+      because("CVE-2023-43642")
     }
     implementation("org.yaml:snakeyaml:2.0") {
       because("CVE-2022-1471")

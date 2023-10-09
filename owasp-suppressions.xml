@@ -18,7 +18,7 @@
     <cve>CVE-2020-13956</cve>
   </suppress>
 
-  <suppress until="2023-09-30Z">
+  <suppress until="2023-10-31Z">
     <notes><![CDATA[
    file name: zookeeper-api-1.2.0.jar
    ]]></notes>
@@ -27,7 +27,7 @@
     <cve>CVE-2018-8012</cve>
     <cve>CVE-2019-0201</cve>
   </suppress>
-  <suppress until="2023-09-30Z">
+  <suppress until="2023-10-31Z">
     <notes><![CDATA[
      file name: jackson-databind-2.14.2.jar
      This is currently disputed.
@@ -35,7 +35,7 @@
     <packageUrl regex="true">^pkg:maven/com\.fasterxml\.jackson\.core/jackson\-databind@.*$</packageUrl>
     <cve>CVE-2023-35116</cve>
   </suppress>
-  <suppress until="2023-09-30Z">
+  <suppress until="2023-10-31Z">
     <notes><![CDATA[
    file name: netty-handler-4.1.94.Final.jar
    ]]></notes>

@@ -31,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
 
 /** Converts {@link QueryRequest} to Trino SQL query */
 class DefaultColumnRequestConverter implements ColumnRequestConverter {
-
+  private static final String MAP_FUNCTION = "element_at";
   private static final String QUESTION_MARK = "?";
   private static final String REGEX_OPERATOR = "~*";
   private static final int MAP_KEY_INDEX = 0;
@@ -111,26 +111,35 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
               convertExpressionToString(filter.getRhs(), paramsBuilder, trinoExecutionContext));
           break;
         case CONTAINS_KEY:
+          builder.append(operator);
+          builder.append("(");
           builder.append(lhs);
-          builder.append("->>");
+          builder.append(", ");
           builder.append(
               convertLiteralToString(
-                  convertMapKeyExpressionToLiterals(filter.getRhs()), paramsBuilder));
+                  convertMapKeyExpressionToLiteral(filter.getRhs()), paramsBuilder));
+          builder.append(")");
           builder.append(" IS NOT NULL");
           break;
         case NOT_CONTAINS_KEY:
+          builder.append(operator);
+          builder.append("(");
           builder.append(lhs);
-          builder.append("->>");
+          builder.append(", ");
           builder.append(
               convertLiteralToString(
-                  convertMapKeyExpressionToLiterals(filter.getRhs()), paramsBuilder));
+                  convertMapKeyExpressionToLiteral(filter.getRhs()), paramsBuilder));
+          builder.append(")");
           builder.append(" IS NULL");
           break;
         case CONTAINS_KEYVALUE:
           List<LiteralConstant> kvp = convertMapKeyValueExpressionToLiterals(filter.getRhs());
+          builder.append(operator);
+          builder.append("(");
           builder.append(lhs);
-          builder.append("->>");
+          builder.append(", ");
           builder.append(convertLiteralToString(kvp.get(MAP_KEY_INDEX), paramsBuilder));
+          builder.append(")");
           builder.append(" = ");
           builder.append(convertLiteralToString(kvp.get(MAP_VALUE_INDEX), paramsBuilder));
           break;
@@ -326,7 +335,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case CONTAINS_KEY:
       case NOT_CONTAINS_KEY:
       case CONTAINS_KEYVALUE:
-        return "";
+        return MAP_FUNCTION;
       case RANGE:
         throw new UnsupportedOperationException("RANGE NOT supported use >= and <=");
       case UNRECOGNIZED:
@@ -349,7 +358,11 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
                   .setValue(Value.newBuilder().setString(pathExpression).build())
                   .build();
 
-          return columnName + "->>" + convertLiteralToString(pathExpressionLiteral, paramsBuilder);
+          return String.format(
+              "%s(%s, %s)",
+              MAP_FUNCTION,
+              columnName,
+              convertLiteralToString(pathExpressionLiteral, paramsBuilder));
         }
       case COLUMNIDENTIFIER:
         String logicalColumnName =
@@ -380,17 +393,14 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
     return "";
   }
 
-  private LiteralConstant convertMapKeyExpressionToLiterals(Expression expression) {
-    List<String> literals = new ArrayList<>(1);
+  private LiteralConstant convertMapKeyExpressionToLiteral(Expression expression) {
     if (expression.getValueCase() == LITERAL) {
       LiteralConstant value = expression.getLiteral();
       if (value.getValue().getValueType() == ValueType.STRING) {
-        literals.add(value.getValue().getString());
-      } else {
-        throw new IllegalArgumentException("Unsupported arguments for CONTAINS_KEY operator");
+        return getLiteralConstant(value.getValue().getString());
       }
     }
-    return getLiteralConstants(literals).get(0);
+    throw new IllegalArgumentException("Unsupported map key expression");
   }
 
   private List<LiteralConstant> convertMapKeyValueExpressionToLiterals(Expression expression) {
@@ -419,6 +429,11 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       }
     }
     return getLiteralConstants(literals).get(0);
+  }
+
+  @NotNull
+  private LiteralConstant getLiteralConstant(String literal) {
+    return LiteralConstant.newBuilder().setValue(Value.newBuilder().setString(literal)).build();
   }
 
   @NotNull
