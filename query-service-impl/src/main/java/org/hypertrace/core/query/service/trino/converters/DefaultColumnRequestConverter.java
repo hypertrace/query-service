@@ -31,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
 
 /** Converts {@link QueryRequest} to Trino SQL query */
 class DefaultColumnRequestConverter implements ColumnRequestConverter {
-  private static final String MAP_KEY_OPERATOR = "element_at";
+  private static final String MAP_FUNCTION = "element_at";
   private static final String QUESTION_MARK = "?";
   private static final String REGEX_OPERATOR = "regexp_like";
   private static final int MAP_KEY_INDEX = 0;
@@ -342,7 +342,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
       case CONTAINS_KEY:
       case NOT_CONTAINS_KEY:
       case CONTAINS_KEYVALUE:
-        return MAP_KEY_OPERATOR;
+        return MAP_FUNCTION;
       case RANGE:
         throw new UnsupportedOperationException("RANGE NOT supported use >= and <=");
       case UNRECOGNIZED:
@@ -367,7 +367,7 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
           return String.format(
               "%s(%s, %s)",
-              MAP_KEY_OPERATOR,
+              MAP_FUNCTION,
               columnName,
               convertLiteralToString(pathExpressionLiteral, paramsBuilder));
         }
