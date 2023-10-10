@@ -175,7 +175,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testSQLiWithStringValueFilter() {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
@@ -185,7 +185,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -217,7 +217,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithDoubleFilter() {
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(createEqualsFilter("Span.metrics.duration_millis", 1.2));
@@ -226,7 +226,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -294,14 +294,14 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithOrderBy() {
     TableDefinition tableDefinition = getDefaultTableDefinition();
     defaultMockingForExecutionContext();
 
     assertSQLQuery(
         buildOrderByQuery(),
-        "Select encode(span_id, 'hex'), start_time_millis, end_time_millis FROM public.\"span-event-view\" WHERE "
+        "Select lower(to_hex(span_id)), start_time_millis, end_time_millis FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -311,7 +311,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithOrderByWithPagination() {
     QueryRequest orderByQueryRequest = buildOrderByQuery();
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
@@ -321,7 +321,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "Select encode(span_id, 'hex'), start_time_millis, end_time_millis FROM public.\"span-event-view\" WHERE "
+        "Select lower(to_hex(span_id)), start_time_millis, end_time_millis FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -331,7 +331,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithGroupByWithMultipleAggregates() {
     QueryRequest groupByQueryRequest = buildMultipleGroupByMultipleAggQuery();
     Builder builder = QueryRequest.newBuilder(groupByQueryRequest);
@@ -341,7 +341,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "select count(*), avg(duration_millis) FROM public.\"span-event-view\""
+        "select count(*), avg(duration_millis) FROM span-event-view"
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -353,7 +353,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithGroupByWithMultipleAggregatesAndOrderBy() {
     QueryRequest orderByQueryRequest = buildMultipleGroupByMultipleAggAndOrderByQuery();
     Builder builder = QueryRequest.newBuilder(orderByQueryRequest);
@@ -363,7 +363,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "select count(*), avg(duration_millis) FROM public.\"span-event-view\""
+        "select count(*), avg(duration_millis) FROM span-event-view"
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -375,7 +375,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithDistinctCountAggregation() {
     Filter startTimeFilter =
         createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
@@ -399,7 +399,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "select count(distinct encode(span_id, 'hex')) FROM public.\"span-event-view\""
+        "select count(distinct lower(to_hex(span_id))) FROM span-event-view"
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -411,7 +411,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithDistinctCountAggregationAndGroupBy() {
     Filter startTimeFilter =
         createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
@@ -442,14 +442,14 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         queryRequest,
-        "select encode(span_id, 'hex'), count(distinct encode(span_id, 'hex')) FROM public.\"span-event-view\""
+        "select lower(to_hex(span_id)), count(distinct lower(to_hex(span_id))) FROM span-event-view"
             + " where "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
-            + " group by span_id order by count(distinct span_id) limit 15",
+            + " group by 1 order by 2 limit 15",
         tableDefinition,
         executionContext);
   }
@@ -485,7 +485,7 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testSQLiWithStringArrayFilter() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.displaySpanName"));
@@ -500,7 +500,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         builder.build(),
-        "SELECT span_name FROM public.\"span-event-view\" WHERE "
+        "SELECT span_name FROM span-event-view WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
@@ -805,12 +805,12 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithArrayColumnWithValidValue() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
 
-    Filter filter = createEqualsFilter("Span.labels", "label1");
+    Filter filter = createEqualsFilter("Span.ip_types", "Bot");
     builder.setFilter(filter);
     builder.setLimit(5);
 
@@ -820,13 +820,13 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND labels && '{label1}' limit 5",
+            + "AND CONTAINS(ip_types, 'Bot') limit 5",
         tableDefinition,
         executionContext);
   }
@@ -883,12 +883,12 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithArrayColumnNotEqualsFilter() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
 
-    Filter filter = createNotEqualsFilter("Span.labels", "label1");
+    Filter filter = createNotEqualsFilter("Span.ip_types", "Bot");
     builder.setFilter(filter);
     builder.setLimit(5);
 
@@ -898,23 +898,23 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND NOT labels && '{label1}' limit 5",
+            + "AND NOT CONTAINS(ip_types, 'Bot') limit 5",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithArrayColumnInFilter() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
 
-    Filter filter = createInFilter("Span.labels", List.of("label1", "label2"));
+    Filter filter = createInFilter("Span.ip_types", List.of("Public Proxy", "Bot"));
     builder.setFilter(filter);
     builder.setLimit(5);
 
@@ -924,23 +924,23 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND labels && '{label1, label2}' limit 5",
+            + "AND CARDINALITY(ARRAY_INTERSECT(ip_types, ARRAY['Public Proxy', 'Bot'])) > 0 limit 5",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithArrayColumnNotInFilter() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id").build());
 
-    Filter filter = createNotInFilter("Span.labels", List.of("label1", "label2"));
+    Filter filter = createNotInFilter("Span.ip_types", List.of("Public Proxy", "Bot"));
     builder.setFilter(filter);
     builder.setLimit(5);
 
@@ -950,18 +950,18 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND NOT labels && '{label1, label2}' limit 5",
+            + "AND CARDINALITY(ARRAY_INTERSECT(ip_types, ARRAY['Public Proxy', 'Bot'])) = 0 limit 5",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithStringColumnWithNullString() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id"));
@@ -978,18 +978,18 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND ( span_id != '' ) limit 5",
+            + "AND ( lower(to_hex(span_id)) != '' ) limit 5",
         tableDefinition,
         executionContext);
   }
 
-  // @Test
+  @Test
   void testQueryWithLongColumn() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.id"));
@@ -1010,7 +1010,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
     assertSQLQuery(
         request,
-        "SELECT encode(span_id, 'hex') FROM public.\"span-event-view\" "
+        "SELECT lower(to_hex(span_id)) FROM span-event-view "
             + "WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
@@ -1342,7 +1342,7 @@ class QueryRequestToTrinoSQLConverterTest {
             SortOrder.DESC));
     builder.addOrderBy(
         createOrderByExpression(
-            createAliasedFunctionExpression("COUNT", "Span.id", "count_encode(span_id, 'hex')"),
+            createAliasedFunctionExpression("COUNT", "Span.id", "count_lower(to_hex(span_id))"),
             SortOrder.DESC));
     return builder.build();
   }
