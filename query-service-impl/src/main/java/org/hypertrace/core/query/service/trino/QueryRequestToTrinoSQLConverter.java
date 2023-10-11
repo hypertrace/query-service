@@ -63,11 +63,13 @@ class QueryRequestToTrinoSQLConverter {
     trinoExecutionContext.clearActualTableColumnNames();
 
     paramsBuilder.addStringParam(trinoExecutionContext.getExecutionContext().getTenantId());
-    Filter filter = trinoFilterHandler.skipTrinoAttributeFilter(request.getFilter());
-    if (!filter.equals(Filter.getDefaultInstance())) {
-      String filterClause =
-          columnRequestConverter.convertFilterClause(filter, paramsBuilder, trinoExecutionContext);
-      trinoExecutionContext.addResolvedFilterColumnQuery(filterClause);
+    if (request.hasFilter()) {
+      Filter filter = trinoFilterHandler.skipTrinoAttributeFilter(request.getFilter());
+      if (!filter.equals(Filter.getDefaultInstance())) {
+        String filterClause =
+            columnRequestConverter.convertFilterClause(filter, paramsBuilder, trinoExecutionContext);
+        trinoExecutionContext.addResolvedFilterColumnQuery(filterClause);
+      }
     }
     trinoExecutionContext.addAllFilterTableColumnNames(
         trinoExecutionContext.getActualTableColumnNames());
