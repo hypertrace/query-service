@@ -217,6 +217,96 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
+  @Test
+  void testQueryWithIsTrinoFilterOnly() {
+    QueryRequest queryRequest =
+        buildSimpleQueryWithFilter(createEqualsFilter("Event.isTrino", true));
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithIsTrinoFilterInBeginning() {
+    Filter isTrinoFilter = createEqualsFilter("Event.isTrino", true);
+    Filter isEntryFilter = createEqualsFilter("Span.is_entry", true);
+    Filter isBareFilter = createEqualsFilter("Span.isBare", false);
+    QueryRequest queryRequest =
+        buildSimpleQueryWithFilter(
+            createCompositeFilter(Operator.AND, isTrinoFilter, isEntryFilter, isBareFilter)
+                .build());
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( is_entry = true AND is_bare = false )",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithIsTrinoFilterInMiddle() {
+    Filter isEntryFilter = createEqualsFilter("Span.is_entry", true);
+    Filter isTrinoFilter = createEqualsFilter("Event.isTrino", true);
+    Filter isBareFilter = createEqualsFilter("Span.isBare", false);
+    QueryRequest queryRequest =
+        buildSimpleQueryWithFilter(
+            createCompositeFilter(Operator.AND, isEntryFilter, isTrinoFilter, isBareFilter)
+                .build());
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( is_entry = true AND is_bare = false )",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithIsTrinoFilterInEnd() {
+    Filter isEntryFilter = createEqualsFilter("Span.is_entry", true);
+    Filter isBareFilter = createEqualsFilter("Span.isBare", false);
+    Filter isTrinoFilter = createEqualsFilter("Event.isTrino", true);
+    QueryRequest queryRequest =
+        buildSimpleQueryWithFilter(
+            createCompositeFilter(Operator.AND, isEntryFilter, isBareFilter, isTrinoFilter)
+                .build());
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "Select lower(to_hex(span_id)) FROM span-event-view WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND ( is_entry = true AND is_bare = false )",
+        tableDefinition,
+        executionContext);
+  }
+
   // @Test
   void testQueryWithDoubleFilter() {
     QueryRequest queryRequest =
