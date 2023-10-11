@@ -67,7 +67,8 @@ class QueryRequestToTrinoSQLConverter {
       Filter filter = trinoFilterHandler.skipTrinoAttributeFilter(request.getFilter());
       if (!filter.equals(Filter.getDefaultInstance())) {
         String filterClause =
-            columnRequestConverter.convertFilterClause(filter, paramsBuilder, trinoExecutionContext);
+            columnRequestConverter.convertFilterClause(
+                filter, paramsBuilder, trinoExecutionContext);
         trinoExecutionContext.addResolvedFilterColumnQuery(filterClause);
       }
     }
