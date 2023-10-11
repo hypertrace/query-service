@@ -13,6 +13,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
+import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.OrderByExpression;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.SortOrder;
@@ -31,11 +32,13 @@ class QueryRequestToTrinoSQLConverter {
 
   private final org.hypertrace.core.query.service.trino.TableDefinition tableDefinition;
   private final TrinoFunctionConverter functionConverter;
+  private final TrinoFilterHandler trinoFilterHandler;
 
   QueryRequestToTrinoSQLConverter(
       TableDefinition tableDefinition, TrinoFunctionConverter functionConverter) {
     this.tableDefinition = tableDefinition;
     this.functionConverter = functionConverter;
+    this.trinoFilterHandler = new TrinoFilterHandler();
   }
 
   Entry<String, Params> toSQL(
@@ -60,10 +63,10 @@ class QueryRequestToTrinoSQLConverter {
     trinoExecutionContext.clearActualTableColumnNames();
 
     paramsBuilder.addStringParam(trinoExecutionContext.getExecutionContext().getTenantId());
-    if (request.hasFilter()) {
+    Filter filter = trinoFilterHandler.skipTrinoAttributeFilter(request.getFilter());
+    if (!filter.equals(Filter.getDefaultInstance())) {
       String filterClause =
-          columnRequestConverter.convertFilterClause(
-              request.getFilter(), paramsBuilder, trinoExecutionContext);
+          columnRequestConverter.convertFilterClause(filter, paramsBuilder, trinoExecutionContext);
       trinoExecutionContext.addResolvedFilterColumnQuery(filterClause);
     }
     trinoExecutionContext.addAllFilterTableColumnNames(
