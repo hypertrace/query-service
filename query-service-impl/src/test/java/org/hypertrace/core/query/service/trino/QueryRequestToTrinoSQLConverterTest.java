@@ -242,7 +242,7 @@ class QueryRequestToTrinoSQLConverterTest {
     Filter isBareFilter = createEqualsFilter("Span.isBare", false);
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
-            createCompositeFilter(Operator.AND, isEntryFilter, isTrinoFilter, isBareFilter)
+            createCompositeFilter(Operator.AND, isTrinoFilter, isEntryFilter, isBareFilter)
                 .build());
     TableDefinition tableDefinition = getDefaultTableDefinition();
     defaultMockingForExecutionContext();
@@ -290,7 +290,7 @@ class QueryRequestToTrinoSQLConverterTest {
     Filter isTrinoFilter = createEqualsFilter("Event.isTrino", true);
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
-            createCompositeFilter(Operator.AND, isEntryFilter, isTrinoFilter, isBareFilter)
+            createCompositeFilter(Operator.AND, isEntryFilter, isBareFilter, isTrinoFilter)
                 .build());
     TableDefinition tableDefinition = getDefaultTableDefinition();
     defaultMockingForExecutionContext();
