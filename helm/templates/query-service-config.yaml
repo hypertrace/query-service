@@ -67,9 +67,9 @@ data:
       {{- end }}
       {{- if eq .Values.queryServiceConfig.interactiveClientType "trino" }}
       {{- range .Values.trinoHandlers }}
-      {
+        {
 {{ tpl . $ | indent 10 }}
-      }
+        }
       {{- end }}
       {{- end }}
       ]
