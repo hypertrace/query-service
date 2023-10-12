@@ -91,7 +91,7 @@ spec:
                   key: {{ .Values.queryServiceConfig.data.postgresqlPasswordSecretKey }}
             {{- end }}
             {{- if eq .Values.queryServiceConfig.interactiveClientType "trino" }}
-            - name: {{ .Values.queryServiceConfig.data.postgresPasswordEnvVariable }}
+            - name: {{ .Values.queryServiceConfig.data.trinoPasswordEnvVariable }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.queryServiceConfig.data.trinoPasswordSecretName }}
