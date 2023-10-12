@@ -90,13 +90,13 @@ spec:
                   name: {{ .Values.queryServiceConfig.data.postgresPasswordSecretName }}
                   key: {{ .Values.queryServiceConfig.data.postgresqlPasswordSecretKey }}
             {{- end }}
-            {{ - if eq .Values.queryServiceConfig.interactiveClientType "trino" }}
+            {{- if eq .Values.queryServiceConfig.interactiveClientType "trino" }}
             - name: {{ .Values.queryServiceConfig.data.postgresPasswordEnvVariable }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.queryServiceConfig.data.trinoPasswordSecretName }}
                   key: {{ .Values.queryServiceConfig.data.trinoPasswordSecretKey }}
-            {{ - end }}
+            {{- end }}
           volumeMounts:
             - name: service-config
               mountPath: /app/resources/configs/{{ .Chart.Name }}/application.conf
