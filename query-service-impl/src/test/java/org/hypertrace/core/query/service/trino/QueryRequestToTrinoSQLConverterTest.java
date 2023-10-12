@@ -237,7 +237,7 @@ class QueryRequestToTrinoSQLConverterTest {
 
   @Test
   void testQueryWithIsTrinoFilterInBeginning() {
-    Filter isTrinoFilter = createEqualsFilter("Event.isTrino", true);
+    Filter isTrinoFilter = createEqualsFilter("EVENT.isTrino", true);
     Filter isEntryFilter = createEqualsFilter("Span.is_entry", true);
     Filter isBareFilter = createEqualsFilter("Span.isBare", false);
     QueryRequest queryRequest =
@@ -262,7 +262,7 @@ class QueryRequestToTrinoSQLConverterTest {
   @Test
   void testQueryWithIsTrinoFilterInMiddle() {
     Filter isEntryFilter = createEqualsFilter("Span.is_entry", true);
-    Filter isTrinoFilter = createEqualsFilter("Event.isTrino", true);
+    Filter isTrinoFilter = createEqualsFilter("EVENT.isTrino", true);
     Filter isBareFilter = createEqualsFilter("Span.isBare", false);
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
@@ -287,7 +287,7 @@ class QueryRequestToTrinoSQLConverterTest {
   void testQueryWithIsTrinoFilterInEnd() {
     Filter isEntryFilter = createEqualsFilter("Span.is_entry", true);
     Filter isBareFilter = createEqualsFilter("Span.isBare", false);
-    Filter isTrinoFilter = createEqualsFilter("Event.isTrino", true);
+    Filter isTrinoFilter = createEqualsFilter("EVENT.isTrino", true);
     QueryRequest queryRequest =
         buildSimpleQueryWithFilter(
             createCompositeFilter(Operator.AND, isEntryFilter, isBareFilter, isTrinoFilter)
