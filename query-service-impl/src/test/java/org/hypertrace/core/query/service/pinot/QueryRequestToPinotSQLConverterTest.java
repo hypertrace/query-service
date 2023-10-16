@@ -6,9 +6,13 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createB
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCompositeFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createDoubleInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFloatNotInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createIntNotInFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullNumberLiteralValueExpression;
@@ -1056,6 +1060,79 @@ public class QueryRequestToPinotSQLConverterTest {
             + " and "
             + "text_match(span_name,'/abc/') ) "
             + "limit 15",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithIntArrayFilter() {
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        buildSimpleQueryWithFilter(
+            createIntNotInFilter("Span.metrics.duration_millis", List.of(123))),
+        "Select span_id FROM SpanEventView WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND duration_millis NOT IN (123)",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithLongArrayFilter() {
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        buildSimpleQueryWithFilter(
+            createLongInFilter("Span.metrics.duration_millis", List.of(10L))),
+        "SELECT span_id FROM SpanEventView WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND duration_millis IN (10)",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithFloatArrayFilter() {
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        buildSimpleQueryWithFilter(
+            createFloatNotInFilter("Span.metrics.duration_millis", List.of(10.05f))),
+        "SELECT span_id FROM SpanEventView WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND duration_millis NOT IN (10.05)",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithDoubleArrayFilter() {
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        buildSimpleQueryWithFilter(
+            createDoubleInFilter("Span.metrics.duration_millis", List.of(10.87654))),
+        "SELECT span_id FROM SpanEventView WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND duration_millis IN (10.87654)",
         viewDefinition,
         executionContext);
   }

@@ -6,13 +6,13 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.isSimpleAttribu
 import static org.hypertrace.core.query.service.api.Expression.ValueCase.LITERAL;
 
 import com.google.common.base.Joiner;
-import com.google.protobuf.ByteString;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.function.Consumer;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
@@ -450,40 +450,28 @@ class QueryRequestToPinotSQLConverter {
     String ret = null;
     switch (value.getValueType()) {
       case STRING_ARRAY:
-        StringBuilder builder = new StringBuilder("(");
-        String delim = "";
-        for (String item : value.getStringArrayList()) {
-          builder.append(delim);
-          builder.append(QUESTION_MARK);
-          paramsBuilder.addStringParam(item);
-          delim = ", ";
-        }
-        builder.append(")");
-        ret = builder.toString();
+        ret = buildArrayValue(value.getStringArrayList(), paramsBuilder::addStringParam);
         break;
       case BYTES_ARRAY:
-        builder = new StringBuilder("(");
-        delim = "";
-        for (ByteString item : value.getBytesArrayList()) {
-          builder.append(delim);
-          builder.append(QUESTION_MARK);
-          paramsBuilder.addByteStringParam(item);
-          delim = ", ";
-        }
-        builder.append(")");
-        ret = builder.toString();
+        ret = buildArrayValue(value.getBytesArrayList(), paramsBuilder::addByteStringParam);
         break;
       case BOOLEAN_ARRAY:
-        builder = new StringBuilder("(");
-        delim = "";
-        for (Boolean item : value.getBooleanArrayList()) {
-          builder.append(delim);
-          builder.append(QUESTION_MARK);
-          paramsBuilder.addStringParam(String.valueOf(item));
-          delim = ", ";
-        }
-        builder.append(")");
-        ret = builder.toString();
+        ret =
+            buildArrayValue(
+                value.getBooleanArrayList(),
+                item -> paramsBuilder.addStringParam(String.valueOf(item)));
+        break;
+      case LONG_ARRAY:
+        ret = buildArrayValue(value.getLongArrayList(), paramsBuilder::addLongParam);
+        break;
+      case INT_ARRAY:
+        ret = buildArrayValue(value.getIntArrayList(), paramsBuilder::addIntegerParam);
+        break;
+      case FLOAT_ARRAY:
+        ret = buildArrayValue(value.getFloatArrayList(), paramsBuilder::addFloatParam);
+        break;
+      case DOUBLE_ARRAY:
+        ret = buildArrayValue(value.getDoubleArrayList(), paramsBuilder::addDoubleParam);
         break;
       case STRING:
         ret = QUESTION_MARK;
@@ -525,13 +513,22 @@ class QueryRequestToPinotSQLConverter {
         ret = QUESTION_MARK;
         paramsBuilder.addStringParam("null");
         break;
-      case LONG_ARRAY:
-      case INT_ARRAY:
-      case FLOAT_ARRAY:
-      case DOUBLE_ARRAY:
       case UNRECOGNIZED:
         break;
     }
     return ret;
+  }
+
+  private <T> String buildArrayValue(List<T> values, Consumer<T> paramAdder) {
+    StringBuilder builder = new StringBuilder("(");
+    String delim = "";
+    for (T item : values) {
+      builder.append(delim);
+      builder.append(QUESTION_MARK);
+      paramAdder.accept(item);
+      delim = ", ";
+    }
+    builder.append(")");
+    return builder.toString();
   }
 }
