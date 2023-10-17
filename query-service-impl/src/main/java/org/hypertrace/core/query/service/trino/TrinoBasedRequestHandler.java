@@ -43,6 +43,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
   private static final String MIN_REQUEST_DURATION_KEY = "minRequestDuration";
+  private static final String IS_TRINO_ATTRIBUTE = "EVENT.isTrino";
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
@@ -67,6 +68,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
   private Optional<String> startTimeAttributeName;
   private QueryRequestToTrinoSQLConverter request2TrinoSqlConverter;
   private final TrinoClientFactory trinoClientFactory;
+  private final TrinoFilterHandler trinoFilterHandler;
 
   private final JsonFormat.Printer protoJsonPrinter =
       JsonFormat.printer().omittingInsignificantWhitespace();
@@ -79,6 +81,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
     this.name = name;
     this.trinoClientFactory = trinoClientFactory;
     this.processConfig(config);
+    this.trinoFilterHandler = new TrinoFilterHandler();
   }
 
   @Override
@@ -96,7 +99,16 @@ public class TrinoBasedRequestHandler implements RequestHandler {
     Set<String> referencedColumns = executionContext.getReferencedColumns();
 
     Preconditions.checkArgument(!referencedColumns.isEmpty());
+
+    // query must contain isTrino attribute filter
+    if (!trinoFilterHandler.containsAttributeFilter(request)) {
+      return QueryCost.UNSUPPORTED;
+    }
+
     for (String referencedColumn : referencedColumns) {
+      if (referencedColumn.equalsIgnoreCase(IS_TRINO_ATTRIBUTE)) {
+        continue;
+      }
       if (!tableDefinition.containsColumn(referencedColumn)) {
         return QueryCost.UNSUPPORTED;
       }
