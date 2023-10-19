@@ -69,6 +69,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
   private QueryRequestToTrinoSQLConverter request2TrinoSqlConverter;
   private final TrinoClientFactory trinoClientFactory;
   private final TrinoFilterHandler trinoFilterHandler;
+  private final TrinoStreamingQueryExecutor streamingQueryExecutor;
 
   private final JsonFormat.Printer protoJsonPrinter =
       JsonFormat.printer().omittingInsignificantWhitespace();
@@ -82,6 +83,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
     this.trinoClientFactory = trinoClientFactory;
     this.processConfig(config);
     this.trinoFilterHandler = new TrinoFilterHandler();
+    this.streamingQueryExecutor = new TrinoStreamingQueryExecutor();
   }
 
   @Override
@@ -166,6 +168,22 @@ public class TrinoBasedRequestHandler implements RequestHandler {
     final TrinoClient trinoClient = trinoClientFactory.getTrinoClient(this.getName());
     String resolvedStatement = request2TrinoSqlConverter.resolveStatement(statement, params);
     Connection connection = trinoClient.getConnection();
+    if (resolvedStatement.contains("streaming")) {
+      if (resolvedStatement.contains("parallel")) {
+        LOG.info("executing sub-queries in parallel");
+        return streamingQueryExecutor.executeStreamingQueryParallel(statement, connection);
+      } else {
+        LOG.info("executing sub-queries sequentially");
+        return streamingQueryExecutor.executeStreamingQuerySequential(statement, connection);
+      }
+    }
+    LOG.info("executing single query");
+    resolvedStatement = "SELECT count(*)"
+        + " FROM span_event_view_staging_test "
+        + "where customer_id = 'b227d0f9-98e1-4eff-acf5-ab129d416914' "
+        + "and start_time_millis >= 1695081600000  and start_time_millis < 1695168000000 "
+        + "AND is_bare != true AND environment = 'production' AND api_boundary_type = 'ENTRY' "
+        + "AND api_id != 'null' AND regexp_like(request_body, '.*id.*') limit 1000";
     try (PreparedStatement preparedStatement = connection.prepareStatement(resolvedStatement);
         ResultSet resultSet = preparedStatement.executeQuery()) {
       LOG.debug("Query results: [ {} ]", resultSet);
@@ -210,6 +228,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
       }
       rowList.add(builder.build());
     }
+    LOG.info("returned result of single query");
     return Observable.fromIterable(rowList).doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 

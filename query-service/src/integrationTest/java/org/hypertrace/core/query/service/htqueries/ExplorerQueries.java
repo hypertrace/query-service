@@ -97,13 +97,13 @@ class ExplorerQueries {
   static QueryRequest buildQuery2() {
     Builder builder = QueryRequest.newBuilder();
 
-    ColumnIdentifier apiId = ColumnIdentifier.newBuilder().setColumnName("EVENT.id").build();
+    ColumnIdentifier spanId = ColumnIdentifier.newBuilder().setColumnName("EVENT.id").build();
     ColumnIdentifier apiName = ColumnIdentifier.newBuilder().setColumnName("EVENT.apiName").build();
     ColumnIdentifier serviceId =
         ColumnIdentifier.newBuilder().setColumnName("EVENT.serviceId").build();
     ColumnIdentifier serviceName =
         ColumnIdentifier.newBuilder().setColumnName("EVENT.serviceName").build();
-    builder.addSelection(Expression.newBuilder().setColumnIdentifier(apiId));
+    builder.addSelection(Expression.newBuilder().setColumnIdentifier(spanId));
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(apiName));
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceId));
     builder.addSelection(Expression.newBuilder().setColumnIdentifier(serviceName));
@@ -111,12 +111,17 @@ class ExplorerQueries {
 
     Filter filter1 = createFilter("EVENT.startTime", Operator.GE, ValueType.LONG, 1692943200000L);
     Filter filter2 = createFilter("EVENT.startTime", Operator.LT, ValueType.LONG, 1692946800000L);
+    Filter filter3 = createFilter("EVENT.isTrino", Operator.EQ, ValueType.BOOL, true);
+    Filter filter4 = createFilter("EVENT.streaming", Operator.EQ, ValueType.BOOL, true);
+    Filter filter5 = createFilter("EVENT.parallel", Operator.EQ, ValueType.BOOL, true);
 
     builder.setFilter(
         Filter.newBuilder()
             .setOperator(Operator.AND)
             .addChildFilter(filter1)
             .addChildFilter(filter2)
+            .addChildFilter(filter3)
+            .addChildFilter(filter4)
             .build());
 
     builder.setLimit(100);
