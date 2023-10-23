@@ -8,7 +8,8 @@ import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.QueryRequest;
 
 public class TrinoFilterHandler {
-  private static final String IS_TRINO_ATTRIBUTE = "EVENT.isTrino";
+  public static final String IS_TRINO_EVENT_ATTRIBUTE = "EVENT.isTrino";
+  public static final String IS_TRINO_API_TRACE_ATTRIBUTE = "API_TRACE.isTrino";
 
   public boolean containsAttributeFilter(QueryRequest request) {
     return request.hasFilter() && containsAttributeFilter(request.getFilter());
@@ -51,8 +52,10 @@ public class TrinoFilterHandler {
   }
 
   private boolean isTrinoAttributeFilter(Filter filter) {
-    // filter must contain Event.isTrino attribute
+    // filter must contain Event.isTrino or API_TRACE.isTrino attribute
     Optional<String> mayBeColumn = getLogicalColumnName(filter.getLhs());
-    return mayBeColumn.isPresent() && mayBeColumn.get().equalsIgnoreCase(IS_TRINO_ATTRIBUTE);
+    return mayBeColumn.isPresent()
+        && (mayBeColumn.get().equalsIgnoreCase(IS_TRINO_EVENT_ATTRIBUTE)
+            || mayBeColumn.get().equalsIgnoreCase(IS_TRINO_API_TRACE_ATTRIBUTE));
   }
 }

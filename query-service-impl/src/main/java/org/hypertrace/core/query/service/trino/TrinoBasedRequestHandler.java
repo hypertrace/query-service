@@ -1,5 +1,8 @@
 package org.hypertrace.core.query.service.trino;
 
+import static org.hypertrace.core.query.service.trino.TrinoFilterHandler.IS_TRINO_API_TRACE_ATTRIBUTE;
+import static org.hypertrace.core.query.service.trino.TrinoFilterHandler.IS_TRINO_EVENT_ATTRIBUTE;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.util.JsonFormat;
@@ -43,7 +46,6 @@ public class TrinoBasedRequestHandler implements RequestHandler {
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
   private static final String MIN_REQUEST_DURATION_KEY = "minRequestDuration";
-  private static final String IS_TRINO_ATTRIBUTE = "EVENT.isTrino";
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
@@ -106,7 +108,8 @@ public class TrinoBasedRequestHandler implements RequestHandler {
     }
 
     for (String referencedColumn : referencedColumns) {
-      if (referencedColumn.equalsIgnoreCase(IS_TRINO_ATTRIBUTE)) {
+      if (referencedColumn.equalsIgnoreCase(IS_TRINO_EVENT_ATTRIBUTE)
+          || referencedColumn.equalsIgnoreCase(IS_TRINO_API_TRACE_ATTRIBUTE)) {
         continue;
       }
       if (!tableDefinition.containsColumn(referencedColumn)) {
