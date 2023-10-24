@@ -22,7 +22,7 @@ dependencies {
   integrationTestImplementation("org.testcontainers:testcontainers:1.16.2")
   integrationTestImplementation("org.testcontainers:junit-jupiter:1.16.2")
   integrationTestImplementation("org.testcontainers:kafka:1.16.2")
-  integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.61")
+  integrationTestImplementation("org.hypertrace.core.serviceframework:integrationtest-service-framework:0.1.62")
   integrationTestImplementation("com.github.stefanbirkner:system-lambda:1.2.0")
 
   integrationTestImplementation("org.apache.kafka:kafka-clients:7.2.1-ccs")
