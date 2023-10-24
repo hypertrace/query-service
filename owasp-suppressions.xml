@@ -23,6 +23,9 @@
    file name: zookeeper-api-1.3.0.jar
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.apache\.helix/zookeeper\-api@.*$</packageUrl>
+    <cve>CVE-2016-5017</cve>
+    <cve>CVE-2018-8012</cve>
+    <cve>CVE-2019-0201</cve>
     <cve>CVE-2023-44981</cve>
   </suppress>
   <suppress until="2023-10-31Z">
