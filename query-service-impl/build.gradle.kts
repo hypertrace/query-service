@@ -51,6 +51,9 @@ dependencies {
     implementation("com.squareup.okio:okio:3.4.0") {
       because("CVE-2023-3635")
     }
+    implementation("org.apache.zookeeper:zookeeper:3.7.2") {
+      because("CVE-2023-44981")
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
