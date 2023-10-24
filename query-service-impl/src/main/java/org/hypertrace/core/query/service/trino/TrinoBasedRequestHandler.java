@@ -1,8 +1,5 @@
 package org.hypertrace.core.query.service.trino;
 
-import static org.hypertrace.core.query.service.trino.TrinoFilterHandler.IS_TRINO_API_TRACE_ATTRIBUTE;
-import static org.hypertrace.core.query.service.trino.TrinoFilterHandler.IS_TRINO_EVENT_ATTRIBUTE;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.util.JsonFormat;
@@ -108,8 +105,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
     }
 
     for (String referencedColumn : referencedColumns) {
-      if (referencedColumn.equalsIgnoreCase(IS_TRINO_EVENT_ATTRIBUTE)
-          || referencedColumn.equalsIgnoreCase(IS_TRINO_API_TRACE_ATTRIBUTE)) {
+      if (trinoFilterHandler.matchesIsTrinoAttribute(referencedColumn)) {
         continue;
       }
       if (!tableDefinition.containsColumn(referencedColumn)) {
