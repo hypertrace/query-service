@@ -54,9 +54,9 @@ dependencies {
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
-  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.12.1")
-  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.12.1")
-  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.12.1")
+  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.12.6")
+  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.12.6")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.12.6")
   implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.14.26")
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.14.26")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.14.26")
