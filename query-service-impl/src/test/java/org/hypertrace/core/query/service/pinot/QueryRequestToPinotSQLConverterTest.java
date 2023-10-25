@@ -540,6 +540,32 @@ public class QueryRequestToPinotSQLConverterTest {
   }
 
   @Test
+  void testQueryWithArrayColumnInFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.id").build());
+
+    Filter filter = createInFilter("Span.ip_types", List.of("Public Proxy", "Bot"));
+    builder.setFilter(filter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        request,
+        "select span_id from spaneventview "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ip_types in ('public proxy', 'bot') limit 5",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
   public void testQueryWithLikeOperator() {
     Builder builder = QueryRequest.newBuilder();
     Expression spanId = createColumnExpression("Span.id").build();
