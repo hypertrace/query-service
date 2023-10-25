@@ -34,6 +34,9 @@ dependencies {
     implementation("org.apache.helix:helix-core:1.3.0") {
       because("CVE-2022-47500")
     }
+    implementation("org.apache.zookeeper:zookeeper:3.7.2") {
+      because("CVE-2023-44981")
+    }
     implementation("org.webjars:swagger-ui:5.1.0") {
       because("CVE-2019-16728,CVE-2020-26870")
     }
