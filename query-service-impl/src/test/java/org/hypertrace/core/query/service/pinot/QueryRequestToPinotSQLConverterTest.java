@@ -9,6 +9,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createC
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullNumberLiteralValueExpression;
@@ -561,6 +562,32 @@ public class QueryRequestToPinotSQLConverterTest {
             + TENANT_ID
             + "' "
             + "and ip_types in ('public proxy', 'bot') limit 5",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithArrayColumnNotInFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.id").build());
+
+    Filter filter = createNotInFilter("Span.ip_types", List.of("Public Proxy", "Bot"));
+    builder.setFilter(filter);
+    builder.setLimit(5);
+
+    QueryRequest request = builder.build();
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        request,
+        "select span_id from spaneventview "
+            + "WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ip_types not in ('public proxy', 'bot') limit 5",
         viewDefinition,
         executionContext);
   }
