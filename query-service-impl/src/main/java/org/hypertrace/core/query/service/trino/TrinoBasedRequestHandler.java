@@ -130,8 +130,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
 
       return executeQuery(sql.getKey(), sql.getValue());
     } catch (Throwable t) {
-      String truncatedMessage = (t.getMessage() == null) ? null : t.getMessage().substring(0, 2048);
-      return Observable.error(new Throwable(truncatedMessage));
+      return Observable.error(new Throwable(truncateMessage(t.getMessage(), 2048)));
     }
   }
 
@@ -227,6 +226,14 @@ public class TrinoBasedRequestHandler implements RequestHandler {
         return NULL_BOOLEAN_EQ_STRING_VALUE;
       default:
         return NULL_STRING_EQ_STRING_VALUE;
+    }
+  }
+
+  private String truncateMessage(String message, int length) {
+    if (message == null) {
+      return null;
+    } else {
+      return message.length() <= length ? message : message.substring(0, length);
     }
   }
 }
