@@ -130,7 +130,8 @@ public class TrinoBasedRequestHandler implements RequestHandler {
 
       return executeQuery(sql.getKey(), sql.getValue());
     } catch (Throwable t) {
-      return Observable.error(t);
+      String truncatedMessage = (t.getMessage() == null) ? null : t.getMessage().substring(0, 2048);
+      return Observable.error(new Throwable(truncatedMessage));
     }
   }
 
