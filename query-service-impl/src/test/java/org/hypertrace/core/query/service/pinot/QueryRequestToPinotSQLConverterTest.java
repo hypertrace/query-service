@@ -36,13 +36,16 @@ import org.apache.pinot.client.Connection;
 import org.apache.pinot.client.Request;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
+import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Function;
+import org.hypertrace.core.query.service.api.LiteralConstant;
 import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryRequest.Builder;
 import org.hypertrace.core.query.service.api.SortOrder;
+import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.pinot.PinotClientFactory.PinotClient;
 import org.hypertrace.core.query.service.pinot.converters.PinotFunctionConverter;
 import org.junit.jupiter.api.Assertions;
@@ -1108,6 +1111,79 @@ public class QueryRequestToPinotSQLConverterTest {
             + "( start_time_millis > 1570658506605 and end_time_millis < 1570744906673"
             + " and "
             + "text_match(span_name,'/abc/') ) "
+            + "limit 15",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithTimeSeries() {
+    Builder builder = QueryRequest.newBuilder();
+
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.start_time_millis", Operator.LT, 1570744906673L);
+
+    ColumnIdentifier spanCalls = ColumnIdentifier.newBuilder().setColumnName("Spans.calls").build();
+    Function spanCallsFunctionCount =
+        Function.newBuilder()
+            .addArguments(Expression.newBuilder().setColumnIdentifier(spanCalls).build())
+            .setFunctionName("COUNT")
+            .setAlias("COUNT_SPANS.calls_[]")
+            .build();
+    builder.addSelection(Expression.newBuilder().setFunction(spanCallsFunctionCount));
+
+    Function dateTimeConvert =
+        Function.newBuilder()
+            .setFunctionName("dateTimeConvert")
+            .addArguments(
+                Expression.newBuilder()
+                    .setColumnIdentifier(
+                        ColumnIdentifier.newBuilder()
+                            .setColumnName("Span.start_time_millis")
+                            .build())
+                    .build())
+            .addArguments(
+                Expression.newBuilder()
+                    .setLiteral(
+                        LiteralConstant.newBuilder()
+                            .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))
+                            .build())
+                    .build())
+            .addArguments(
+                Expression.newBuilder()
+                    .setLiteral(
+                        LiteralConstant.newBuilder()
+                            .setValue(Value.newBuilder().setString("1:MILLISECONDS:EPOCH"))
+                            .build())
+                    .build())
+            .addArguments(
+                Expression.newBuilder()
+                    .setLiteral(
+                        LiteralConstant.newBuilder()
+                            .setValue(Value.newBuilder().setString("30:SECONDS"))
+                            .build())
+                    .build())
+            .build();
+    builder.addGroupBy(Expression.newBuilder().setFunction(dateTimeConvert).build());
+    builder
+        .setFilter(createCompositeFilter(Operator.AND, startTimeFilter, endTimeFilter))
+        .setLimit(15);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "select datetimeconvert(start_time_millis,'1:milliseconds:epoch','1:milliseconds:epoch','30:seconds'), count(*) from spaneventview "
+            + "where "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "'"
+            + " and "
+            + "( start_time_millis > 1570658506605 and start_time_millis < 1570744906673 ) "
+            + "group by datetimeconvert(start_time_millis,'1:milliseconds:epoch','1:milliseconds:epoch','30:seconds') "
             + "limit 15",
         viewDefinition,
         executionContext);
