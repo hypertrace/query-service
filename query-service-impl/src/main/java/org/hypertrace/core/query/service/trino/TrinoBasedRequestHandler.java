@@ -19,6 +19,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
@@ -130,8 +131,7 @@ public class TrinoBasedRequestHandler implements RequestHandler {
 
       return executeQuery(sql.getKey(), sql.getValue());
     } catch (Throwable t) {
-      String truncatedMessage = (t.getMessage() == null) ? null : t.getMessage().substring(0, 2048);
-      return Observable.error(new Throwable(truncatedMessage));
+      return Observable.error(new Throwable(StringUtils.truncate(t.getMessage(), 2048)));
     }
   }
 
