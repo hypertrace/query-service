@@ -1111,6 +1111,202 @@ class QueryRequestToTrinoSQLConverterTest {
         executionContext);
   }
 
+  @Test
+  void testQueryWithDateTimeConvert_secondInterval() {
+    Expression dateTimeConvertExpression =
+        createFunctionExpression(
+            "dateTimeConvert",
+            createColumnExpression("Span.start_time_millis").build(),
+            createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+            createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+            createStringLiteralValueExpression("5:SECONDS"));
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addSelection(dateTimeConvertExpression)
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "COUNT", "Span.start_time_millis", "count_interval_start"))
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .addGroupBy(dateTimeConvertExpression)
+            .addOrderBy(
+                createOrderByExpression(dateTimeConvertExpression.toBuilder(), SortOrder.ASC))
+            .setLimit(20)
+            .build();
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "select start_time_millis - start_time_millis % 5000, count(*)"
+            + " from span-event-view"
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
+            + " group by 1 order by 1 limit 20",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithDateTimeConvert_minuteInterval() {
+    Expression dateTimeConvertExpression =
+        createFunctionExpression(
+            "dateTimeConvert",
+            createColumnExpression("Span.start_time_millis").build(),
+            createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+            createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+            createStringLiteralValueExpression("30:MINUTES"));
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addSelection(dateTimeConvertExpression)
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "COUNT", "Span.start_time_millis", "count_interval_start"))
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .addGroupBy(dateTimeConvertExpression)
+            .addOrderBy(
+                createOrderByExpression(dateTimeConvertExpression.toBuilder(), SortOrder.ASC))
+            .setLimit(15)
+            .build();
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "select start_time_millis - start_time_millis % 1800000, count(*)"
+            + " from span-event-view"
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
+            + " group by 1 order by 1 limit 15",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithDateTimeConvert_hourInterval() {
+    Expression dateTimeConvertExpression =
+        createFunctionExpression(
+            "dateTimeConvert",
+            createColumnExpression("Span.start_time_millis").build(),
+            createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+            createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+            createStringLiteralValueExpression("12:HOURS"));
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addSelection(dateTimeConvertExpression)
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "COUNT", "Span.start_time_millis", "count_interval_start"))
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .addGroupBy(dateTimeConvertExpression)
+            .addOrderBy(
+                createOrderByExpression(dateTimeConvertExpression.toBuilder(), SortOrder.ASC))
+            .setLimit(25)
+            .build();
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "select start_time_millis - start_time_millis % 43200000, count(*)"
+            + " from span-event-view"
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
+            + " group by 1 order by 1 limit 25",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  void testQueryWithDateTimeConvert_dayInterval() {
+    Expression dateTimeConvertExpression =
+        createFunctionExpression(
+            "dateTimeConvert",
+            createColumnExpression("Span.start_time_millis").build(),
+            createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+            createStringLiteralValueExpression("1:MILLISECONDS:EPOCH"),
+            createStringLiteralValueExpression("1:DAYS"));
+    Filter startTimeFilter =
+        createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
+    Filter endTimeFilter = createTimeFilter("Span.end_time_millis", Operator.LT, 1570744906673L);
+
+    QueryRequest queryRequest =
+        QueryRequest.newBuilder()
+            .addSelection(dateTimeConvertExpression)
+            .addAggregation(
+                createAliasedFunctionExpression(
+                    "COUNT", "Span.start_time_millis", "count_interval_start"))
+            .setFilter(
+                Filter.newBuilder()
+                    .setOperator(Operator.AND)
+                    .addChildFilter(startTimeFilter)
+                    .addChildFilter(endTimeFilter)
+                    .build())
+            .addGroupBy(dateTimeConvertExpression)
+            .addOrderBy(
+                createOrderByExpression(dateTimeConvertExpression.toBuilder(), SortOrder.ASC))
+            .setLimit(30)
+            .build();
+
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        queryRequest,
+        "select start_time_millis - start_time_millis % 86400000, count(*)"
+            + " from span-event-view"
+            + " where "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
+            + " group by 1 order by 1 limit 30",
+        tableDefinition,
+        executionContext);
+  }
+
   // @Test
   void testQueryWithLongColumnWithLikeFilter() {
     Builder builder = QueryRequest.newBuilder();
