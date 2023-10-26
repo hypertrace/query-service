@@ -9,9 +9,9 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createC
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
-import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotEqualsFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullNumberLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNullStringLiteralValueExpression;
