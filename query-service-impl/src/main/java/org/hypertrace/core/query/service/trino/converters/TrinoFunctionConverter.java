@@ -83,8 +83,8 @@ public class TrinoFunctionConverter {
       throw new IllegalArgumentException("Expected four arguments : " + function);
     }
     return String.format(
-        "%s(%s, %d)",
-        config.getDateTimeConvertFunction(),
+        "%s - %s %% %d",
+        argumentConverter.apply(argumentsList.get(0)),
         argumentConverter.apply(argumentsList.get(0)),
         getTimeInMillis(argumentsList.get(3).getLiteral().getValue().getString()));
   }
@@ -103,6 +103,8 @@ public class TrinoFunctionConverter {
         return TimeUnit.MINUTES.toMillis(periodValue);
       case "HOURS":
         return TimeUnit.HOURS.toMillis(periodValue);
+      case "DAYS":
+        return TimeUnit.DAYS.toMillis(periodValue);
       default:
         throw new UnsupportedOperationException("Unsupported time unit : " + timeUnit);
     }

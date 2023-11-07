@@ -243,37 +243,60 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
 
     if (handleConversionForNullOrEmptyArrayLiteral(lhs, operator, builder, value)) return;
 
-    // support only equals and IN operator
-    // both of them are handled as contains check to align with existing implementation
-    if (operator.equals("=")
-        || operator.equals("IN")
-        || operator.equals("!=")
-        || operator.equals("NOT IN")) {
-      // add NOT operator to negate the match condition
-      if (operator.equals("!=") || operator.equals("NOT IN")) {
+    // Support only equals and IN operator
+    if (operator.equals("=") || operator.equals("!=")) {
+      // Equals (=): CONTAINS(ip_types, 'Bot')
+      // Not equals (!=): NOT CONTAINS(ip_types, 'Bot')
+      if (operator.equals("!=")) {
         builder.append("NOT ");
       }
+      builder.append("CONTAINS(");
       builder.append(lhs);
-      // overlap operator for array
-      builder.append(" && ");
+      builder.append(", ");
+      if (value.getValueType() == ValueType.STRING) {
+        builder.append(QUESTION_MARK);
+        paramsBuilder.addStringParam(value.getString());
+      } else {
+        throw new IllegalArgumentException(
+            String.format("Unsupported value {%s} for array column", value));
+      }
+      builder.append(")");
+    } else if (operator.equals("IN") || operator.equals("NOT IN")) {
+      // IN: CARDINALITY(ARRAY_INTERSECT(ip_types, ARRAY['Public Proxy', 'Bot'])) > 0
+      // NOT IN: CARDINALITY(ARRAY_INTERSECT(ip_types, ARRAY['Public Proxy', 'Bot'])) = 0
+      builder.append("CARDINALITY(");
+      builder.append("ARRAY_INTERSECT(");
+      builder.append(lhs);
+      builder.append(", ARRAY[");
+      switch (value.getValueType()) {
+        case STRING:
+          builder.append(QUESTION_MARK);
+          paramsBuilder.addStringParam(value.getString());
+          break;
+        case STRING_ARRAY:
+          String delim = "";
+          for (String item : value.getStringArrayList()) {
+            builder.append(delim);
+            builder.append(QUESTION_MARK);
+            paramsBuilder.addStringParam(item);
+            delim = ", ";
+          }
+          break;
+        default:
+          throw new IllegalArgumentException(
+              String.format("Unsupported value {%s} for array column", value));
+      }
+      builder.append("]))");
+      if (operator.equals("IN")) {
+        builder.append(" > 0");
+      } else {
+        builder.append(" = 0");
+      }
     } else {
       throw new IllegalArgumentException(
           String.format(
               "Unsupported operator {%s} for array column with non-empty value", operator));
     }
-    builder.append("?");
-    switch (value.getValueType()) {
-      case STRING:
-        paramsBuilder.addStringParam("{" + value.getString() + "}");
-        break;
-      case STRING_ARRAY:
-        paramsBuilder.addStringParam("{" + String.join(", ", value.getStringArrayList()) + "}");
-        break;
-      default:
-        throw new IllegalArgumentException(
-            String.format("Unsupported value {%s} for array column", value));
-    }
-    builder.append(QUESTION_MARK);
   }
 
   private boolean handleConversionForNullOrEmptyArrayLiteral(
