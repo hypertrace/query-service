@@ -1089,13 +1089,13 @@ public class QueryRequestToPinotSQLConverterTest {
 
     assertPQLQuery(
         buildSimpleQueryWithFilter(
-            createLongInFilter("Span.metrics.duration_millis", List.of(10L))),
+            createLongInFilter("Span.metrics.duration_millis", List.of(10L, 20L, 30L))),
         "SELECT span_id FROM SpanEventView WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND duration_millis IN (10)",
+            + "AND duration_millis IN (10, 20, 30)",
         viewDefinition,
         executionContext);
   }
@@ -1106,14 +1106,13 @@ public class QueryRequestToPinotSQLConverterTest {
     defaultMockingForExecutionContext();
 
     assertPQLQuery(
-        buildSimpleQueryWithFilter(
-            createFloatNotInFilter("Span.metrics.duration_millis", List.of(10.05f))),
+        buildSimpleQueryWithFilter(createFloatNotInFilter("Span.user_latitude", List.of(10.05f))),
         "SELECT span_id FROM SpanEventView WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND duration_millis NOT IN (10.05)",
+            + "AND user_latitude NOT IN (10.05)",
         viewDefinition,
         executionContext);
   }
@@ -1125,14 +1124,13 @@ public class QueryRequestToPinotSQLConverterTest {
     defaultMockingForExecutionContext();
 
     assertPQLQuery(
-        buildSimpleQueryWithFilter(
-            createDoubleInFilter("Span.metrics.duration_millis", List.of(10.87654))),
+        buildSimpleQueryWithFilter(createDoubleInFilter("Span.user_longitude", List.of(10.87654))),
         "SELECT span_id FROM SpanEventView WHERE "
             + viewDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND duration_millis IN (10.87654)",
+            + "AND user_longitude IN (10.87654)",
         viewDefinition,
         executionContext);
   }

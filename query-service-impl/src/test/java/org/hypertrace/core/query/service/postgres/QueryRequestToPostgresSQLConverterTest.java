@@ -1317,13 +1317,13 @@ class QueryRequestToPostgresSQLConverterTest {
 
     assertSQLQuery(
         buildSimpleQueryWithFilter(
-            createLongInFilter("Span.metrics.duration_millis", List.of(10L))),
+            createLongInFilter("Span.metrics.duration_millis", List.of(10L, 20L, 30L))),
         "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND duration_millis IN (10)",
+            + "AND duration_millis IN (10, 20, 30)",
         tableDefinition,
         executionContext);
   }
@@ -1334,14 +1334,13 @@ class QueryRequestToPostgresSQLConverterTest {
     defaultMockingForExecutionContext();
 
     assertSQLQuery(
-        buildSimpleQueryWithFilter(
-            createFloatNotInFilter("Span.metrics.duration_millis", List.of(10.05f))),
+        buildSimpleQueryWithFilter(createFloatNotInFilter("Span.user_latitude", List.of(12.971f))),
         "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND duration_millis NOT IN (10.05)",
+            + "AND user_latitude NOT IN (12.971)",
         tableDefinition,
         executionContext);
   }
@@ -1352,14 +1351,13 @@ class QueryRequestToPostgresSQLConverterTest {
     defaultMockingForExecutionContext();
 
     assertSQLQuery(
-        buildSimpleQueryWithFilter(
-            createDoubleInFilter("Span.metrics.duration_millis", List.of(10.87654))),
+        buildSimpleQueryWithFilter(createDoubleInFilter("Span.user_longitude", List.of(10.87654))),
         "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
             + tableDefinition.getTenantIdColumn()
             + " = '"
             + TENANT_ID
             + "' "
-            + "AND duration_millis IN (10.87654)",
+            + "AND user_longitude IN (10.87654)",
         tableDefinition,
         executionContext);
   }
