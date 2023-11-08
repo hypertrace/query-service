@@ -28,7 +28,7 @@
     <cve>CVE-2019-0201</cve>
     <cve>CVE-2023-44981</cve>
   </suppress>
-  <suppress until="2023-10-31Z">
+  <suppress until="2023-11-30Z">
     <notes><![CDATA[
      file name: jackson-databind-2.14.2.jar
      This is currently disputed.
@@ -36,7 +36,7 @@
     <packageUrl regex="true">^pkg:maven/com\.fasterxml\.jackson\.core/jackson\-databind@.*$</packageUrl>
     <cve>CVE-2023-35116</cve>
   </suppress>
-  <suppress until="2023-10-31Z">
+  <suppress until="2023-11-30Z">
     <notes><![CDATA[
    file name: netty-handler-4.1.94.Final.jar
    ]]></notes>
