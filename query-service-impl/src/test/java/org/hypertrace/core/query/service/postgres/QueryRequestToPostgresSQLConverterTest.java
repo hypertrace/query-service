@@ -2,12 +2,17 @@ package org.hypertrace.core.query.service.postgres;
 
 import static java.util.Objects.requireNonNull;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createAliasedFunctionExpression;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createBooleanInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createColumnExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createComplexAttributeExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createCountByColumnSelection;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createDoubleInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createEqualsFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFloatNotInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createFunctionExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createInFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createIntNotInFilter;
+import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongInFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotEqualsFilter;
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createNotInFilter;
@@ -1283,6 +1288,93 @@ class QueryRequestToPostgresSQLConverterTest {
             + "' "
             + "and ( start_time_millis > 1570658506605 and end_time_millis < 1570744906673 )"
             + " group by span_id limit 15",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithIntArrayFilter() {
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        buildSimpleQueryWithFilter(
+            createIntNotInFilter("Span.metrics.duration_millis", List.of(123))),
+        "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND duration_millis NOT IN (123)",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithLongArrayFilter() {
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        buildSimpleQueryWithFilter(
+            createLongInFilter("Span.metrics.duration_millis", List.of(10L, 20L, 30L))),
+        "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND duration_millis IN (10, 20, 30)",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithFloatArrayFilter() {
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        buildSimpleQueryWithFilter(createFloatNotInFilter("Span.user_latitude", List.of(12.971f))),
+        "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND user_latitude NOT IN (12.971)",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWithDoubleArrayFilter() {
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        buildSimpleQueryWithFilter(createDoubleInFilter("Span.user_longitude", List.of(10.87654))),
+        "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND user_longitude IN (10.87654)",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
+  public void testQueryWitBooleanArrayFilter() {
+    TableDefinition tableDefinition = getDefaultTableDefinition();
+    defaultMockingForExecutionContext();
+
+    assertSQLQuery(
+        buildSimpleQueryWithFilter(createBooleanInFilter("Span.displaySpanName", List.of(true))),
+        "Select encode(span_id, 'hex') FROM public.\"span-event-view\" WHERE "
+            + tableDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND span_name IN ('true')",
         tableDefinition,
         executionContext);
   }

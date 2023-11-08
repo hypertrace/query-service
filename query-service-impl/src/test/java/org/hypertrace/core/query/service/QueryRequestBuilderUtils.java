@@ -124,6 +124,22 @@ public class QueryRequestBuilderUtils {
     return createFilter(column, Operator.IN, createBooleanArrayLiteralValueExpression(values));
   }
 
+  public static Filter createLongInFilter(String column, List<Long> values) {
+    return createFilter(column, Operator.IN, createLongArrayLiteralValueExpression(values));
+  }
+
+  public static Filter createIntNotInFilter(String column, List<Integer> values) {
+    return createFilter(column, Operator.NOT_IN, createIntArrayLiteralValueExpression(values));
+  }
+
+  public static Filter createFloatNotInFilter(String column, List<Float> values) {
+    return createFilter(column, Operator.NOT_IN, createFloatArrayLiteralValueExpression(values));
+  }
+
+  public static Filter createDoubleInFilter(String column, List<Double> values) {
+    return createFilter(column, Operator.IN, createDoubleArrayLiteralValueExpression(values));
+  }
+
   public static Filter createNotInFilter(String column, List<String> values) {
     return createFilter(column, Operator.NOT_IN, createStringArrayLiteralValueExpression(values));
   }
@@ -228,6 +244,15 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
+  public static Expression createLongArrayLiteralValueExpression(List<Long> values) {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder().addAllLongArray(values).setValueType(ValueType.LONG_ARRAY)))
+        .build();
+  }
+
   public static Expression createTimestampLiteralValueExpression(long value) {
     return Expression.newBuilder()
         .setLiteral(
@@ -244,11 +269,33 @@ public class QueryRequestBuilderUtils {
         .build();
   }
 
+  public static Expression createDoubleArrayLiteralValueExpression(List<Double> values) {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder()
+                        .addAllDoubleArray(values)
+                        .setValueType(ValueType.DOUBLE_ARRAY)))
+        .build();
+  }
+
   public static Expression createFloatLiteralValueExpression(float value) {
     return Expression.newBuilder()
         .setLiteral(
             LiteralConstant.newBuilder()
                 .setValue(Value.newBuilder().setFloat(value).setValueType(ValueType.FLOAT)))
+        .build();
+  }
+
+  public static Expression createFloatArrayLiteralValueExpression(List<Float> values) {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder()
+                        .addAllFloatArray(values)
+                        .setValueType(ValueType.FLOAT_ARRAY)))
         .build();
   }
 
@@ -265,6 +312,15 @@ public class QueryRequestBuilderUtils {
         .setLiteral(
             LiteralConstant.newBuilder()
                 .setValue(Value.newBuilder().setInt(value).setValueType(ValueType.INT)))
+        .build();
+  }
+
+  public static Expression createIntArrayLiteralValueExpression(List<Integer> values) {
+    return Expression.newBuilder()
+        .setLiteral(
+            LiteralConstant.newBuilder()
+                .setValue(
+                    Value.newBuilder().addAllIntArray(values).setValueType(ValueType.INT_ARRAY)))
         .build();
   }
 
