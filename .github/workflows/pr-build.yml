@@ -33,7 +33,7 @@ jobs:
           args: build dockerBuildImages
 
       - name: Run Trivy vulnerability scanner for query service
-        uses: hypertrace/github-actions/trivy-image-scan@main
+        uses: ./local-actions/trivy-image-scan@main
         with:
           image: hypertrace/query-service
           output-mode: github

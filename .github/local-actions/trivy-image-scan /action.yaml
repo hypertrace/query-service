@@ -1,0 +1,110 @@
+name: Trivy Image Scan
+description: 'Trivy Image Scan'
+inputs:
+  image:
+    description: 'image name'
+    required: true
+  tag:
+    description: 'image tag'
+    required: false
+  ignore-unfixed:
+    description: 'ignore unfixed vulnerabilities'
+    required: true
+    default: 'false'
+  vuln-type:
+    description: 'comma-separated list of vulnerability types (os,library)'
+    required: true
+    default: 'os,library'
+  severity:
+    description: 'severities of vulnerabilities to be displayed'
+    required: true
+    default: 'HIGH,CRITICAL'
+  timeout:
+    description: 'timeout (default 5m0s)'
+    required: true
+    default: '5m0s'
+  trivyignores:
+    description: 'comma-separated list of relative paths in repository to one or more .trivyignore files'
+    required: true
+    default: '.trivyignore'
+  output-mode:
+    description: 'Upload to github security via sarif format (github), or output to a file named "trivy.json" (json), or log pretty print output (log)'
+    required: true
+    default: 'log'
+  category:
+    description: String used by Code Scanning for matching the analyses
+    required: false
+    default: ''
+runs:
+  using: "composite"
+  steps:
+    - uses: gradle/gradle-build-action@v2
+      if: ${{ inputs.tag == '' }}
+
+    - name: Determine container tag
+      id: tag
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.tag }}" ]; then
+          echo "TRIVY_IMAGE_TAG=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+        else
+          echo "TRIVY_IMAGE_TAG=$(./gradlew -q printDockerImageDefaultTag | head -1)" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Set up output values
+      id: output
+      shell: bash
+      run: |
+        TRIVY_FORMAT=""
+        TRIVY_OUTPUT=""
+        if [ "${{ inputs.output-mode }}" = "github" ]; then
+          TRIVY_FORMAT="sarif"
+          TRIVY_OUTPUT="''trivy-results.sarif''"
+        elif [ "${{ inputs.output-mode }}" = "json" ]; then
+          TRIVY_FORMAT="json"
+          TRIVY_OUTPUT="trivy-results.json"
+        elif [ "${{ inputs.output-mode }}" = "log" ]; then
+          TRIVY_FORMAT="table"
+        fi
+        if [ "${{ github.event_name }}" = "pull_request" -a "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          TRIVY_FORMAT="table"
+          TRIVY_OUTPUT=""
+        fi
+        echo "TRIVY_FORMAT=$TRIVY_FORMAT" >> $GITHUB_OUTPUT
+        echo "TRIVY_OUTPUT=$TRIVY_OUTPUT" >> $GITHUB_OUTPUT
+
+    - name: Default ignore file if not exist
+      if: ${{ inputs.trivyignores == '.trivyignore' }}  # If a non-default ignore is passed, then we can assume it exists
+      shell: bash
+      run: |
+        touch .trivyignore
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        trivyignores: ${{ inputs.trivyignores }}
+        image-ref: ${{ inputs.image }}:${{ steps.tag.outputs.TRIVY_IMAGE_TAG }}
+        format: ${{ steps.output.outputs.TRIVY_FORMAT }}
+        output: ${{ steps.output.outputs.TRIVY_OUTPUT }}
+        vuln-type: ${{ inputs.vuln-type }}
+        severity: ${{ inputs.severity }}
+        ignore-unfixed: ${{ inputs.ignore-unfixed }}
+        timeout: ${{ inputs.timeout }}
+        exit-code: '1'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: ${{ (success() || failure()) && inputs.output-mode == 'github' && inputs.category == '' }}
+      with:
+        sarif_file: ${{ steps.output.outputs.TRIVY_OUTPUT }}
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: ${{ (success() || failure()) && inputs.output-mode == 'github' && inputs.category != '' }}
+      with:
+        sarif_file: ${{ steps.output.outputs.TRIVY_OUTPUT }}
+        category: ${{ inputs.category }}
+    
+    - name: Print Output
+      shell: bash
+      run: cat trivy-results.sarif
