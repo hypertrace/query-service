@@ -33,7 +33,7 @@ public class QueryServiceConfigTest {
     assertEquals("query-service", appConfig.getString("service.name"));
     assertEquals(8091, appConfig.getInt("service.admin.port"));
     assertEquals(8090, appConfig.getInt("service.port"));
-    assertEquals(10, queryServiceConfig.getQueryRequestHandlersConfigs().size());
+    assertEquals(11, queryServiceConfig.getQueryRequestHandlersConfigs().size());
     assertEquals(3, queryServiceConfig.getRequestHandlerClientConfigs().size());
 
     RequestHandlerConfig handler0 = queryServiceConfig.getQueryRequestHandlersConfigs().get(0);

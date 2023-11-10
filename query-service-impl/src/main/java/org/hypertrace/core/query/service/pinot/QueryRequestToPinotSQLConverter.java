@@ -136,10 +136,16 @@ class QueryRequestToPinotSQLConverter {
       String delim = "";
       builder.append("( ");
       for (Filter childFilter : filter.getChildFilterList()) {
-        builder.append(delim);
-        builder.append(convertFilterToString(childFilter, paramsBuilder, executionContext));
-        builder.append(" ");
-        delim = operator + " ";
+        // child filter should either have further child filters or should have LHS and RHS
+        // only then child filter is converted to string
+        // this check avoids converting empty filters to string
+        if (!childFilter.getChildFilterList().isEmpty()
+            || (childFilter.hasLhs() && childFilter.hasRhs())) {
+          builder.append(delim);
+          builder.append(convertFilterToString(childFilter, paramsBuilder, executionContext));
+          builder.append(" ");
+          delim = operator + " ";
+        }
       }
       builder.append(")");
     } else {

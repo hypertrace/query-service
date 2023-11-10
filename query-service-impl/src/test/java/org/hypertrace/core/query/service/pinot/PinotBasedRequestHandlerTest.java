@@ -12,6 +12,7 @@ import static org.mockito.internal.util.collections.Iterables.firstOf;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.GeneratedMessageV3;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import io.reactivex.rxjava3.core.Observable;
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
+import org.hypertrace.core.query.service.AbstractServiceTest;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
@@ -44,7 +46,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-public class PinotBasedRequestHandlerTest {
+public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryRequest> {
   // Test subject
   private PinotBasedRequestHandler pinotBasedRequestHandler;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -1734,6 +1736,68 @@ public class PinotBasedRequestHandlerTest {
     }
   }
 
+  @Test
+  public void testEmptyChildFilterCase() throws IOException {
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
+      if (!config.getString("name").equals("domain-service-handler")) {
+        continue;
+      }
+
+      // Mock the PinotClient
+      PinotClient pinotClient = mock(PinotClient.class);
+      PinotClientFactory factory = mock(PinotClientFactory.class);
+      when(factory.getPinotClient(any())).thenReturn(pinotClient);
+
+      String[][] resultTable = new String[][] {{"5"}};
+      List<String> columnNames = List.of("domain_id");
+      ResultSet resultSet = mockResultSet(1, 1, columnNames, resultTable);
+      ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return true;
+                }
+
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+              },
+              factory);
+
+      QueryRequest request = readQueryServiceRequest("request-with-empty-filter");
+      ExecutionContext context = new ExecutionContext("__default", request);
+      QueryCost cost = handler.canHandle(request, context);
+      Assertions.assertTrue(cost.getCost() > 0.0d && cost.getCost() < 1d);
+
+      // empty child filter should be ignored
+      String expectedQuery =
+          "Select DISTINCTCOUNTHLL(domain_id) FROM domainEventSpanView WHERE customer_id = ?"
+              + " AND ( domain_id != ? AND ( start_time_millis >= ? AND start_time_millis < ? )"
+              + " AND ( ( environment IN (?) ) ) ) limit 1";
+      Params params =
+          Params.newBuilder()
+              .addStringParam("__default")
+              .addStringParam("null")
+              .addLongParam(1658818870181L)
+              .addLongParam(1658905270181L)
+              .addStringParam("ui-data-validation")
+              .build();
+      when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
+
+      verifyResponseRows(handler.handleRequest(request, context), resultTable);
+    }
+  }
+
   @ParameterizedTest
   @MethodSource("provideHandlerValue")
   public void testGetTimeFilterColumn(int index, String expectedValue) {
@@ -1815,5 +1879,15 @@ public class PinotBasedRequestHandlerTest {
 
   private boolean isPinotConfig(Config config) {
     return config.getString("type").equals("pinot");
+  }
+
+  @Override
+  protected String getTestSuiteName() {
+    return "query";
+  }
+
+  @Override
+  protected GeneratedMessageV3.Builder getQueryServiceRequestBuilder() {
+    return QueryRequest.newBuilder();
   }
 }
