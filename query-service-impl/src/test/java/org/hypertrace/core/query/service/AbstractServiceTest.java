@@ -15,10 +15,7 @@ public abstract class AbstractServiceTest<TQueryServiceRequestType extends Gener
   private static final String QUERY_SERVICE_TEST_REQUESTS_DIR = "test-requests";
 
   protected TQueryServiceRequestType readQueryServiceRequest(String fileName) {
-    String resourceFileName =
-        createResourceFileName(
-            QUERY_SERVICE_TEST_REQUESTS_DIR,
-            fileName);
+    String resourceFileName = createResourceFileName(QUERY_SERVICE_TEST_REQUESTS_DIR, fileName);
     String requestJsonStr = readResourceFileAsString(resourceFileName);
 
     GeneratedMessageV3.Builder requestBuilder = getQueryServiceRequestBuilder();
