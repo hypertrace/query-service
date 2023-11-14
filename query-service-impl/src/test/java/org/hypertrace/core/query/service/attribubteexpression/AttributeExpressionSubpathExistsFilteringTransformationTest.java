@@ -8,6 +8,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createO
 import static org.hypertrace.core.query.service.QueryRequestUtil.createContainsKeyFilter;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLiteralValueExpression;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -75,6 +76,55 @@ class AttributeExpressionSubpathExistsFilteringTransformationTest {
             .build();
 
     Filter.Builder filter = createCompositeFilter(Operator.AND, childFilter1, childFilter2);
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
+
+    QueryRequest expectedTransform =
+        this.transformation.transform(originalRequest, mockTransformationContext).blockingGet();
+    List<Filter> childFilterList = expectedTransform.getFilter().getChildFilterList();
+
+    assertTrue(
+        childFilterList
+            .get(0)
+            .getChildFilterList()
+            .contains(createContainsKeyFilter(spanTags1.getAttributeExpression())));
+    assertTrue(
+        childFilterList
+            .get(1)
+            .getChildFilterList()
+            .contains(createContainsKeyFilter(spanTags2.getAttributeExpression())));
+  }
+
+  @Test
+  void transQueryWithEmptyFilter() {
+    Filter emptyFilter = Filter.getDefaultInstance();
+    QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(emptyFilter).build();
+
+    QueryRequest expectedTransform =
+        this.transformation.transform(originalRequest, mockTransformationContext).blockingGet();
+    assertFalse(expectedTransform.hasFilter());
+  }
+
+  @Test
+  void transQueryWithComplexAttributeExpression_EmptyFilter() {
+    Expression spanTags1 = createComplexAttributeExpression("Span.tags", "FLAGS").build();
+    Expression spanTags2 = createComplexAttributeExpression("Span.tags", "span.kind").build();
+
+    Filter childFilter1 =
+        Filter.newBuilder()
+            .setLhs(spanTags1)
+            .setOperator(Operator.EQ)
+            .setRhs(createStringLiteralValueExpression("0"))
+            .build();
+    Filter childFilter2 =
+        Filter.newBuilder()
+            .setLhs(spanTags2)
+            .setOperator(Operator.EQ)
+            .setRhs(createStringLiteralValueExpression("server"))
+            .build();
+    Filter emptyFilter = Filter.getDefaultInstance();
+
+    Filter.Builder filter =
+        createCompositeFilter(Operator.AND, childFilter1, childFilter2, emptyFilter);
     QueryRequest originalRequest = QueryRequest.newBuilder().setFilter(filter).build();
 
     QueryRequest expectedTransform =

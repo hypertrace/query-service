@@ -1,0 +1,84 @@
+{
+  "filter": {
+    "childFilter": [{
+      "lhs": {
+        "attributeExpression": {
+          "attributeId": "DOMAIN.id"
+        }
+      },
+      "operator": "NEQ",
+      "rhs": {
+        "literal": {
+          "value": {
+            "valueType": "NULL_STRING"
+          }
+        }
+      }
+    }, {
+      "childFilter": [{
+        "lhs": {
+          "attributeExpression": {
+            "attributeId": "EVENT.startTime",
+            "alias": "DOMAIN.startTime"
+          }
+        },
+        "operator": "GE",
+        "rhs": {
+          "literal": {
+            "value": {
+              "valueType": "LONG",
+              "long": "1658818870181"
+            }
+          }
+        }
+      }, {
+        "lhs": {
+          "attributeExpression": {
+            "attributeId": "EVENT.startTime",
+            "alias": "DOMAIN.startTime"
+          }
+        },
+        "operator": "LT",
+        "rhs": {
+          "literal": {
+            "value": {
+              "valueType": "LONG",
+              "long": "1658905270181"
+            }
+          }
+        }
+      }]
+    }, {
+      "childFilter": [{}, {
+        "childFilter": [{
+          "lhs": {
+            "attributeExpression": {
+              "attributeId": "EVENT.environment",
+              "alias": "environment"
+            }
+          },
+          "operator": "IN",
+          "rhs": {
+            "literal": {
+              "value": {
+                "valueType": "STRING_ARRAY",
+                "stringArray": ["ui-data-validation"]
+              }
+            }
+          }
+        }]
+      }]
+    }]
+  },
+  "selection": [{
+    "function": {
+      "functionName": "DISTINCTCOUNT",
+      "arguments": [{
+        "attributeExpression": {
+          "attributeId": "DOMAIN.id"
+        }
+      }]
+    }
+  }],
+  "limit": 1
+}
