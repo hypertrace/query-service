@@ -122,6 +122,7 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
 
     Single<Expression> lhsSingle = this.transformExpression(filter.getLhs());
     Single<Expression> rhsSingle = this.transformExpression(filter.getRhs());
+    // remove defaults from child filters
     Single<List<Filter>> childFilterListSingle =
         Observable.fromIterable(filter.getChildFilterList())
             .concatMapSingle(this::transformFilterInternal)
@@ -133,7 +134,7 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
         rhsSingle,
         childFilterListSingle,
         (lhs, rhs, childFilterList) ->
-            this.rebuildFilterOmittingDefaultAndInvalidFilter(filter, lhs, rhs, childFilterList));
+            this.rebuildFilterOmittingDefaults(filter, lhs, rhs, childFilterList));
   }
 
   private Single<List<Expression>> transformExpressionList(List<Expression> expressionList) {
@@ -151,7 +152,7 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
    * This doesn't change any functional behavior, but omits fields that aren't needed, shrinking the
    * object and keeping it equivalent to the source object for equality checks.
    */
-  private Optional<Filter> rebuildFilterOmittingDefaultAndInvalidFilter(
+  private Optional<Filter> rebuildFilterOmittingDefaults(
       Filter original, Expression lhs, Expression rhs, List<Filter> childFilters) {
     Filter.Builder builder = original.toBuilder();
 
@@ -167,15 +168,7 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
       builder.setRhs(rhs);
     }
 
-    Filter transformedFilter = builder.clearChildFilter().addAllChildFilter(childFilters).build();
-    // filter should either have child filters or have a valid lhs and rhs
-    // only valid filters are considered and other invalid filters are ignored
-    if (!transformedFilter.getChildFilterList().isEmpty()
-        || (transformedFilter.hasLhs() && transformedFilter.hasRhs())) {
-      return Optional.of(transformedFilter);
-    } else {
-      return Optional.empty();
-    }
+    return Optional.of(builder.clearChildFilter().addAllChildFilter(childFilters).build());
   }
 
   private void debugLogIfRequestTransformed(QueryRequest original, QueryRequest transformed) {
