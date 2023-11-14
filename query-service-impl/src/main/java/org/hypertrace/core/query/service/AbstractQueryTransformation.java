@@ -5,6 +5,7 @@ import static io.reactivex.rxjava3.core.Single.zip;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 import java.util.List;
+import java.util.Optional;
 import org.hypertrace.core.query.service.api.AttributeExpression;
 import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
@@ -110,22 +111,29 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
   }
 
   protected Single<Filter> transformFilter(Filter filter) {
+    return transformFilterInternal(filter)
+        .map(filterOptional -> filterOptional.orElseGet(Filter::getDefaultInstance));
+  }
+
+  private Single<Optional<Filter>> transformFilterInternal(Filter filter) {
     if (filter.equals(Filter.getDefaultInstance())) {
-      return Single.just(filter);
+      return Single.just(Optional.empty());
     }
 
     Single<Expression> lhsSingle = this.transformExpression(filter.getLhs());
     Single<Expression> rhsSingle = this.transformExpression(filter.getRhs());
     Single<List<Filter>> childFilterListSingle =
         Observable.fromIterable(filter.getChildFilterList())
-            .concatMapSingle(this::transformFilter)
+            .concatMapSingle(this::transformFilterInternal)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
             .toList();
     return zip(
         lhsSingle,
         rhsSingle,
         childFilterListSingle,
         (lhs, rhs, childFilterList) ->
-            this.rebuildFilterOmittingDefaults(filter, lhs, rhs, childFilterList));
+            this.rebuildFilterOmittingDefaultAndInvalidFilter(filter, lhs, rhs, childFilterList));
   }
 
   private Single<List<Expression>> transformExpressionList(List<Expression> expressionList) {
@@ -143,7 +151,7 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
    * This doesn't change any functional behavior, but omits fields that aren't needed, shrinking the
    * object and keeping it equivalent to the source object for equality checks.
    */
-  private Filter rebuildFilterOmittingDefaults(
+  private Optional<Filter> rebuildFilterOmittingDefaultAndInvalidFilter(
       Filter original, Expression lhs, Expression rhs, List<Filter> childFilters) {
     Filter.Builder builder = original.toBuilder();
 
@@ -159,7 +167,15 @@ public abstract class AbstractQueryTransformation implements QueryTransformation
       builder.setRhs(rhs);
     }
 
-    return builder.clearChildFilter().addAllChildFilter(childFilters).build();
+    Filter transformedFilter = builder.clearChildFilter().addAllChildFilter(childFilters).build();
+    // filter should either have child filters or have a valid lhs and rhs
+    // only valid filters are considered and other invalid filters are ignored
+    if (!transformedFilter.getChildFilterList().isEmpty()
+        || (transformedFilter.hasLhs() && transformedFilter.hasRhs())) {
+      return Optional.of(transformedFilter);
+    } else {
+      return Optional.empty();
+    }
   }
 
   private void debugLogIfRequestTransformed(QueryRequest original, QueryRequest transformed) {

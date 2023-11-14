@@ -25,11 +25,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
+import org.hypertrace.core.query.service.AbstractQueryTransformation;
 import org.hypertrace.core.query.service.AbstractServiceTest;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.QueryRequestUtil;
+import org.hypertrace.core.query.service.QueryTransformation.QueryTransformationContext;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -45,8 +47,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryRequest> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PinotBasedRequestHandlerTest.class);
   // Test subject
   private PinotBasedRequestHandler pinotBasedRequestHandler;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -1775,8 +1780,18 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
               factory);
 
       QueryRequest request = readQueryServiceRequest("request-with-empty-filter");
-      ExecutionContext context = new ExecutionContext("__default", request);
-      QueryCost cost = handler.canHandle(request, context);
+      AbstractQueryTransformation transformation =
+          new AbstractQueryTransformation() {
+            @Override
+            protected Logger getLogger() {
+              return LOGGER;
+            }
+          };
+      QueryTransformationContext mockTransformationContext = mock(QueryTransformationContext.class);
+      QueryRequest transformedRequest =
+          transformation.transform(request, mockTransformationContext).blockingGet();
+      ExecutionContext context = new ExecutionContext("__default", transformedRequest);
+      QueryCost cost = handler.canHandle(transformedRequest, context);
       Assertions.assertTrue(cost.getCost() > 0.0d && cost.getCost() < 1d);
 
       // empty child filter should be ignored
@@ -1794,7 +1809,7 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
               .build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
-      verifyResponseRows(handler.handleRequest(request, context), resultTable);
+      verifyResponseRows(handler.handleRequest(transformedRequest, context), resultTable);
     }
   }
 
