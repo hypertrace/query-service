@@ -525,9 +525,7 @@ public class QueryRequestToPinotSQLConverterTest {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.displaySpanName"));
 
-    Filter filter =
-        createInFilter(
-            "Span.displaySpanName", List.of());
+    Filter filter = createInFilter("Span.displaySpanName", List.of());
     builder.setFilter(filter);
 
     ViewDefinition viewDefinition = getDefaultViewDefinition();
