@@ -521,6 +521,31 @@ public class QueryRequestToPinotSQLConverterTest {
   }
 
   @Test
+  public void testSQLiWithStringDefaultArrayFilter() {
+    Builder builder = QueryRequest.newBuilder();
+    builder.addSelection(createColumnExpression("Span.displaySpanName"));
+
+    Filter filter =
+        createInFilter(
+            "Span.displaySpanName", List.of());
+    builder.setFilter(filter);
+
+    ViewDefinition viewDefinition = getDefaultViewDefinition();
+    defaultMockingForExecutionContext();
+
+    assertPQLQuery(
+        builder.build(),
+        "SELECT span_name FROM SpanEventView WHERE "
+            + viewDefinition.getTenantIdColumn()
+            + " = '"
+            + TENANT_ID
+            + "' "
+            + "AND span_name IN ('null')",
+        viewDefinition,
+        executionContext);
+  }
+
+  @Test
   public void testSQLiWithBooleanArrayFilter() {
     Builder builder = QueryRequest.newBuilder();
     builder.addSelection(createColumnExpression("Span.displaySpanName"));
