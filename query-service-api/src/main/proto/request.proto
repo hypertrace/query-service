@@ -17,6 +17,45 @@ message Expression {
     AttributeExpression attribute_expression = 5;
   }
 }
+
+message SubmitAsyncQueryRequest {
+  // TODO: verify if all fields of QueryRequest are applicable
+  QueryRequest query_request = 1;
+}
+
+message SubmitAsyncQueryGroupRequest {
+  // TODO: verify if all fields of QueryRequest are applicable
+  QueryRequest query_request = 1;
+  // If multiple async queries are a part of same group, UI can fire each async
+  // query separately. In this case, each request needs to contain group details
+  AsyncQueryGroupDetails group = 2;
+}
+
+message AsyncQueryGroupDetails {
+  // UUID created by UI
+  string group_id = 1;
+  // unique name for each query within group
+  string query_name = 2;
+}
+
+message GetAsyncQueriesRequest {
+  // Note that these filters are different than filters within QueryRequest.
+  // These are filters for async queries listing
+  // TODO: do we need to define a different filter message?
+  Filter filter = 1;
+}
+
+message GetAsyncQueryResultRequest {
+  string async_query_id = 1;
+}
+
+message GetAsyncQueryGroupResultRequest {
+  string async_query_id = 1;
+  // In case of group query, UI can ask for results of multiple queries that
+  // belong to the group (referenced by query_name within group)
+  repeated string query_names = 2;
+}
+
 message QueryRequest {
 
   repeated string source = 1;
