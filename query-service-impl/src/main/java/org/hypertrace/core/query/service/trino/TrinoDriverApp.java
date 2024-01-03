@@ -19,10 +19,21 @@ public class TrinoDriverApp {
     Connection connection = DriverManager.getConnection(url, properties);
     Statement statement = connection.createStatement();
 
+    createView(statement);
+    refreshView(statement);
+
+    // fetch results twice from view
+    getResult(statement);
+    getResult(statement);
+
+    dropView(statement);
+  }
+
+  private static void createView(Statement statement) throws SQLException {
     long startTimeMillis = System.currentTimeMillis();
     int updateCount =
         statement.executeUpdate(
-            "CREATE MATERIALIZED VIEW IF NOT EXISTS per_api_span_count AS "
+            "CREATE MATERIALIZED VIEW IF NOT EXISTS per_api_span_count2 AS "
                 + "Select api_id, count(*) as count "
                 + "from span_event_view "
                 + "where customer_id = '3e761879-c77b-4d8f-a075-62ff28e8fa8a' "
@@ -30,23 +41,28 @@ public class TrinoDriverApp {
                 + "and regexp_like(request_body, '.*id.*') and regexp_like(response_body, '.*id.*') "
                 + "group by api_id order by count DESC limit 1000");
     long endTimeMillis = System.currentTimeMillis();
-    System.out.printf("updateCount: %d time: %d\n", updateCount, (endTimeMillis - startTimeMillis)/1000);
-
-    startTimeMillis = System.currentTimeMillis();
-    int updateCount1 =
-        statement.executeUpdate("REFRESH MATERIALIZED VIEW per_api_span_count");
-    endTimeMillis = System.currentTimeMillis();
-    System.out.printf("updateCount1: %d time: %d\n", updateCount1, (endTimeMillis - startTimeMillis)/1000);
-
-    // fetch results twice from view
-    getResult(statement);
-    getResult(statement);
+    System.out.printf("createView updateCount: %d time: %d\n", updateCount, (endTimeMillis - startTimeMillis)/1000);
   }
 
+  private static void refreshView(Statement statement) throws SQLException {
+    long startTimeMillis = System.currentTimeMillis();
+    int updateCount =
+        statement.executeUpdate("REFRESH MATERIALIZED VIEW per_api_span_count2");
+    long endTimeMillis = System.currentTimeMillis();
+    System.out.printf("refreshView updateCount: %d time: %d\n", updateCount, (endTimeMillis - startTimeMillis)/1000);
+  }
+
+  private static void dropView(Statement statement) throws SQLException {
+    long startTimeMillis = System.currentTimeMillis();
+    int updateCount =
+        statement.executeUpdate("DROP MATERIALIZED VIEW IF EXISTS per_api_span_count1");
+    long endTimeMillis = System.currentTimeMillis();
+    System.out.printf("dropView updateCount: %d time: %d\n", updateCount, (endTimeMillis - startTimeMillis)/1000);
+  }
   private static void getResult(Statement statement) throws SQLException {
     long startTimeMillis = System.currentTimeMillis();
     ResultSet resultSet =
-        statement.executeQuery("Select api_id, count from per_api_span_count limit 10");
+        statement.executeQuery("Select api_id, count from per_api_span_count2 limit 10");
     long endTimeMillis = System.currentTimeMillis();
 
     String api_id, api_name, service_name, service_id = null;
