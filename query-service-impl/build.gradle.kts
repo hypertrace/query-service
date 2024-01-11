@@ -72,6 +72,7 @@ dependencies {
   implementation("com.squareup.okhttp3:okhttp:4.11.0")
   implementation("org.postgresql:postgresql:42.4.3")
   implementation("io.trino:trino-jdbc:423")
+  implementation("io.trino:trino-client:423")
 
   annotationProcessor("org.projectlombok:lombok:1.18.20")
   compileOnly("org.projectlombok:lombok:1.18.20")
