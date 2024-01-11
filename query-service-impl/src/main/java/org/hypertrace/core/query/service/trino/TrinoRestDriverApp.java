@@ -1,5 +1,6 @@
 package org.hypertrace.core.query.service.trino;
 
+import static com.google.common.net.HttpHeaders.USER_AGENT;
 import static io.trino.client.JsonCodec.jsonCodec;
 import static io.trino.client.StatementClientFactory.newStatementClient;
 
@@ -88,7 +89,7 @@ public class TrinoRestDriverApp {
 
     long startTimeMillis = System.currentTimeMillis();
     int updateCount =
-        statement.executeUpdate("DROP MATERIALIZED VIEW IF EXISTS span_count_112");
+        statement.executeUpdate("DROP MATERIALIZED VIEW IF EXISTS span_count_100");
     long endTimeMillis = System.currentTimeMillis();
     System.out.printf("dropView updateCount: %d time: %d\n", updateCount, (endTimeMillis - startTimeMillis)/1000);
   }
@@ -112,16 +113,28 @@ public class TrinoRestDriverApp {
   }
 
   private static void useJsonResponse() {
+    // first post the query
     OkHttpClient httpClient = new OkHttpClient();
     JsonCodec<QueryResults> QUERY_RESULTS_CODEC = jsonCodec(QueryResults.class);
-    Request request = buildPostQueryRequest(
-        "http://localhost:8080/v1/statement",
-        "select count(*) from span_event_view limit 5");
+    String viewSql = "CREATE MATERIALIZED VIEW IF NOT EXISTS span_count_100 AS "
+        + "select count(*) as count from span_event_view limit 1";
+    Request request = buildPostQueryRequest("http://localhost:8080/v1/statement", viewSql);
     JsonResponse<QueryResults> response =
         JsonResponse.execute(QUERY_RESULTS_CODEC, (Call.Factory) httpClient, request, OptionalLong.empty());
     System.out.println("response status code: " + response.getStatusCode());
     System.out.println("response contains value: " + response.hasValue());
     System.out.println("query results: " + response.getValue());
+    URI nextUri = response.getValue().getNextUri();
+
+    // now call advance. Observed that query just get stucks forever since there is no while-loop
+    // at client side to complete the query execution.
+    OkHttpClient httpClient1 = new OkHttpClient();
+    Request nextRequest = buildNextUrlRequest(nextUri);
+    JsonResponse<QueryResults> response1 =
+        JsonResponse.execute(QUERY_RESULTS_CODEC, (Call.Factory) httpClient1, nextRequest, OptionalLong.empty());
+    System.out.println("next response status code: " + response1.getStatusCode());
+    System.out.println("next response contains value: " + response1.hasValue());
+    System.out.println("next query results: " + response1.getValue());
   }
   private static ClientSession buildClientSession() throws URISyntaxException {
     return ClientSession.builder()
@@ -144,6 +157,14 @@ public class TrinoRestDriverApp {
         .addHeader("X-Trino-Catalog", "iceberg")
         .addHeader("X-Trino-Schema", "iceberg_gcs")
         .addHeader("User-Agent", "trino-cli")
+        .build();
+  }
+
+  private static Request buildNextUrlRequest(URI nextUri) {
+    return new Request.Builder()
+        .addHeader(USER_AGENT, "trino-cli")
+        .url(HttpUrl.get(nextUri))
+        .addHeader("X-Trino-User", "admin")
         .build();
   }
 }
