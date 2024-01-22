@@ -16,9 +16,6 @@ dependencies {
           "in org.jetbrains.kotlin:kotlin-stdlib@1.4.10",
       )
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2") {
-      because("Multiple vulnerabilities")
-    }
     implementation("org.apache.calcite:calcite-core:1.34.0") {
       because("CVE-2022-39135")
     }
@@ -57,12 +54,15 @@ dependencies {
     implementation("org.apache.zookeeper:zookeeper:3.7.2") {
       because("CVE-2023-44981")
     }
+    implementation("com.jayway.jsonpath:json-path:2.9.0") {
+      because("CVE-2023-51074")
+    }
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
-  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.12.6")
-  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.12.6")
-  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.12.6")
+  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.13.1")
+  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.13.1")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.13.1")
   implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.14.26")
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.14.26")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.14.26")
@@ -74,7 +74,7 @@ dependencies {
   }
   implementation("org.slf4j:slf4j-api:1.7.32")
   implementation("commons-codec:commons-codec:1.15")
-  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.62")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.64")
   implementation("com.google.protobuf:protobuf-java-util:3.22.0")
   implementation("com.google.guava:guava:32.1.2-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")

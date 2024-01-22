@@ -15,7 +15,7 @@ protobuf {
   }
   plugins {
     id("grpc") {
-      artifact = "io.grpc:protoc-gen-grpc-java:1.57.2"
+      artifact = "io.grpc:protoc-gen-grpc-java:1.60.0"
     }
   }
   generateProtoTasks {
@@ -41,15 +41,10 @@ tasks.test {
 }
 
 dependencies {
-  api(platform("io.grpc:grpc-bom:1.57.2"))
+  api(platform("io.grpc:grpc-bom:1.60.0"))
   api("io.grpc:grpc-protobuf")
   api("io.grpc:grpc-stub")
   api("javax.annotation:javax.annotation-api:1.3.2")
-  constraints {
-    implementation("com.google.guava:guava:32.1.2-jre") {
-      because("Multiple vulnerabilities")
-    }
-  }
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
   testImplementation("com.google.protobuf:protobuf-java-util:3.22.0")
