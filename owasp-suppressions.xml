@@ -9,6 +9,14 @@
     <cpe>cpe:/a:utils_project:utils</cpe>
   </suppress>
 
+  <suppress until="2024-01-31Z">
+    <notes><![CDATA[
+   file name: json-path-2.7.0.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/com\.jayway\.jsonpath/json\-path@.*$</packageUrl>
+    <vulnerabilityName>CVE-2023-51074</vulnerabilityName>
+  </suppress>
+
   <suppress>
     <notes><![CDATA[
     We need to get pinot to upgrade this dep, it's 16 years old. Upgrades fix this issue but have changed package/group names
