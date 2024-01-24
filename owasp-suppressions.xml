@@ -17,19 +17,9 @@
     <cve>CVE-2020-13956</cve>
   </suppress>
 
-  <suppress until="2024-01-31Z">
+  <suppress >
     <notes><![CDATA[
-   This CVE (rapid RST) is already mitigated as our servers aren't directly exposed, but it's also
-   addressed in 1.59.1, which the CVE doesn't reflect (not all grpc impls versions are exactly aligned).
-   Ref: https://github.com/grpc/grpc-java/pull/10675
-   ]]></notes>
-    <packageUrl regex="true">^pkg:maven/io\.grpc/grpc\-.*@.*$</packageUrl>
-    <cve>CVE-2023-44487</cve>
-  </suppress>
-
-  <suppress until="2024-01-30Z">
-    <notes><![CDATA[
-   file name: zookeeper-api-1.3.0.jar
+   Below CVEs impact zookeeper itself, rather than the zookeeper api
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.apache\.helix/zookeeper\-api@.*$</packageUrl>
     <cve>CVE-2016-5017</cve>
@@ -37,19 +27,11 @@
     <cve>CVE-2019-0201</cve>
     <cve>CVE-2023-44981</cve>
   </suppress>
-  <suppress until="2024-01-30Z">
+  <suppress>
     <notes><![CDATA[
-     file name: jackson-databind-2.14.2.jar
-     This is currently disputed.
-     ]]></notes>
-    <packageUrl regex="true">^pkg:maven/com\.fasterxml\.jackson\.core/jackson\-databind@.*$</packageUrl>
-    <cve>CVE-2023-35116</cve>
-  </suppress>
-  <suppress until="2024-01-30Z">
-    <notes><![CDATA[
-   file name: netty-handler-4.1.94.Final.jar
+    Fixed from 2.9.0 - awaiting vuln db update
    ]]></notes>
-    <packageUrl regex="true">^pkg:maven/io\.netty/netty.*@.*$</packageUrl>
-    <vulnerabilityName>CVE-2023-4586</vulnerabilityName>
+    <packageUrl regex="true">^pkg:maven/com\.jayway\.jsonpath/json\-path@2.9.0$</packageUrl>
+    <vulnerabilityName>CVE-2023-51074</vulnerabilityName>
   </suppress>
 </suppressions>
