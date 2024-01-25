@@ -8,7 +8,6 @@
     <cpe>cpe:/a:grpc:grpc</cpe>
     <cpe>cpe:/a:utils_project:utils</cpe>
   </suppress>
-
   <suppress>
     <notes><![CDATA[
     We need to get pinot to upgrade this dep, it's 16 years old. Upgrades fix this issue but have changed package/group names
