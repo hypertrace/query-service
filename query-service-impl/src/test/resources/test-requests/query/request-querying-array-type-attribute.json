@@ -6,8 +6,8 @@
           {
             "lhs": {
               "attributeExpression": {
-                "attributeId": "API_TRACE.sensitiveDataTypeIds",
-                "alias": "sensitiveDataTypeIds"
+                "attributeId": "API_TRACE.tags",
+                "alias": "tags"
               }
             },
             "operator": "IN",
@@ -25,15 +25,15 @@
           {
             "lhs": {
               "attributeExpression": {
-                "attributeId": "API_TRACE.userIdentifier",
-                "alias": "userIdentifier"
+                "attributeId": "API_TRACE.userId",
+                "alias": "userId"
               }
             },
             "operator": "EQ",
             "rhs": {
               "literal": {
                 "value": {
-                  "string": "10.8.2.37"
+                  "string": "test-user"
                 }
               }
             }

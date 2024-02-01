@@ -1178,10 +1178,10 @@ class QueryRequestToPostgresSQLConverterTest extends AbstractServiceTest<QueryRe
 
     assertSQLQuery(
         request,
-        "SELECT COUNT(*) FROM public.\"span-event-view\""
+        "SELECT COUNT(*) FROM public.\"api-trace-view\""
             + " WHERE customer_id = '3e761879-c77b-4d8f-a075-62ff28e8fa8a'"
-            + " AND ( ( sensitive_data_types && '{2e04ae77-790c-91c0-067e-3fd3d396e533}'"
-            + " AND user_identifier = '10.8.2.37' AND start_time_millis >= 1706689750034 "
+            + " AND ( ( tags && '{2e04ae77-790c-91c0-067e-3fd3d396e533}'"
+            + " AND user_id = 'test-user' AND start_time_millis >= 1706689750034 "
             + "AND end_time_millis <= 1706711350034 AND environment = 'test' )"
             + " AND ( api_boundary_type = 'ENTRY' AND api_id != 'null' ) )"
             + " GROUP BY dateTimeConvert(start_time_millis, 60000)"
