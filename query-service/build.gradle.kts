@@ -12,10 +12,10 @@ dependencies {
   implementation(project(":query-service-factory"))
   implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.13.1")
   implementation("org.hypertrace.core.serviceframework:platform-grpc-service-framework:0.1.64")
-  implementation("org.slf4j:slf4j-api:1.7.32")
+  implementation("org.slf4j:slf4j-api:2.0.11")
   implementation("com.typesafe:config:1.4.1")
 
-  runtimeOnly("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
+  runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.21.1")
   runtimeOnly("io.grpc:grpc-netty")
   integrationTestImplementation("com.google.protobuf:protobuf-java-util:3.22.0")
   integrationTestImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
