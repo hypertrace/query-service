@@ -1,0 +1,218 @@
+{
+  "filter": {
+    "childFilter": [
+      {
+        "childFilter": [
+          {
+            "lhs": {
+              "attributeExpression": {
+                "attributeId": "API_TRACE.sensitiveDataTypeIds",
+                "alias": "sensitiveDataTypeIds"
+              }
+            },
+            "operator": "IN",
+            "rhs": {
+              "literal": {
+                "value": {
+                  "valueType": "STRING_ARRAY",
+                  "stringArray": [
+                    "2e04ae77-790c-91c0-067e-3fd3d396e533"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "lhs": {
+              "attributeExpression": {
+                "attributeId": "API_TRACE.userIdentifier",
+                "alias": "userIdentifier"
+              }
+            },
+            "operator": "EQ",
+            "rhs": {
+              "literal": {
+                "value": {
+                  "string": "10.8.2.37"
+                }
+              }
+            }
+          },
+          {
+            "lhs": {
+              "attributeExpression": {
+                "attributeId": "EVENT.startTime",
+                "alias": "startTime"
+              }
+            },
+            "operator": "GE",
+            "rhs": {
+              "literal": {
+                "value": {
+                  "valueType": "LONG",
+                  "long": "1706689750034"
+                }
+              }
+            }
+          },
+          {
+            "lhs": {
+              "attributeExpression": {
+                "attributeId": "API_TRACE.endTime",
+                "alias": "endTime"
+              }
+            },
+            "operator": "LE",
+            "rhs": {
+              "literal": {
+                "value": {
+                  "valueType": "LONG",
+                  "long": "1706711350034"
+                }
+              }
+            }
+          },
+          {
+            "lhs": {
+              "attributeExpression": {
+                "attributeId": "EVENT.environment",
+                "alias": "environment"
+              }
+            },
+            "operator": "EQ",
+            "rhs": {
+              "literal": {
+                "value": {
+                  "string": "test"
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "childFilter": [
+          {
+            "lhs": {
+              "attributeExpression": {
+                "attributeId": "API_TRACE.apiBoundaryType"
+              }
+            },
+            "operator": "EQ",
+            "rhs": {
+              "literal": {
+                "value": {
+                  "string": "ENTRY"
+                }
+              }
+            }
+          },
+          {
+            "lhs": {
+              "attributeExpression": {
+                "attributeId": "API_TRACE.apiId"
+              }
+            },
+            "operator": "NEQ",
+            "rhs": {
+              "literal": {
+                "value": {
+                  "string": "null"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "selection": [
+    {
+      "function": {
+        "functionName": "COUNT",
+        "arguments": [
+          {
+            "attributeExpression": {
+              "attributeId": "API_TRACE.calls",
+              "alias": "calls"
+            }
+          }
+        ],
+        "alias": "COUNT_API_TRACE.calls_[]"
+      }
+    }
+  ],
+  "groupBy": [
+    {
+      "function": {
+        "functionName": "dateTimeConvert",
+        "arguments": [
+          {
+            "attributeExpression": {
+              "attributeId": "EVENT.startTime"
+            }
+          },
+          {
+            "literal": {
+              "value": {
+                "string": "1:MILLISECONDS:EPOCH"
+              }
+            }
+          },
+          {
+            "literal": {
+              "value": {
+                "string": "1:MILLISECONDS:EPOCH"
+              }
+            }
+          },
+          {
+            "literal": {
+              "value": {
+                "string": "60:SECONDS"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "orderBy": [
+    {
+      "expression": {
+        "function": {
+          "functionName": "dateTimeConvert",
+          "arguments": [
+            {
+              "attributeExpression": {
+                "attributeId": "EVENT.startTime"
+              }
+            },
+            {
+              "literal": {
+                "value": {
+                  "string": "1:MILLISECONDS:EPOCH"
+                }
+              }
+            },
+            {
+              "literal": {
+                "value": {
+                  "string": "1:MILLISECONDS:EPOCH"
+                }
+              }
+            },
+            {
+              "literal": {
+                "value": {
+                  "string": "60:SECONDS"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "limit": 1000
+}
