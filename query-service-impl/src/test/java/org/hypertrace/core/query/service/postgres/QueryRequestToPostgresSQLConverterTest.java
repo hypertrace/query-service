@@ -29,6 +29,7 @@ import static org.hypertrace.core.query.service.QueryRequestUtil.createStringLit
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.protobuf.GeneratedMessageV3;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.sql.SQLException;
@@ -37,6 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
+import org.hypertrace.core.query.service.AbstractServiceTest;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.QueryFunctionConstants;
 import org.hypertrace.core.query.service.api.Expression;
@@ -51,7 +53,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class QueryRequestToPostgresSQLConverterTest {
+class QueryRequestToPostgresSQLConverterTest extends AbstractServiceTest<QueryRequest> {
 
   private static final String TENANT_ID = "3e761879-c77b-4d8f-a075-62ff28e8fa8a";
   private static final String TENANT_COLUMN_NAME = "customer_id";
@@ -59,6 +61,9 @@ class QueryRequestToPostgresSQLConverterTest {
   private static final String TEST_REQUEST_HANDLER_CONFIG_FILE = "postgres_request_handler.conf";
   private static final String TEST_SERVICE_REQUEST_HANDLER_CONFIG_FILE =
       "postgres_service_request_handler.conf";
+
+  private static final String TEST_API_TRACE_REQUEST_HANDLER_CONFIG_FILE =
+      "postgres_api_trace_request_handler.conf";
 
   private ExecutionContext executionContext;
 
@@ -1164,6 +1169,29 @@ class QueryRequestToPostgresSQLConverterTest {
   }
 
   @Test
+  void testQueryForArrayTypeColumn() {
+    TableDefinition tableDefinition = getApiTraceHandlerTableDefinition();
+    defaultMockingForExecutionContext();
+    when(executionContext.getTimeRangeDuration()).thenReturn(Optional.of(Duration.ofMinutes(60)));
+
+    QueryRequest request = readQueryServiceRequest("request-querying-array-type-attribute");
+
+    assertSQLQuery(
+        request,
+        "SELECT COUNT(*) FROM public.\"api-trace-view\""
+            + " WHERE customer_id = '3e761879-c77b-4d8f-a075-62ff28e8fa8a'"
+            + " AND ( ( tags && '{2e04ae77-790c-91c0-067e-3fd3d396e533}'"
+            + " AND user_id = 'test-user' AND start_time_millis >= 1706689750034 "
+            + "AND end_time_millis <= 1706711350034 AND environment = 'test' )"
+            + " AND ( api_boundary_type = 'ENTRY' AND api_id != 'null' ) )"
+            + " GROUP BY dateTimeConvert(start_time_millis, 60000)"
+            + " ORDER BY dateTimeConvert(start_time_millis, 60000)"
+            + " LIMIT 1000",
+        tableDefinition,
+        executionContext);
+  }
+
+  @Test
   void testQueryWithDistinctCountAggregationAndGroupByForArrayColumn() {
     Filter startTimeFilter =
         createTimeFilter("Span.start_time_millis", Operator.GT, 1570658506605L);
@@ -1575,7 +1603,31 @@ class QueryRequestToPostgresSQLConverterTest {
         Optional.empty());
   }
 
+  private TableDefinition getApiTraceHandlerTableDefinition() {
+    Config fileConfig =
+        ConfigFactory.parseURL(
+            requireNonNull(
+                QueryRequestToPostgresSQLConverterTest.class
+                    .getClassLoader()
+                    .getResource(TEST_API_TRACE_REQUEST_HANDLER_CONFIG_FILE)));
+
+    return TableDefinition.parse(
+        fileConfig.getConfig("requestHandlerInfo.tableDefinition"),
+        TENANT_COLUMN_NAME,
+        Optional.empty());
+  }
+
   private void defaultMockingForExecutionContext() {
     when(executionContext.getTenantId()).thenReturn(TENANT_ID);
+  }
+
+  @Override
+  protected String getTestSuiteName() {
+    return "query";
+  }
+
+  @Override
+  protected GeneratedMessageV3.Builder getQueryServiceRequestBuilder() {
+    return QueryRequest.newBuilder();
   }
 }

@@ -72,7 +72,7 @@ dependencies {
     exclude("org.slf4j", "slf4j-log4j12")
     exclude("log4j", "log4j")
   }
-  implementation("org.slf4j:slf4j-api:1.7.32")
+  implementation("org.slf4j:slf4j-api:2.0.11")
   implementation("commons-codec:commons-codec:1.15")
   implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.64")
   implementation("com.google.protobuf:protobuf-java-util:3.22.0")
@@ -89,6 +89,6 @@ dependencies {
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
   testImplementation("org.mockito:mockito-core:3.8.0")
   testImplementation("org.mockito:mockito-junit-jupiter:3.8.0")
-  testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
+  testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.21.1")
   testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
 }

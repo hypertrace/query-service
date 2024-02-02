@@ -256,7 +256,6 @@ class DefaultColumnRequestConverter implements ColumnRequestConverter {
           String.format(
               "Unsupported operator {%s} for array column with non-empty value", operator));
     }
-    builder.append("?");
     switch (value.getValueType()) {
       case STRING:
         paramsBuilder.addStringParam("{" + value.getString() + "}");
