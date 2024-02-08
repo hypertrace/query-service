@@ -82,13 +82,13 @@ dependencies {
   implementation("org.postgresql:postgresql:42.4.3")
   implementation("io.trino:trino-jdbc:423")
 
-  annotationProcessor("org.projectlombok:lombok:1.18.20")
-  compileOnly("org.projectlombok:lombok:1.18.20")
+  annotationProcessor("org.projectlombok:lombok:1.18.30")
+  compileOnly("org.projectlombok:lombok:1.18.30")
 
   testImplementation(project(":query-service-api"))
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
-  testImplementation("org.mockito:mockito-core:3.8.0")
-  testImplementation("org.mockito:mockito-junit-jupiter:3.8.0")
+  testImplementation("org.mockito:mockito-core:5.8.0")
+  testImplementation("org.mockito:mockito-junit-jupiter:5.8.0")
   testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.21.1")
   testImplementation("com.squareup.okhttp3:mockwebserver:4.11.0")
 }
