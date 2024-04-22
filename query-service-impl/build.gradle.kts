@@ -79,7 +79,7 @@ dependencies {
   implementation("com.google.guava:guava:32.1.2-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.11.0")
-  implementation("org.postgresql:postgresql:42.4.3")
+  implementation("org.postgresql:postgresql:42.4.4")
   implementation("io.trino:trino-jdbc:423")
 
   annotationProcessor("org.projectlombok:lombok:1.18.30")
