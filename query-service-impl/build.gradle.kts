@@ -25,8 +25,8 @@ dependencies {
     implementation("org.apache.avro:avro:1.11.3") {
       because("CVE-2023-39410")
     }
-    implementation("org.apache.commons:commons-compress:1.24.0") {
-      because("CVE-2023-42503")
+    implementation("org.apache.commons:commons-compress:1.26.0") {
+      because("CVE-2024-25710")
     }
     implementation("org.apache.helix:helix-core:1.3.0") {
       because("CVE-2022-47500")
