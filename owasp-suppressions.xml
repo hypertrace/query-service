@@ -34,4 +34,13 @@
     <packageUrl regex="true">^pkg:maven/com\.jayway\.jsonpath/json\-path@2.9.0$</packageUrl>
     <vulnerabilityName>CVE-2023-51074</vulnerabilityName>
   </suppress>
+  <suppress>
+    <notes><![CDATA[
+   CVE-2024-29133, CVE-2024-29131 only impacts commons-configuration 2+, which is already fixed. Commons configuration 1 is a different artifact and unimpacted.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/commons\-configuration/commons\-configuration@1\..*$
+    </packageUrl>
+    <vulnerabilityName>CVE-2024-29133</vulnerabilityName>
+    <vulnerabilityName>CVE-2024-29131</vulnerabilityName>
+  </suppress>
 </suppressions>
