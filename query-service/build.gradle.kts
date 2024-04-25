@@ -10,7 +10,7 @@ plugins {
 
 dependencies {
   implementation(project(":query-service-factory"))
-  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.13.1")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-utils:0.13.2")
   implementation("org.hypertrace.core.serviceframework:platform-grpc-service-framework:0.1.71")
   implementation("org.slf4j:slf4j-api:2.0.11")
   implementation("com.typesafe:config:1.4.1")
