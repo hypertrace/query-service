@@ -25,14 +25,14 @@ dependencies {
     implementation("org.apache.avro:avro:1.11.3") {
       because("CVE-2023-39410")
     }
-    implementation("org.apache.commons:commons-compress:1.24.0") {
-      because("CVE-2023-42503")
+    implementation("org.apache.commons:commons-compress:1.26.0") {
+      because("CVE-2024-25710")
     }
     implementation("org.apache.helix:helix-core:1.3.0") {
       because("CVE-2022-47500")
     }
-    implementation("org.apache.zookeeper:zookeeper:3.7.2") {
-      because("CVE-2023-44981")
+    implementation("org.apache.zookeeper:zookeeper:3.8.4") {
+      because("CVE-2024-23944")
     }
     implementation("org.webjars:swagger-ui:5.1.0") {
       because("CVE-2019-16728,CVE-2020-26870")
@@ -60,9 +60,9 @@ dependencies {
   }
   api(project(":query-service-api"))
   api("com.typesafe:config:1.4.1")
-  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.13.1")
-  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.13.1")
-  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.13.1")
+  implementation("org.hypertrace.core.grpcutils:grpc-context-utils:0.13.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-client-utils:0.13.2")
+  implementation("org.hypertrace.core.grpcutils:grpc-server-rx-utils:0.13.2")
   implementation("org.hypertrace.core.attribute.service:attribute-service-api:0.14.26")
   implementation("org.hypertrace.core.attribute.service:attribute-projection-registry:0.14.26")
   implementation("org.hypertrace.core.attribute.service:caching-attribute-service-client:0.14.26")
@@ -74,12 +74,12 @@ dependencies {
   }
   implementation("org.slf4j:slf4j-api:2.0.11")
   implementation("commons-codec:commons-codec:1.15")
-  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.64")
+  implementation("org.hypertrace.core.serviceframework:platform-metrics:0.1.71")
   implementation("com.google.protobuf:protobuf-java-util:3.22.0")
   implementation("com.google.guava:guava:32.1.2-jre")
   implementation("io.reactivex.rxjava3:rxjava:3.0.11")
   implementation("com.squareup.okhttp3:okhttp:4.11.0")
-  implementation("org.postgresql:postgresql:42.4.3")
+  implementation("org.postgresql:postgresql:42.4.4")
   implementation("io.trino:trino-jdbc:423")
 
   annotationProcessor("org.projectlombok:lombok:1.18.30")
