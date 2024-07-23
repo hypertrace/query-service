@@ -23,7 +23,7 @@ public class AdditionalHandlerFiltersConfig {
     if (config.hasPath(ADDITIONAL_TENANT_FILTERS_CONFIG_KEY)) {
       this.tenantToAdditionalFiltersMap =
           config.getConfigList(ADDITIONAL_TENANT_FILTERS_CONFIG_KEY).stream()
-              .map(filterConfig -> new TenantFilters(config, timeFilterColumnName))
+              .map(filterConfig -> new TenantFilters(filterConfig, timeFilterColumnName))
               .collect(
                   Collectors.toMap(
                       tenantFilters -> tenantFilters.tenantId,
@@ -114,10 +114,10 @@ public class AdditionalHandlerFiltersConfig {
       try {
         JsonNode jsonNode = objectMapper.readTree(filterJson);
 
-        Filter.Builder personBuilder = Filter.newBuilder();
-        JsonFormat.parser().merge(jsonNode.toString(), personBuilder);
+        Filter.Builder filterBuilder = Filter.newBuilder();
+        JsonFormat.parser().merge(jsonNode.toString(), filterBuilder);
 
-        return Optional.of(personBuilder.build());
+        return Optional.of(filterBuilder.build());
 
       } catch (Exception e) {
         log.error("Error deserializing additional filter config to query request filter");

@@ -5,6 +5,7 @@ import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createI
 import static org.hypertrace.core.query.service.QueryRequestBuilderUtils.createLongLiteralValueExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createBooleanLiteralExpression;
 import static org.hypertrace.core.query.service.QueryRequestUtil.createSimpleAttributeExpression;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,7 @@ import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.QueryRequestBuilderUtils;
 import org.hypertrace.core.query.service.QueryRequestUtil;
 import org.hypertrace.core.query.service.QueryTransformation.QueryTransformationContext;
+import org.hypertrace.core.query.service.api.ColumnIdentifier;
 import org.hypertrace.core.query.service.api.Expression;
 import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.LiteralConstant;
@@ -137,6 +139,119 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
         ExecutionContext context = new ExecutionContext("__default", request);
         QueryCost cost = handler.canHandle(request, context);
         Assertions.assertTrue(cost.getCost() >= 0.0d && cost.getCost() < 1.0d);
+      }
+    }
+  }
+
+  @Test
+  public void testApplyAdditionalFilters() {
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"), config.getConfig("requestHandlerInfo"));
+
+      // spans-event-view handler has only time range
+      if (config.getString("name").equals("domain-service-handler")) {
+        QueryRequest request =
+            QueryRequest.newBuilder()
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
+                .setFilter(
+                    QueryRequestBuilderUtils.createFilter(
+                        "Trace.end_time_millis",
+                        Operator.GT,
+                        QueryRequestBuilderUtils.createLongLiteralValueExpression(10)))
+                .build();
+        ExecutionContext context = new ExecutionContext("__default", request);
+        QueryRequest modifiedRequest = handler.applyAdditionalFilters(request, context);
+        Filter modifiedFilter = modifiedRequest.getFilter();
+        assertEquals(Operator.AND, modifiedFilter.getOperator());
+        assertEquals(
+            "Trace.end_time_millis",
+            modifiedFilter.getChildFilter(0).getLhs().getColumnIdentifier().getColumnName());
+        assertEquals(
+            "SERVICE.name",
+            modifiedFilter.getChildFilter(1).getLhs().getColumnIdentifier().getColumnName());
+        assertEquals(Operator.EQ, modifiedFilter.getChildFilter(1).getOperator());
+        assertEquals(
+            "dummyService",
+            modifiedFilter.getChildFilter(1).getRhs().getLiteral().getValue().getString());
+      }
+
+      // spans-event-view handler has only time range
+      if (config.getString("name").equals("span-event-view-handler")) {
+        QueryRequest request =
+            QueryRequest.newBuilder()
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
+                .setFilter(
+                    QueryRequestBuilderUtils.createFilter(
+                        "Trace.end_time_millis",
+                        Operator.GT,
+                        QueryRequestBuilderUtils.createLongLiteralValueExpression(10)))
+                .build();
+        ExecutionContext context = new ExecutionContext("__default", request);
+        QueryRequest modifiedRequest = handler.applyAdditionalFilters(request, context);
+        Filter modifiedFilter = modifiedRequest.getFilter();
+        assertEquals(
+            "Trace.end_time_millis",
+            modifiedFilter.getChildFilter(0).getLhs().getColumnIdentifier().getColumnName());
+        Filter compositeFilter = modifiedFilter.getChildFilter(1);
+        assertEquals(compositeFilter.getOperator(), Operator.OR);
+        assertEquals(
+            "EVENT.startTime",
+            compositeFilter.getChildFilter(0).getLhs().getAttributeExpression().getAttributeId());
+        assertEquals(Operator.GT, compositeFilter.getChildFilter(0).getOperator());
+        assertEquals(
+            2, compositeFilter.getChildFilter(0).getRhs().getLiteral().getValue().getLong());
+        assertEquals(
+            "EVENT.startTime",
+            compositeFilter.getChildFilter(1).getLhs().getAttributeExpression().getAttributeId());
+        assertEquals(Operator.LT, compositeFilter.getChildFilter(1).getOperator());
+        assertEquals(
+            1, compositeFilter.getChildFilter(1).getRhs().getLiteral().getValue().getLong());
+      }
+
+      // traces handler has both time range and a filter
+      if (config.getString("name").equals("trace-view-handler")) {
+        QueryRequest request =
+            QueryRequest.newBuilder()
+                .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
+                .setFilter(
+                    QueryRequestBuilderUtils.createFilter(
+                        "Trace.end_time_millis",
+                        Operator.GT,
+                        QueryRequestBuilderUtils.createLongLiteralValueExpression(10)))
+                .build();
+        ExecutionContext context = new ExecutionContext("__default", request);
+        QueryRequest modifiedRequest = handler.applyAdditionalFilters(request, context);
+        Filter modifiedFilter = modifiedRequest.getFilter();
+        assertEquals(
+            "Trace.end_time_millis",
+            modifiedFilter.getChildFilter(0).getLhs().getColumnIdentifier().getColumnName());
+        Filter compositeFilter = modifiedFilter.getChildFilter(1);
+        assertEquals(compositeFilter.getOperator(), Operator.OR);
+        assertEquals(
+            "Trace.start_time_millis",
+            compositeFilter.getChildFilter(0).getLhs().getAttributeExpression().getAttributeId());
+        assertEquals(Operator.GT, compositeFilter.getChildFilter(0).getOperator());
+        assertEquals(
+            2, compositeFilter.getChildFilter(0).getRhs().getLiteral().getValue().getLong());
+        assertEquals(
+            "Trace.start_time_millis",
+            compositeFilter.getChildFilter(1).getLhs().getAttributeExpression().getAttributeId());
+        assertEquals(Operator.LT, compositeFilter.getChildFilter(1).getOperator());
+        assertEquals(
+            1, compositeFilter.getChildFilter(1).getRhs().getLiteral().getValue().getLong());
+        assertEquals(
+            "SERVICE.name",
+            compositeFilter.getChildFilter(2).getLhs().getColumnIdentifier().getColumnName());
+        assertEquals(Operator.EQ, compositeFilter.getChildFilter(2).getOperator());
+        assertEquals(
+            "dummyService",
+            compositeFilter.getChildFilter(2).getRhs().getLiteral().getValue().getString());
       }
     }
   }
@@ -1829,7 +1944,37 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
             resultSetTypePredicateProviderMock,
             pinotClientFactoryMock);
 
-    Assertions.assertEquals(expectedValue, pinotBasedRequestHandler.getTimeFilterColumn().get());
+    assertEquals(expectedValue, pinotBasedRequestHandler.getTimeFilterColumn().get());
+  }
+
+  private Filter mockTimeRangeFilter() {
+    Filter startTimeFilter =
+        createTimeFilter(
+            "EVENT.start_time_millis",
+            Operator.GT,
+            System.currentTimeMillis() - 1000 * 60 * 60 * 24);
+    Filter endTimeFilter =
+        createTimeFilter("EVENT.end_time_millis", Operator.LT, System.currentTimeMillis());
+
+    return Filter.newBuilder()
+        .setOperator(Operator.AND)
+        .addChildFilter(startTimeFilter)
+        .addChildFilter(endTimeFilter)
+        .build();
+  }
+
+  private Filter createTimeFilter(String columnName, Operator op, long value) {
+
+    ColumnIdentifier startTimeColumn =
+        ColumnIdentifier.newBuilder().setColumnName(columnName).build();
+    Expression lhs = Expression.newBuilder().setColumnIdentifier(startTimeColumn).build();
+
+    LiteralConstant constant =
+        LiteralConstant.newBuilder()
+            .setValue(Value.newBuilder().setString(String.valueOf(value)).build())
+            .build();
+    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
+    return Filter.newBuilder().setLhs(lhs).setOperator(op).setRhs(rhs).build();
   }
 
   private static Stream<Arguments> provideHandlerValue() {
@@ -1869,20 +2014,20 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
   private void verifyResponseRows(Observable<Row> rowObservable, String[][] expectedResultTable)
       throws IOException {
     List<Row> rows = rowObservable.toList().blockingGet();
-    Assertions.assertEquals(expectedResultTable.length, rows.size());
+    assertEquals(expectedResultTable.length, rows.size());
     for (int rowIdx = 0; rowIdx < rows.size(); rowIdx++) {
       Row row = rows.get(rowIdx);
-      Assertions.assertEquals(expectedResultTable[rowIdx].length, row.getColumnCount());
+      assertEquals(expectedResultTable[rowIdx].length, row.getColumnCount());
       for (int colIdx = 0; colIdx < row.getColumnCount(); colIdx++) {
         String val = row.getColumn(colIdx).getString();
         // In the scope of our unit tests, this is a map. Cannot JSON object comparison on it since
         // it's not ordered.
         if (val.startsWith("{") && val.endsWith("}")) {
-          Assertions.assertEquals(
+          assertEquals(
               objectMapper.readTree(expectedResultTable[rowIdx][colIdx]),
               objectMapper.readTree(val));
         } else {
-          Assertions.assertEquals(expectedResultTable[rowIdx][colIdx], val);
+          assertEquals(expectedResultTable[rowIdx][colIdx], val);
         }
       }
     }
