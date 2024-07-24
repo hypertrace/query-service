@@ -14,15 +14,9 @@ import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.hypertrace.core.grpcutils.context.RequestContext;
 import org.hypertrace.core.grpcutils.server.rx.ServerCallStreamRxObserver;
-import org.hypertrace.core.query.service.api.ColumnIdentifier;
-import org.hypertrace.core.query.service.api.Expression;
-import org.hypertrace.core.query.service.api.Filter;
-import org.hypertrace.core.query.service.api.LiteralConstant;
-import org.hypertrace.core.query.service.api.Operator;
 import org.hypertrace.core.query.service.api.QueryRequest;
 import org.hypertrace.core.query.service.api.QueryServiceGrpc;
 import org.hypertrace.core.query.service.api.ResultSetChunk;
-import org.hypertrace.core.query.service.api.Value;
 import org.hypertrace.core.query.service.validation.QueryValidator;
 import org.hypertrace.core.serviceframework.metrics.PlatformMetricsRegistry;
 
@@ -107,19 +101,5 @@ class QueryServiceImpl extends QueryServiceGrpc.QueryServiceImplBase {
                   handler.applyAdditionalFilters(transformedRequest, context), context);
             })
         .lift(chunkRows(context.getResultSetMetadata()));
-  }
-
-  public static void main(String[] args) {
-    ColumnIdentifier serviceNameColumn =
-        ColumnIdentifier.newBuilder().setColumnName("SERVICE.name").build();
-    Expression lhs = Expression.newBuilder().setColumnIdentifier(serviceNameColumn).build();
-
-    LiteralConstant constant =
-        LiteralConstant.newBuilder()
-            .setValue(Value.newBuilder().setString(String.valueOf("dummyService")).build())
-            .build();
-    Expression rhs = Expression.newBuilder().setLiteral(constant).build();
-    Filter filter = Filter.newBuilder().setLhs(lhs).setRhs(rhs).setOperator(Operator.EQ).build();
-    System.out.println(filter);
   }
 }

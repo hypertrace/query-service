@@ -85,17 +85,17 @@ public class AdditionalHandlerFiltersConfig {
       }
     }
 
-    private Optional<Filter> buildTimeRangeAndFilters(Optional<String> timeRangeAttributeOptional) {
+    private Optional<Filter> buildTimeRangeAndFilters(Optional<String> timeRangeAttribute) {
       Filter.Builder filterBuilder = Filter.newBuilder();
       filterBuilder.setOperator(Operator.OR);
-      if (timeRangeAttributeOptional.isPresent()) {
+      if (timeRangeAttribute.isPresent()) {
         if (this.startTimeMillis.isPresent() && this.endTimeMillis.isPresent()) {
           filterBuilder.addChildFilter(
               QueryRequestUtil.createLongFilter(
-                  timeRangeAttributeOptional.get(), Operator.GT, this.endTimeMillis.get()));
+                  timeRangeAttribute.get(), Operator.GT, this.endTimeMillis.get()));
           filterBuilder.addChildFilter(
               QueryRequestUtil.createLongFilter(
-                  timeRangeAttributeOptional.get(), Operator.LT, this.startTimeMillis.get()));
+                  timeRangeAttribute.get(), Operator.LT, this.startTimeMillis.get()));
         }
       }
 
