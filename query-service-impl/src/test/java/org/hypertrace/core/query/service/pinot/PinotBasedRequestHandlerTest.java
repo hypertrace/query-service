@@ -154,7 +154,7 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
           new PinotBasedRequestHandler(
               config.getString("name"), config.getConfig("requestHandlerInfo"));
 
-      // spans-event-view handler has only time range
+      // domain-service-handler only has filter and no time range
       if (config.getString("name").equals("domain-service-handler")) {
         QueryRequest request =
             QueryRequest.newBuilder()
