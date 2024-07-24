@@ -3,6 +3,9 @@ package org.hypertrace.core.query.service;
 import static org.hypertrace.core.query.service.QueryFunctionConstants.QUERY_FUNCTION_COUNT;
 import static org.hypertrace.core.query.service.QueryRequestUtil.getAlias;
 import static org.hypertrace.core.query.service.QueryRequestUtil.getLogicalColumnName;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.ATTRIBUTE_EXPRESSION;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.COLUMNIDENTIFIER;
+import static org.hypertrace.core.query.service.api.Expression.ValueCase.FUNCTION;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
