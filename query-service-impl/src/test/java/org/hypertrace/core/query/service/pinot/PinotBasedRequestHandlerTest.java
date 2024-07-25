@@ -181,7 +181,7 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
             modifiedFilter.getChildFilter(1).getRhs().getLiteral().getValue().getString());
       }
 
-      // spans-event-view handler has only time range
+      // spans-event-view handler has only time range.
       if (config.getString("name").equals("span-event-view-handler")) {
         QueryRequest request =
             QueryRequest.newBuilder()
