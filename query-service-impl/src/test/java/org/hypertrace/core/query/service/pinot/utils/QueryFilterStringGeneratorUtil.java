@@ -32,7 +32,7 @@ public class QueryFilterStringGeneratorUtil {
           + "}";
 
   /*
-   Use this method to generate the filter string which can be input to the config path ("additionalTenantFilters.timeRangeAndFilters.filter")
+   Use this method to generate the filter string which can be input to the config path ("tenantScopedFilters.timeRangeAndFilters.filter")
 
    We have example usage of this method which generates a filter string
     - Filter denotes -> SERVICE.name equals "dummyService".

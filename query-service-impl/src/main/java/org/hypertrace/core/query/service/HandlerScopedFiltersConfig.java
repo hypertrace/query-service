@@ -15,14 +15,14 @@ import org.hypertrace.core.query.service.api.Filter;
 import org.hypertrace.core.query.service.api.Operator;
 
 @Slf4j
-public class AdditionalHandlerFiltersConfig {
-  private static final String ADDITIONAL_TENANT_FILTERS_CONFIG_KEY = "additionalTenantFilters";
+public class HandlerScopedFiltersConfig {
+  private static final String TENANT_SCOPED_FILTERS_CONFIG_KEY = "tenantScopedFilters";
   private final Map<String, List<Filter>> tenantToAdditionalFiltersMap;
 
-  public AdditionalHandlerFiltersConfig(Config config, Optional<String> timeFilterColumnName) {
-    if (config.hasPath(ADDITIONAL_TENANT_FILTERS_CONFIG_KEY)) {
+  public HandlerScopedFiltersConfig(Config config, Optional<String> timeFilterColumnName) {
+    if (config.hasPath(TENANT_SCOPED_FILTERS_CONFIG_KEY)) {
       this.tenantToAdditionalFiltersMap =
-          config.getConfigList(ADDITIONAL_TENANT_FILTERS_CONFIG_KEY).stream()
+          config.getConfigList(TENANT_SCOPED_FILTERS_CONFIG_KEY).stream()
               .map(filterConfig -> new TenantFilters(filterConfig, timeFilterColumnName))
               .collect(
                   Collectors.toMap(
@@ -49,10 +49,10 @@ public class AdditionalHandlerFiltersConfig {
       this.tenantId = config.getString(TENANT_ID_CONFIG_KEY);
       this.filters =
           config.getConfigList(TIME_RANGE_AND_FILTERS_CONFIG_KEY).stream()
-              .map(TimeRangeAndFilter::new)
+              .map(FiltersForTimeRange::new)
               .map(
-                  timeRangeAndFilter ->
-                      timeRangeAndFilter.buildTimeRangeAndFilters(startTimeAttributeName))
+                  filtersForTimeRange ->
+                      filtersForTimeRange.buildTimeRangeAndFilters(startTimeAttributeName))
               .filter(Optional::isPresent)
               .map(Optional::get)
               .collect(Collectors.toList());
@@ -61,7 +61,7 @@ public class AdditionalHandlerFiltersConfig {
 
   @lombok.Value
   @NonFinal
-  private static class TimeRangeAndFilter {
+  private static class FiltersForTimeRange {
     private static final String START_TIME_CONFIG_PATH = "startTimeMillis";
     private static final String END_TIME_CONFIG_PATH = "endTimeMillis";
     private static final String FILTER_CONFIG_PATH = "filter";
@@ -70,7 +70,7 @@ public class AdditionalHandlerFiltersConfig {
     Optional<Long> endTimeMillis;
     Optional<Filter> filter;
 
-    private TimeRangeAndFilter(Config config) {
+    private FiltersForTimeRange(Config config) {
       if (config.hasPath(START_TIME_CONFIG_PATH) && config.hasPath(END_TIME_CONFIG_PATH)) {
         this.startTimeMillis = Optional.of(config.getLong(START_TIME_CONFIG_PATH));
         this.endTimeMillis = Optional.of(config.getLong(END_TIME_CONFIG_PATH));
