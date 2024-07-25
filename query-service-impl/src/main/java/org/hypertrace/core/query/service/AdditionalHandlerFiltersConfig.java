@@ -91,10 +91,10 @@ public class AdditionalHandlerFiltersConfig {
       if (timeRangeAttribute.isPresent()) {
         if (this.startTimeMillis.isPresent() && this.endTimeMillis.isPresent()) {
           filterBuilder.addChildFilter(
-              QueryRequestUtil.createLongFilter(
+              QueryRequestUtil.createFilter(
                   timeRangeAttribute.get(), Operator.GT, this.endTimeMillis.get()));
           filterBuilder.addChildFilter(
-              QueryRequestUtil.createLongFilter(
+              QueryRequestUtil.createFilter(
                   timeRangeAttribute.get(), Operator.LT, this.startTimeMillis.get()));
         }
       }

@@ -145,6 +145,7 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
 
   @Test
   public void testApplyAdditionalFilters() {
+    Filter existingFilter = QueryRequestUtil.createFilter("Trace.end_time_millis", Operator.GT, 10);
     for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
       if (!isPinotConfig(config)) {
         continue;
@@ -159,11 +160,7 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
         QueryRequest request =
             QueryRequest.newBuilder()
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
-                .setFilter(
-                    QueryRequestBuilderUtils.createFilter(
-                        "Trace.end_time_millis",
-                        Operator.GT,
-                        QueryRequestBuilderUtils.createLongLiteralValueExpression(10)))
+                .setFilter(existingFilter)
                 .build();
         ExecutionContext context = new ExecutionContext("__default", request);
         QueryRequest modifiedRequest = handler.applyAdditionalFilters(request, context);
@@ -171,10 +168,10 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
         assertEquals(Operator.AND, modifiedFilter.getOperator());
         assertEquals(
             "Trace.end_time_millis",
-            modifiedFilter.getChildFilter(0).getLhs().getColumnIdentifier().getColumnName());
+            modifiedFilter.getChildFilter(0).getLhs().getAttributeExpression().getAttributeId());
         assertEquals(
             "SERVICE.name",
-            modifiedFilter.getChildFilter(1).getLhs().getColumnIdentifier().getColumnName());
+            modifiedFilter.getChildFilter(1).getLhs().getAttributeExpression().getAttributeId());
         assertEquals(Operator.EQ, modifiedFilter.getChildFilter(1).getOperator());
         assertEquals(
             "dummyService",
@@ -186,18 +183,14 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
         QueryRequest request =
             QueryRequest.newBuilder()
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
-                .setFilter(
-                    QueryRequestBuilderUtils.createFilter(
-                        "Trace.end_time_millis",
-                        Operator.GT,
-                        QueryRequestBuilderUtils.createLongLiteralValueExpression(10)))
+                .setFilter(existingFilter)
                 .build();
         ExecutionContext context = new ExecutionContext("__default", request);
         QueryRequest modifiedRequest = handler.applyAdditionalFilters(request, context);
         Filter modifiedFilter = modifiedRequest.getFilter();
         assertEquals(
             "Trace.end_time_millis",
-            modifiedFilter.getChildFilter(0).getLhs().getColumnIdentifier().getColumnName());
+            modifiedFilter.getChildFilter(0).getLhs().getAttributeExpression().getAttributeId());
         Filter compositeFilter = modifiedFilter.getChildFilter(1);
         assertEquals(compositeFilter.getOperator(), Operator.OR);
         assertEquals(
@@ -219,18 +212,14 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
         QueryRequest request =
             QueryRequest.newBuilder()
                 .addSelection(QueryRequestBuilderUtils.createColumnExpression("Trace.id"))
-                .setFilter(
-                    QueryRequestBuilderUtils.createFilter(
-                        "Trace.end_time_millis",
-                        Operator.GT,
-                        QueryRequestBuilderUtils.createLongLiteralValueExpression(10)))
+                .setFilter(existingFilter)
                 .build();
         ExecutionContext context = new ExecutionContext("__default", request);
         QueryRequest modifiedRequest = handler.applyAdditionalFilters(request, context);
         Filter modifiedFilter = modifiedRequest.getFilter();
         assertEquals(
             "Trace.end_time_millis",
-            modifiedFilter.getChildFilter(0).getLhs().getColumnIdentifier().getColumnName());
+            modifiedFilter.getChildFilter(0).getLhs().getAttributeExpression().getAttributeId());
         Filter compositeFilter = modifiedFilter.getChildFilter(1);
         assertEquals(compositeFilter.getOperator(), Operator.OR);
         assertEquals(
@@ -247,7 +236,7 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
             1, compositeFilter.getChildFilter(1).getRhs().getLiteral().getValue().getLong());
         assertEquals(
             "SERVICE.name",
-            compositeFilter.getChildFilter(2).getLhs().getColumnIdentifier().getColumnName());
+            compositeFilter.getChildFilter(2).getLhs().getAttributeExpression().getAttributeId());
         assertEquals(Operator.EQ, compositeFilter.getChildFilter(2).getOperator());
         assertEquals(
             "dummyService",
