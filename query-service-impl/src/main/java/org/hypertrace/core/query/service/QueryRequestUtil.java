@@ -136,6 +136,28 @@ public class QueryRequestUtil {
     }
   }
 
+  public static Filter createFilter(String columnName, Operator op, long value) {
+    return createFilter(columnName, op, createLongLiteralExpression(value));
+  }
+
+  public static Filter createFilter(String columnName, Operator op, String value) {
+    return createFilter(columnName, op, createStringLiteralExpression(value));
+  }
+
+  public static Filter createFilter(String columnName, Operator op, Expression value) {
+    return createFilter(createAttributeExpression(columnName), op, value);
+  }
+
+  public static Expression createAttributeExpression(String attributeId) {
+    return Expression.newBuilder()
+        .setAttributeExpression(AttributeExpression.newBuilder().setAttributeId(attributeId))
+        .build();
+  }
+
+  public static Filter createFilter(Expression columnExpression, Operator op, Expression value) {
+    return Filter.newBuilder().setLhs(columnExpression).setOperator(op).setRhs(value).build();
+  }
+
   public static Optional<String> getAlias(Expression expression) {
     switch (expression.getValueCase()) {
       case COLUMNIDENTIFIER:

@@ -27,6 +27,7 @@ import javax.annotation.Nonnull;
 import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
+import org.hypertrace.core.query.service.HandlerScopedFiltersConfig;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.Expression;
@@ -65,6 +66,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private Optional<String> startTimeAttributeName;
   private QueryRequestToPinotSQLConverter request2PinotSqlConverter;
   private final PinotMapConverter pinotMapConverter;
+  private HandlerScopedFiltersConfig handlerScopedFiltersConfig;
   // The implementations of ResultSet are package private and hence there's no way to determine the
   // shape of the results
   // other than to do string comparison on the simple class names. In order to be able to unit test
@@ -138,12 +140,31 @@ public class PinotBasedRequestHandler implements RequestHandler {
     if (config.hasPath(SLOW_QUERY_THRESHOLD_MS_CONFIG)) {
       this.slowQueryThreshold = config.getInt(SLOW_QUERY_THRESHOLD_MS_CONFIG);
     }
+
+    this.handlerScopedFiltersConfig =
+        new HandlerScopedFiltersConfig(config, this.startTimeAttributeName);
     LOG.info(
         "Using {}ms as the threshold for logging slow queries of handler: {}",
         slowQueryThreshold,
         name);
 
     initMetrics();
+  }
+
+  @Override
+  public QueryRequest applyAdditionalFilters(
+      QueryRequest queryRequest, ExecutionContext executionContext) {
+    List<Filter> additionalFilters =
+        this.handlerScopedFiltersConfig.getAdditionalFiltersForTenant(
+            executionContext.getTenantId());
+    if (additionalFilters.isEmpty()) {
+      return queryRequest;
+    }
+    Filter.Builder filterBuilder = Filter.newBuilder();
+    filterBuilder.setOperator(Operator.AND);
+    filterBuilder.addChildFilter(queryRequest.getFilter());
+    filterBuilder.addAllChildFilter(additionalFilters);
+    return queryRequest.toBuilder().setFilter(filterBuilder.build()).build();
   }
 
   /**

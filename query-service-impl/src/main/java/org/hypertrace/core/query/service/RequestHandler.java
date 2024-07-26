@@ -27,4 +27,9 @@ public interface RequestHandler {
 
   /** Handle the request and add rows to the collector. */
   Observable<Row> handleRequest(QueryRequest request, ExecutionContext executionContext);
+
+  default QueryRequest applyAdditionalFilters(
+      QueryRequest queryRequest, ExecutionContext executionContext) {
+    return queryRequest;
+  }
 }

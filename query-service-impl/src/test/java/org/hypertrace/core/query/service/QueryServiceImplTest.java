@@ -105,6 +105,8 @@ public class QueryServiceImplTest {
     RequestHandlerSelector mockSelector = mock(RequestHandlerSelector.class);
     RequestHandler mockHandler = mock(RequestHandler.class);
     Row mockRow = Row.getDefaultInstance();
+    when(mockHandler.applyAdditionalFilters(eq(originalRequest), any(ExecutionContext.class)))
+        .thenReturn(originalRequest);
     when(mockHandler.handleRequest(eq(originalRequest), any(ExecutionContext.class)))
         .thenReturn(Observable.just(mockRow));
     when(mockSelector.select(same(originalRequest), any())).thenReturn(Optional.of(mockHandler));
