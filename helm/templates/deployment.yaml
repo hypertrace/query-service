@@ -59,13 +59,17 @@ spec:
       topologySpreadConstraints:
         {{- toYaml . | nindent 8}}
     {{- end }}
-    {{- with .Values.securityContext }}
+    {{- with .Values.podSecurityContext }}
       securityContext:
-        {{- toYaml . | nindent 8}}
+        {{- toYaml . | nindent 8 }}
     {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ include "queryservice.image" . }}"
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: grpc-port
