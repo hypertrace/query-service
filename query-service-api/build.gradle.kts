@@ -45,6 +45,11 @@ dependencies {
   api("io.grpc:grpc-protobuf")
   api("io.grpc:grpc-stub")
   api("javax.annotation:javax.annotation-api:1.3.2")
+  constraints {
+    api("com.google.protobuf:protobuf-java:3.25.5") {
+      because("https://nvd.nist.gov/vuln/detail/CVE-2024-7254")
+    }
+  }
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
   testImplementation("com.google.protobuf:protobuf-java-util:3.25.5")
