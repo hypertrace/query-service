@@ -58,6 +58,10 @@ deploymentLabels:
 podLabels:
   app: query-service
 
+commonPodLabels: {}
+
+commonPodAnnotations: {}
+
 podAnnotations: {}
 
 deploymentSelectorMatchLabels:
