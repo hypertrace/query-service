@@ -2,7 +2,7 @@ import com.google.protobuf.gradle.id
 
 plugins {
   `java-library`
-  id("com.google.protobuf") version "0.9.2"
+  id("com.google.protobuf") version "0.9.4"
   id("org.hypertrace.publish-plugin")
   id("org.hypertrace.jacoco-report-plugin")
 }
@@ -11,7 +11,7 @@ val generateLocalGoGrpcFiles = false
 
 protobuf {
   protoc {
-    artifact = "com.google.protobuf:protoc:3.21.12"
+    artifact = "com.google.protobuf:protoc:3.25.5"
   }
   plugins {
     id("grpc") {
@@ -47,5 +47,5 @@ dependencies {
   api("javax.annotation:javax.annotation-api:1.3.2")
 
   testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
-  testImplementation("com.google.protobuf:protobuf-java-util:3.22.0")
+  testImplementation("com.google.protobuf:protobuf-java-util:3.25.5")
 }
