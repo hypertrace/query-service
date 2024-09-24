@@ -29,18 +29,18 @@
   </suppress>
   <suppress>
     <notes><![CDATA[
-    Fixed from 2.9.0 - awaiting vuln db update
-   ]]></notes>
-    <packageUrl regex="true">^pkg:maven/com\.jayway\.jsonpath/json\-path@2.9.0$</packageUrl>
-    <vulnerabilityName>CVE-2023-51074</vulnerabilityName>
-  </suppress>
-  <suppress>
-    <notes><![CDATA[
    CVE-2024-29133, CVE-2024-29131 only impacts commons-configuration 2+, which is already fixed. Commons configuration 1 is a different artifact and unimpacted.
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/commons\-configuration/commons\-configuration@1\..*$
     </packageUrl>
     <vulnerabilityName>CVE-2024-29133</vulnerabilityName>
     <vulnerabilityName>CVE-2024-29131</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   CVE-2024-39676 needs pinot client upgrade from 0.12.1 version.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.pinot/pinot\-.*@.*$</packageUrl>
+    <cve>CVE-2024-39676</cve>
   </suppress>
 </suppressions>
