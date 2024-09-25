@@ -21,21 +21,15 @@ spec:
     metadata:
       labels:
         release: {{ .Release.Name }}
-        {{- with .Values.podLabels }}
+        {{- with merge .Values.podLabels .Values.commonPodLabels }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with .Values.commonPodLabels }}
-        {{- toYaml . |  nindent 8 }}
         {{- end }}
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ .Values.containerHealthProbePort }}"
         checksum/config: {{ include (print $.Template.BasePath "/query-service-config.yaml") . | sha256sum }}
-        {{- with .Values.podAnnotations }}
+        {{- with merge .Values.podAnnotations .Values.commonPodAnnotations }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with .Values.commonPodAnnotations }}
-        {{- toYaml . |  nindent 8 }}
         {{- end }}
     spec:
     {{- with .Values.imagePullSecrets }}
