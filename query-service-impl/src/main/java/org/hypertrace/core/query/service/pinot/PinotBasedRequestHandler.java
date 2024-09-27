@@ -28,6 +28,7 @@ import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.HandlerScopedFiltersConfig;
+import org.hypertrace.core.query.service.HandlerScopedMaskingConfig;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.Expression;
@@ -67,6 +68,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private QueryRequestToPinotSQLConverter request2PinotSqlConverter;
   private final PinotMapConverter pinotMapConverter;
   private HandlerScopedFiltersConfig handlerScopedFiltersConfig;
+  private HandlerScopedMaskingConfig handlerScopedMaskingConfig;
   // The implementations of ResultSet are package private and hence there's no way to determine the
   // shape of the results
   // other than to do string comparison on the simple class names. In order to be able to unit test
@@ -143,6 +145,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
 
     this.handlerScopedFiltersConfig =
         new HandlerScopedFiltersConfig(config, this.startTimeAttributeName);
+    this.handlerScopedMaskingConfig =
+        new HandlerScopedMaskingConfig(config, this.startTimeAttributeName, tenantColumnName);
     LOG.info(
         "Using {}ms as the threshold for logging slow queries of handler: {}",
         slowQueryThreshold,
@@ -497,6 +501,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
+      handlerScopedMaskingConfig.parseColumns(resultSet);
       // Pinot has different Response format for selection and aggregation/group by query.
       if (resultSetTypePredicateProvider.isSelectionResultSetType(resultSet)) {
         // map merging is only supported in the selection. Filtering and Group by has its own
@@ -508,8 +513,10 @@ public class PinotBasedRequestHandler implements RequestHandler {
         handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
       }
     }
+
     return Observable.fromIterable(rowBuilderList)
         .map(Builder::build)
+        .map(row -> handlerScopedMaskingConfig.mask(row))
         .doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
@@ -677,5 +684,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
         && expression.getAttributeExpression().hasSubpath()
         && viewDefinition.getColumnType(expression.getAttributeExpression().getAttributeId())
             != ValueType.STRING_MAP;
+  }
+
+  HandlerScopedMaskingConfig getHandlerScopedMaskingConfig() {
+    return handlerScopedMaskingConfig;
   }
 }
