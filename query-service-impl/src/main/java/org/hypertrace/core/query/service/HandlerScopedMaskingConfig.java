@@ -19,9 +19,8 @@ import org.hypertrace.core.query.service.api.Row;
 public class HandlerScopedMaskingConfig {
   private static final String TENANT_SCOPED_MASKS_CONFIG_KEY = "tenantScopedMaskingCriteria";
   private final Map<String, List<MaskValuesForTimeRange>> tenantToMaskValuesMap;
-  private final String tenantColumnName;
+  private String tenantId;
   private final String timeFilterColumnName;
-  private int tenantColumnIndex;
   private int timeFilterColumnIndex;
   private final HashMap<String, Integer> columnNameToIndexMap = new HashMap<>();
 
@@ -32,7 +31,7 @@ public class HandlerScopedMaskingConfig {
   }
 
   public HandlerScopedMaskingConfig(
-      Config config, Optional<String> timeFilterColumnName, String tenantColumnName) {
+      Config config, String timeFilterColumnName, String tenantColumnName) {
     if (config.hasPath(TENANT_SCOPED_MASKS_CONFIG_KEY)) {
       this.tenantToMaskValuesMap =
           config.getConfigList(TENANT_SCOPED_MASKS_CONFIG_KEY).stream()
@@ -45,19 +44,17 @@ public class HandlerScopedMaskingConfig {
       this.tenantToMaskValuesMap = Collections.emptyMap();
     }
 
-    this.tenantColumnName = tenantColumnName;
-    this.timeFilterColumnName = timeFilterColumnName.orElse(null);
+    this.timeFilterColumnName = timeFilterColumnName;
   }
 
-  public void parseColumns(ResultSet resultSet) {
+  public void parseColumns(ResultSet resultSet, String tenantId) {
     timeFilterColumnIndex = -1;
-    tenantColumnIndex = -1;
     columnNameToIndexMap.clear();
+    this.tenantId = tenantId;
 
     for (int colIdx = 0; colIdx < resultSet.getColumnCount(); colIdx++) {
-      if (Objects.equals(this.tenantColumnName, resultSet.getColumnName(colIdx))) {
-        this.tenantColumnIndex = colIdx;
-      } else if (Objects.equals(this.timeFilterColumnName, resultSet.getColumnName(colIdx))) {
+      String temp = resultSet.getColumnName(colIdx);
+      if (Objects.equals(this.timeFilterColumnName, resultSet.getColumnName(colIdx))) {
         this.timeFilterColumnIndex = colIdx;
       }
 
@@ -66,11 +63,14 @@ public class HandlerScopedMaskingConfig {
   }
 
   public Row mask(Row row) {
-    if (this.tenantColumnIndex == -1 || this.timeFilterColumnIndex == -1) {
+    if (this.timeFilterColumnIndex == -1) {
       return row;
     }
-    List<MaskValuesForTimeRange> masks =
-        getMaskValues(row.getColumn(this.tenantColumnIndex).getString());
+
+    List<MaskValuesForTimeRange> masks = getMaskValues(this.tenantId);
+    if (masks.isEmpty()) {
+      return row;
+    }
 
     Row.Builder maskedRowBuilder = Row.newBuilder(row);
 
@@ -111,9 +111,9 @@ public class HandlerScopedMaskingConfig {
     String startTimeAttributeName;
     List<MaskValuesForTimeRange> maskValues;
 
-    private TenantMasks(Config config, Optional<String> startTimeAttributeName) {
+    private TenantMasks(Config config, String startTimeAttributeName) {
       this.tenantId = config.getString(TENANT_ID_CONFIG_KEY);
-      this.startTimeAttributeName = startTimeAttributeName.orElse(null);
+      this.startTimeAttributeName = startTimeAttributeName;
       this.maskValues =
           config.getConfigList(TIME_RANGE_AND_MASK_VALUES_CONFIG_KEY).stream()
               .map(MaskValuesForTimeRange::new)

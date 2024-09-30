@@ -146,7 +146,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     this.handlerScopedFiltersConfig =
         new HandlerScopedFiltersConfig(config, this.startTimeAttributeName);
     this.handlerScopedMaskingConfig =
-        new HandlerScopedMaskingConfig(config, this.startTimeAttributeName, tenantColumnName);
+        new HandlerScopedMaskingConfig(config, viewDefinition.getPhysicalColumnNames(this.startTimeAttributeName.orElse(null)).get(0), tenantColumnName);
     LOG.info(
         "Using {}ms as the threshold for logging slow queries of handler: {}",
         slowQueryThreshold,
@@ -428,7 +428,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
       }
       // need to merge data especially for Pinot. That's why we need to track the map columns
-      return this.convert(resultSetGroup, executionContext.getSelectedColumns())
+      return this.convert(
+              resultSetGroup, executionContext.getSelectedColumns(), executionContext.getTenantId())
           .doOnComplete(
               () -> {
                 long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -497,11 +498,12 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes) {
+  Observable<Row> convert(
+      ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes, String tenantId) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
-      handlerScopedMaskingConfig.parseColumns(resultSet);
+      handlerScopedMaskingConfig.parseColumns(resultSet, tenantId);
       // Pinot has different Response format for selection and aggregation/group by query.
       if (resultSetTypePredicateProvider.isSelectionResultSetType(resultSet)) {
         // map merging is only supported in the selection. Filtering and Group by has its own
