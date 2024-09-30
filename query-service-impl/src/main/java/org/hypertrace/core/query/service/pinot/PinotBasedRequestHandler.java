@@ -145,8 +145,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
 
     this.handlerScopedFiltersConfig =
         new HandlerScopedFiltersConfig(config, this.startTimeAttributeName);
-    this.handlerScopedMaskingConfig =
-        new HandlerScopedMaskingConfig(config, viewDefinition.getPhysicalColumnNames(this.startTimeAttributeName.orElse(null)).get(0), tenantColumnName);
+    this.handlerScopedMaskingConfig = new HandlerScopedMaskingConfig(config);
     LOG.info(
         "Using {}ms as the threshold for logging slow queries of handler: {}",
         slowQueryThreshold,
@@ -428,8 +427,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
       }
       // need to merge data especially for Pinot. That's why we need to track the map columns
-      return this.convert(
-              resultSetGroup, executionContext.getSelectedColumns(), executionContext.getTenantId())
+      return this.convert(resultSetGroup, executionContext)
           .doOnComplete(
               () -> {
                 long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -498,12 +496,13 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(
-      ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes, String tenantId) {
+  Observable<Row> convert(ResultSetGroup resultSetGroup, ExecutionContext executionContext) {
+    String tenantId = executionContext.getTenantId();
+    LinkedHashSet<String> selectedAttributes = executionContext.getSelectedColumns();
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
-      handlerScopedMaskingConfig.parseColumns(resultSet, tenantId);
+      handlerScopedMaskingConfig.parseColumns(executionContext);
       // Pinot has different Response format for selection and aggregation/group by query.
       if (resultSetTypePredicateProvider.isSelectionResultSetType(resultSet)) {
         // map merging is only supported in the selection. Filtering and Group by has its own
@@ -518,7 +517,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
 
     return Observable.fromIterable(rowBuilderList)
         .map(Builder::build)
-        .map(row -> handlerScopedMaskingConfig.mask(row))
+        //        .map(row -> handlerScopedMaskingConfig.mask(row))
         .doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
@@ -545,7 +544,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
         for (String logicalName : selectedAttributes) {
           // colVal will never be null. But getDataRow can throw a runtime exception if it failed
           // to retrieve data
-          String colVal = resultAnalyzer.getDataFromRow(rowId, logicalName);
+          String colVal =
+              !handlerScopedMaskingConfig.shouldMask(logicalName)
+                  ? resultAnalyzer.getDataFromRow(rowId, logicalName)
+                  : handlerScopedMaskingConfig.getMaskedValue(logicalName);
+
           builder.addColumn(Value.newBuilder().setString(colVal).build());
         }
       }
