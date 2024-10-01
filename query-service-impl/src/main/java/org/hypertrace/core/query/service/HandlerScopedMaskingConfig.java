@@ -17,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 public class HandlerScopedMaskingConfig {
   private static final String TENANT_SCOPED_MASKS_CONFIG_KEY = "tenantScopedMaskingCriteria";
   private final Map<String, List<MaskValuesForTimeRange>> tenantToMaskValuesMap;
-  private HashMap<String, Boolean> shouldMaskAttribute = new HashMap<>();
   private HashMap<String, String> maskedValue = new HashMap<>();
 
   public HandlerScopedMaskingConfig(Config config) {
@@ -35,9 +34,8 @@ public class HandlerScopedMaskingConfig {
   }
 
   public void parseColumns(ExecutionContext executionContext) {
-    shouldMaskAttribute.clear();
     String tenantId = executionContext.getTenantId();
-
+    maskedValue.clear();
     if (!tenantToMaskValuesMap.containsKey(tenantId)) {
       return;
     }
@@ -59,7 +57,6 @@ public class HandlerScopedMaskingConfig {
         Map<String, String> attributeToMaskedValue =
             timeRangeAndMasks.maskValues.attributeToMaskedValue;
         for (String attribute : attributeToMaskedValue.keySet()) {
-          shouldMaskAttribute.put(attribute, true);
           maskedValue.put(attribute, attributeToMaskedValue.get(attribute));
         }
       }
@@ -75,8 +72,10 @@ public class HandlerScopedMaskingConfig {
       if (startTimeInstant.isBefore(queryStartTime) || startTimeInstant.isAfter(queryEndTime)) {
         timeRangeOverlap = false;
       }
+    }
 
-      Instant endTimeInstant = Instant.ofEpochMilli(timeRangeAndMasks.getStartTimeMillis().get());
+    if (timeRangeAndMasks.getEndTimeMillis().isPresent()) {
+      Instant endTimeInstant = Instant.ofEpochMilli(timeRangeAndMasks.getEndTimeMillis().get());
       if (endTimeInstant.isBefore(queryStartTime) || endTimeInstant.isAfter(queryEndTime)) {
         timeRangeOverlap = false;
       }
