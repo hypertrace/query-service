@@ -517,7 +517,6 @@ public class PinotBasedRequestHandler implements RequestHandler {
 
     return Observable.fromIterable(rowBuilderList)
         .map(Builder::build)
-        //        .map(row -> handlerScopedMaskingConfig.mask(row))
         .doOnNext(row -> LOG.debug("collect a row: {}", row));
   }
 
