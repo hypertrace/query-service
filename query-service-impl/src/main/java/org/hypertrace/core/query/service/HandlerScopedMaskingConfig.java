@@ -17,8 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 public class HandlerScopedMaskingConfig {
   private static final String TENANT_SCOPED_MASKS_CONFIG_KEY = "tenantScopedMaskingCriteria";
   private final Map<String, List<MaskValuesForTimeRange>> tenantToMaskValuesMap;
-  private HashMap<String, Boolean> shouldMaskAttribute = new HashMap<>();
-  private HashMap<String, String> maskedValue = new HashMap<>();
 
   public HandlerScopedMaskingConfig(Config config) {
     if (config.hasPath(TENANT_SCOPED_MASKS_CONFIG_KEY)) {
@@ -34,12 +32,12 @@ public class HandlerScopedMaskingConfig {
     }
   }
 
-  public void parseColumns(ExecutionContext executionContext) {
-    shouldMaskAttribute.clear();
-    String tenantId = executionContext.getTenantId();
+  public Map<String, String> getMaskedColumnsToValueMap(ExecutionContext executionContext) {
+    Map<String, String> maskedColumnsToValueMap = new HashMap<>();
 
+    String tenantId = executionContext.getTenantId();
     if (!tenantToMaskValuesMap.containsKey(tenantId)) {
-      return;
+      return maskedColumnsToValueMap;
     }
 
     Optional<QueryTimeRange> queryTimeRange = executionContext.getQueryTimeRange();
@@ -53,17 +51,17 @@ public class HandlerScopedMaskingConfig {
     }
     for (MaskValuesForTimeRange timeRangeAndMasks : tenantToMaskValuesMap.get(tenantId)) {
       boolean timeRangeOverlap =
-          isTimeRangeOverlap(timeRangeAndMasks, queryStartTime, queryEndTime);
+              isTimeRangeOverlap(timeRangeAndMasks, queryStartTime, queryEndTime);
 
       if (timeRangeOverlap) {
         Map<String, String> attributeToMaskedValue =
-            timeRangeAndMasks.maskValues.attributeToMaskedValue;
+                timeRangeAndMasks.maskValues.attributeToMaskedValue;
         for (String attribute : attributeToMaskedValue.keySet()) {
-          shouldMaskAttribute.put(attribute, true);
-          maskedValue.put(attribute, attributeToMaskedValue.get(attribute));
+          maskedColumnsToValueMap.put(attribute, attributeToMaskedValue.get(attribute));
         }
       }
     }
+    return maskedColumnsToValueMap;
   }
 
   private static boolean isTimeRangeOverlap(
@@ -82,14 +80,6 @@ public class HandlerScopedMaskingConfig {
       }
     }
     return timeRangeOverlap;
-  }
-
-  public boolean shouldMask(String attributeName) {
-    return this.maskedValue.containsKey(attributeName);
-  }
-
-  public String getMaskedValue(String attributeName) {
-    return this.maskedValue.get(attributeName);
   }
 
   @Value
