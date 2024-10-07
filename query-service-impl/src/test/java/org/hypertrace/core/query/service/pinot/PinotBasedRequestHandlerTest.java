@@ -1781,9 +1781,7 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
 
       String[][] resultTable =
           new String[][] {
-            {
-              "test-span-id-1", "trace-id-1",
-            },
+            {"test-span-id-1", "trace-id-1"},
             {"test-span-id-2", "trace-id-1"},
             {"test-span-id-3", "trace-id-1"},
             {"test-span-id-4", "trace-id-2"}
@@ -1813,14 +1811,23 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
           QueryRequest.newBuilder()
               .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
               .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(
+                  Filter.newBuilder()
+                      .setOperator(Operator.AND)
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.GT,
+                                  QueryRequestBuilderUtils.createLongLiteralValueExpression(
+                                          99))))
               .build();
       ExecutionContext context = new ExecutionContext("maskTenant", request);
-
+      context.setTimeFilterColumn("EVENT.startTime");
       // The query filter is based on both isEntrySpan and startTime. Since the viewFilter
       // checks for both the true and false values of isEntrySpan and query filter only needs
       // "true", isEntrySpan predicate is still passed to the store in the query.
-      String expectedQuery = "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ?";
-      Params params = Params.newBuilder().addStringParam("maskTenant").build();
+      String expectedQuery = "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
+      Params params = Params.newBuilder().addStringParam("maskTenant").addLongParam(99).build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
       String[][] expectedTable =

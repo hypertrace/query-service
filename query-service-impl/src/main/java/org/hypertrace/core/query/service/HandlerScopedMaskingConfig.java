@@ -4,7 +4,6 @@ import com.typesafe.config.Config;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 public class HandlerScopedMaskingConfig {
   private static final String TENANT_SCOPED_MASKS_CONFIG_KEY = "tenantScopedMaskingCriteria";
   private final Map<String, List<MaskValuesForTimeRange>> tenantToMaskValuesMap;
-  private HashMap<String, String> maskedValue = new HashMap<>();
 
   public HandlerScopedMaskingConfig(Config config) {
     if (config.hasPath(TENANT_SCOPED_MASKS_CONFIG_KEY)) {
@@ -33,12 +31,12 @@ public class HandlerScopedMaskingConfig {
     }
   }
 
-  public HashMap<String, String> getColumnToMaskedValuesMap(ExecutionContext executionContext) {
+  public List<String> getMaskedAttributes(ExecutionContext executionContext) {
     String tenantId = executionContext.getTenantId();
-    HashMap<String, String> columnMaskedValue = new HashMap<>();
+    List<String> maskedAttributes = new ArrayList<>();
     //    maskedValue.clear();
     if (!tenantToMaskValuesMap.containsKey(tenantId)) {
-      return columnMaskedValue;
+      return maskedAttributes;
     }
 
     Optional<QueryTimeRange> queryTimeRange = executionContext.getQueryTimeRange();
@@ -55,15 +53,11 @@ public class HandlerScopedMaskingConfig {
           isTimeRangeOverlap(timeRangeAndMasks, queryStartTime, queryEndTime);
 
       if (timeRangeOverlap) {
-        Map<String, String> attributeToMaskedValue =
-            timeRangeAndMasks.maskValues.attributeToMaskedValue;
-        for (String attribute : attributeToMaskedValue.keySet()) {
-          columnMaskedValue.put(attribute, attributeToMaskedValue.get(attribute));
-        }
+        maskedAttributes.addAll(timeRangeAndMasks.maskedAttributes);
       }
     }
 
-    return columnMaskedValue;
+    return maskedAttributes;
   }
 
   private static boolean isTimeRangeOverlap(
@@ -104,25 +98,14 @@ public class HandlerScopedMaskingConfig {
   }
 
   @Value
-  private class MaskValues {
-    Map<String, String> attributeToMaskedValue;
-
-    MaskValues(Map<String, String> columnToMaskedValue) {
-      this.attributeToMaskedValue = columnToMaskedValue;
-    }
-  }
-
-  @Value
   @NonFinal
   class MaskValuesForTimeRange {
     private static final String START_TIME_CONFIG_PATH = "startTimeMillis";
     private static final String END_TIME_CONFIG_PATH = "endTimeMillis";
-    private static final String MASK_VALUE_CONFIG_PATH = "maskValues";
-    private static final String ATTRIBUTE_ID_CONFIG_PATH = "attributeId";
-    private static final String MASKED_VALUE_CONFIG_PATH = "maskedValue";
+    private static final String MASK_ATTRIBUTES_CONFIG_PATH = "maskedAttributes";
     Optional<Long> startTimeMillis;
     Optional<Long> endTimeMillis;
-    MaskValues maskValues;
+    ArrayList<String> maskedAttributes;
 
     private MaskValuesForTimeRange(Config config) {
       if (config.hasPath(START_TIME_CONFIG_PATH) && config.hasPath(END_TIME_CONFIG_PATH)) {
@@ -132,20 +115,10 @@ public class HandlerScopedMaskingConfig {
         startTimeMillis = Optional.empty();
         endTimeMillis = Optional.empty();
       }
-      if (config.hasPath(MASK_VALUE_CONFIG_PATH)) {
-        List<Config> maskedValuesList =
-            new ArrayList<>(config.getConfigList(MASK_VALUE_CONFIG_PATH));
-        HashMap<String, String> maskedValuesMap = new HashMap<>();
-        maskedValuesList.forEach(
-            maskedValue -> {
-              maskedValuesMap.put(
-                  maskedValue.getString(ATTRIBUTE_ID_CONFIG_PATH),
-                  maskedValue.getString(MASKED_VALUE_CONFIG_PATH));
-            });
-
-        maskValues = new MaskValues(maskedValuesMap);
+      if (config.hasPath(MASK_ATTRIBUTES_CONFIG_PATH)) {
+        maskedAttributes = new ArrayList<>(config.getStringList(MASK_ATTRIBUTES_CONFIG_PATH));
       } else {
-        maskValues = new MaskValues(new HashMap<>());
+        maskedAttributes = new ArrayList<>();
       }
     }
   }

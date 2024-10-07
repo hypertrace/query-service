@@ -27,6 +27,7 @@ class PinotResultAnalyzer {
   private final ViewDefinition viewDefinition;
   private final Map<String, RateLimiter> attributeLogRateLimitter;
   private final PinotMapConverter pinotMapConverter;
+  private final Map<Integer, String> indexToLogicalName;
 
   PinotResultAnalyzer(
       ResultSet resultSet,
@@ -34,10 +35,12 @@ class PinotResultAnalyzer {
       ViewDefinition viewDefinition,
       Map<String, Integer> mapLogicalNameToKeyIndex,
       Map<String, Integer> mapLogicalNameToValueIndex,
-      Map<String, Integer> logicalNameToPhysicalNameIndex) {
+      Map<String, Integer> logicalNameToPhysicalNameIndex,
+      Map<Integer, String> indexToLogicalName) {
     this.mapLogicalNameToKeyIndex = mapLogicalNameToKeyIndex;
     this.mapLogicalNameToValueIndex = mapLogicalNameToValueIndex;
     this.logicalNameToPhysicalNameIndex = logicalNameToPhysicalNameIndex;
+    this.indexToLogicalName = indexToLogicalName;
     this.resultSet = resultSet;
     this.viewDefinition = viewDefinition;
     this.attributeLogRateLimitter = new HashMap<>();
@@ -53,6 +56,7 @@ class PinotResultAnalyzer {
     Map<String, Integer> mapLogicalNameToKeyIndex = new HashMap<>();
     Map<String, Integer> mapLogicalNameToValueIndex = new HashMap<>();
     Map<String, Integer> logicalNameToPhysicalNameIndex = new HashMap<>();
+    Map<Integer, String> indexToLogicalName = new HashMap<>();
 
     for (String logicalName : selectedAttributes) {
       if (viewDefinition.isMap(logicalName)) {
@@ -62,8 +66,10 @@ class PinotResultAnalyzer {
           String physName = resultSet.getColumnName(colIndex);
           if (physName.equalsIgnoreCase(keyPhysicalName)) {
             mapLogicalNameToKeyIndex.put(logicalName, colIndex);
+            indexToLogicalName.put(colIndex, logicalName);
           } else if (physName.equalsIgnoreCase(valuePhysicalName)) {
             mapLogicalNameToValueIndex.put(logicalName, colIndex);
+            indexToLogicalName.put(colIndex, logicalName);
           }
         }
       } else {
@@ -73,6 +79,7 @@ class PinotResultAnalyzer {
           String physName = resultSet.getColumnName(colIndex);
           if (physName.equalsIgnoreCase(names.get(0))) {
             logicalNameToPhysicalNameIndex.put(logicalName, colIndex);
+            indexToLogicalName.put(colIndex, logicalName);
             break;
           }
         }
@@ -87,7 +94,8 @@ class PinotResultAnalyzer {
         viewDefinition,
         mapLogicalNameToKeyIndex,
         mapLogicalNameToValueIndex,
-        logicalNameToPhysicalNameIndex);
+        logicalNameToPhysicalNameIndex,
+        indexToLogicalName);
   }
 
   @VisibleForTesting
@@ -148,5 +156,13 @@ class PinotResultAnalyzer {
       result = resultSet.getString(rowIndex, colIndex);
     }
     return result;
+  }
+
+  String getLogicalNameFromColIdx(Integer colIdx) {
+    if (indexToLogicalName.containsKey(colIdx)) {
+      return indexToLogicalName.get(colIdx);
+    }
+
+    return null;
   }
 }
