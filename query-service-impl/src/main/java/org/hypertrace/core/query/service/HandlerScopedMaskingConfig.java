@@ -33,11 +33,12 @@ public class HandlerScopedMaskingConfig {
     }
   }
 
-  public void parseColumns(ExecutionContext executionContext) {
+  public HashMap<String, String> getColumnToMaskedValuesMap(ExecutionContext executionContext) {
     String tenantId = executionContext.getTenantId();
-    maskedValue.clear();
+    HashMap<String, String> columnMaskedValue = new HashMap<>();
+    //    maskedValue.clear();
     if (!tenantToMaskValuesMap.containsKey(tenantId)) {
-      return;
+      return columnMaskedValue;
     }
 
     Optional<QueryTimeRange> queryTimeRange = executionContext.getQueryTimeRange();
@@ -57,10 +58,12 @@ public class HandlerScopedMaskingConfig {
         Map<String, String> attributeToMaskedValue =
             timeRangeAndMasks.maskValues.attributeToMaskedValue;
         for (String attribute : attributeToMaskedValue.keySet()) {
-          maskedValue.put(attribute, attributeToMaskedValue.get(attribute));
+          columnMaskedValue.put(attribute, attributeToMaskedValue.get(attribute));
         }
       }
     }
+
+    return columnMaskedValue;
   }
 
   private static boolean isTimeRangeOverlap(
@@ -81,14 +84,6 @@ public class HandlerScopedMaskingConfig {
       }
     }
     return timeRangeOverlap;
-  }
-
-  public boolean shouldMask(String attributeName) {
-    return this.maskedValue.containsKey(attributeName);
-  }
-
-  public String getMaskedValue(String attributeName) {
-    return this.maskedValue.get(attributeName);
   }
 
   @Value

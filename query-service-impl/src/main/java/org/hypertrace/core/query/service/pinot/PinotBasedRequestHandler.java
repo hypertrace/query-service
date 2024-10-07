@@ -497,21 +497,21 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   Observable<Row> convert(ResultSetGroup resultSetGroup, ExecutionContext executionContext) {
-    String tenantId = executionContext.getTenantId();
     LinkedHashSet<String> selectedAttributes = executionContext.getSelectedColumns();
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       ResultSet resultSet = resultSetGroup.getResultSet(0);
-      handlerScopedMaskingConfig.parseColumns(executionContext);
+      HashMap<String, String> columnToMaskedValue =
+          handlerScopedMaskingConfig.getColumnToMaskedValuesMap(executionContext);
       // Pinot has different Response format for selection and aggregation/group by query.
       if (resultSetTypePredicateProvider.isSelectionResultSetType(resultSet)) {
         // map merging is only supported in the selection. Filtering and Group by has its own
         // syntax in Pinot
-        handleSelection(resultSetGroup, rowBuilderList, selectedAttributes);
+        handleSelection(resultSetGroup, rowBuilderList, selectedAttributes, columnToMaskedValue);
       } else if (resultSetTypePredicateProvider.isResultTableResultSetType(resultSet)) {
-        handleTableFormatResultSet(resultSetGroup, rowBuilderList);
+        handleTableFormatResultSet(resultSetGroup, rowBuilderList, columnToMaskedValue);
       } else {
-        handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
+        handleAggregationAndGroupBy(resultSetGroup, rowBuilderList, columnToMaskedValue);
       }
     }
 
@@ -523,7 +523,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private void handleSelection(
       ResultSetGroup resultSetGroup,
       List<Builder> rowBuilderList,
-      LinkedHashSet<String> selectedAttributes) {
+      LinkedHashSet<String> selectedAttributes,
+      HashMap<String, String> columnToMaskedValue) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
@@ -544,9 +545,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
           // colVal will never be null. But getDataRow can throw a runtime exception if it failed
           // to retrieve data
           String colVal =
-              !handlerScopedMaskingConfig.shouldMask(logicalName)
+              !columnToMaskedValue.containsKey(logicalName)
                   ? resultAnalyzer.getDataFromRow(rowId, logicalName)
-                  : handlerScopedMaskingConfig.getMaskedValue(logicalName);
+                  : columnToMaskedValue.get(logicalName);
 
           builder.addColumn(Value.newBuilder().setString(colVal).build());
         }
@@ -555,7 +556,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private void handleAggregationAndGroupBy(
-      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList) {
+      ResultSetGroup resultSetGroup,
+      List<Builder> rowBuilderList,
+      HashMap<String, String> columnToMaskedValue) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     Map<String, Integer> groupKey2RowIdMap = new HashMap<>();
     for (int i = 0; i < resultSetGroupCount; i++) {
@@ -599,7 +602,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private void handleTableFormatResultSet(
-      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList) {
+      ResultSetGroup resultSetGroup,
+      List<Builder> rowBuilderList,
+      HashMap<String, String> columnToMaskedValue) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
