@@ -1824,9 +1824,6 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
               .build();
       ExecutionContext context = new ExecutionContext("maskTenant", request);
       context.setTimeFilterColumn("EVENT.startTime");
-      // The query filter is based on both isEntrySpan and startTime. Since the viewFilter
-      // checks for both the true and false values of isEntrySpan and query filter only needs
-      // "true", isEntrySpan predicate is still passed to the store in the query.
       String expectedQuery =
           "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
       Params params = Params.newBuilder().addStringParam("maskTenant").addLongParam(99).build();
@@ -1905,9 +1902,6 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
               .build();
       ExecutionContext context = new ExecutionContext("maskTenant", request);
       context.setTimeFilterColumn("EVENT.startTime");
-      // The query filter is based on both isEntrySpan and startTime. Since the viewFilter
-      // checks for both the true and false values of isEntrySpan and query filter only needs
-      // "true", isEntrySpan predicate is still passed to the store in the query.
       String expectedQuery =
           "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
       Params params = Params.newBuilder().addStringParam("maskTenant").addLongParam(99).build();
@@ -1987,9 +1981,6 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
               .build();
       ExecutionContext context = new ExecutionContext("maskTenant", request);
       context.setTimeFilterColumn("EVENT.startTime");
-      // The query filter is based on both isEntrySpan and startTime. Since the viewFilter
-      // checks for both the true and false values of isEntrySpan and query filter only needs
-      // "true", isEntrySpan predicate is still passed to the store in the query.
       String expectedQuery =
           "Select tags__KEYS, tags__VALUES FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
       Params params = Params.newBuilder().addStringParam("maskTenant").addLongParam(99).build();
@@ -2066,9 +2057,6 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
               .build();
       ExecutionContext context = new ExecutionContext("noMaskTenant", request);
       context.setTimeFilterColumn("EVENT.startTime");
-      // The query filter is based on both isEntrySpan and startTime. Since the viewFilter
-      // checks for both the true and false values of isEntrySpan and query filter only needs
-      // "true", isEntrySpan predicate is still passed to the store in the query.
       String expectedQuery =
           "Select tags__KEYS, tags__VALUES FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
       Params params = Params.newBuilder().addStringParam("noMaskTenant").addLongParam(99).build();
@@ -2150,9 +2138,6 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
               .build();
       ExecutionContext context = new ExecutionContext("maskTenant", request);
       context.setTimeFilterColumn("EVENT.startTime");
-      // The query filter is based on both isEntrySpan and startTime. Since the viewFilter
-      // checks for both the true and false values of isEntrySpan and query filter only needs
-      // "true", isEntrySpan predicate is still passed to the store in the query.
       String expectedQuery =
           "Select tags__KEYS, tags__VALUES FROM spanEventView WHERE tenant_id = ? AND ( start_time_millis > ? AND start_time_millis < ? )";
       Params params =
