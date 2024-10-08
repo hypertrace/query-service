@@ -550,9 +550,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
           // colVal will never be null. But getDataRow can throw a runtime exception if it failed
           // to retrieve data
           String colVal =
-              !maskedAttributes.contains(logicalName)
-                  ? resultAnalyzer.getDataFromRow(rowId, logicalName)
-                  : DEFAULT_MASKED_VALUE;
+              maskedAttributes.contains(logicalName)
+                  ? DEFAULT_MASKED_VALUE
+                  : resultAnalyzer.getDataFromRow(rowId, logicalName);
 
           builder.addColumn(Value.newBuilder().setString(colVal).build());
         }

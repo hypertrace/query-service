@@ -34,7 +34,6 @@ public class HandlerScopedMaskingConfig {
   public List<String> getMaskedAttributes(ExecutionContext executionContext) {
     String tenantId = executionContext.getTenantId();
     List<String> maskedAttributes = new ArrayList<>();
-    //    maskedValue.clear();
     if (!tenantToMaskValuesMap.containsKey(tenantId)) {
       return maskedAttributes;
     }
@@ -126,7 +125,9 @@ public class HandlerScopedMaskingConfig {
     }
 
     boolean isValid() {
-      return startTimeMillis.isPresent() && endTimeMillis.isPresent();
+      return startTimeMillis.isPresent()
+          && endTimeMillis.isPresent()
+          && !maskedAttributes.isEmpty();
     }
   }
 }
