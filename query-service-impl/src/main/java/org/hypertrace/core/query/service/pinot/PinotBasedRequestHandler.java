@@ -619,7 +619,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
         builder = Row.newBuilder();
         rowBuilderList.add(builder);
 
-        for (int colIdx = 0; colIdx < resultSet.getColumnCount(); colIdx++) {
+        for (int colIdx = 0, logicalColIdx = 0;
+            colIdx < resultSet.getColumnCount();
+            colIdx++, logicalColIdx++) {
           if (resultSet.getColumnName(colIdx).endsWith(ViewDefinition.MAP_KEYS_SUFFIX)) {
             // Read the key and value column values. The columns should be side by side. That's how
             // the Pinot query
@@ -627,7 +629,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
             String mapKeys = resultSet.getString(rowIdx, colIdx);
             String mapVals = resultSet.getString(rowIdx, colIdx + 1);
 
-            Optional<String> logicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
+            Optional<String> logicalName = resultAnalyzer.getLogicalNameFromColIdx(logicalColIdx);
 
             if (logicalName.isPresent() && maskedAttributes.contains(logicalName.get())) {
               mapVals = ARRAY_TYPE_MASKED_VALUE;
@@ -645,7 +647,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
             colIdx++;
           } else {
             String val = resultSet.getString(rowIdx, colIdx);
-            Optional<String> columnLogicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
+            Optional<String> columnLogicalName =
+                resultAnalyzer.getLogicalNameFromColIdx(logicalColIdx);
 
             if (columnLogicalName.isPresent()
                 && maskedAttributes.contains(columnLogicalName.get())) {
