@@ -93,6 +93,7 @@ public class HandlerScopedMaskingConfig {
       this.maskValues =
           config.getConfigList(TIME_RANGE_AND_MASK_VALUES_CONFIG_KEY).stream()
               .map(MaskValuesForTimeRange::new)
+              .filter(MaskValuesForTimeRange::isValid)
               .collect(Collectors.toList());
     }
   }
@@ -114,12 +115,18 @@ public class HandlerScopedMaskingConfig {
       } else {
         startTimeMillis = Optional.empty();
         endTimeMillis = Optional.empty();
+        log.warn(
+            "A masking filter is provided without startTimeMillis or endTimeMillis in tenantScopedMaskingCriteria. This filter will be ignored.");
       }
       if (config.hasPath(MASK_ATTRIBUTES_CONFIG_PATH)) {
         maskedAttributes = new ArrayList<>(config.getStringList(MASK_ATTRIBUTES_CONFIG_PATH));
       } else {
         maskedAttributes = new ArrayList<>();
       }
+    }
+
+    boolean isValid() {
+      return startTimeMillis.isPresent() && endTimeMillis.isPresent();
     }
   }
 }

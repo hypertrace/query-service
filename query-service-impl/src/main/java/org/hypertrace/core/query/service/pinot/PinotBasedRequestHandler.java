@@ -59,9 +59,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
 
-  private static final String MASKED_VALUE = "*";
+  private static final String DEFAULT_MASKED_VALUE = "*";
   // This is how empty list is represented in Pinot
-  private static final String PINOT_EMPTY_LIST = "[\"\"]";
+  private static final String ARRAY_TYPE_MASKED_VALUE = "[\"\"]";
 
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
@@ -552,7 +552,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
           String colVal =
               !maskedAttributes.contains(logicalName)
                   ? resultAnalyzer.getDataFromRow(rowId, logicalName)
-                  : MASKED_VALUE;
+                  : DEFAULT_MASKED_VALUE;
 
           builder.addColumn(Value.newBuilder().setString(colVal).build());
         }
@@ -627,12 +627,13 @@ public class PinotBasedRequestHandler implements RequestHandler {
             String mapKeys = resultSet.getString(rowIdx, colIdx);
             String mapVals = resultSet.getString(rowIdx, colIdx + 1);
 
-            String logicalNameKey = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
-            String logicalNameValue = resultAnalyzer.getLogicalNameFromColIdx(colIdx + 1);
+            Optional<String> logicalNameKey = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
+            Optional<String> logicalNameValue = resultAnalyzer.getLogicalNameFromColIdx(colIdx + 1);
 
-            if (maskedAttributes.contains(logicalNameKey)
-                || maskedAttributes.contains(logicalNameValue)) {
-              mapVals = PINOT_EMPTY_LIST;
+            if ((logicalNameKey.isPresent() && maskedAttributes.contains(logicalNameKey.get()))
+                || (logicalNameValue.isPresent()
+                    && maskedAttributes.contains(logicalNameValue.get()))) {
+              mapVals = ARRAY_TYPE_MASKED_VALUE;
             }
 
             try {
@@ -647,10 +648,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
             colIdx++;
           } else {
             String val = resultSet.getString(rowIdx, colIdx);
-            String columnLogicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
+            Optional<String> columnLogicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
 
-            if (maskedAttributes.contains(columnLogicalName)) {
-              val = MASKED_VALUE;
+            if (columnLogicalName.isPresent()
+                && maskedAttributes.contains(columnLogicalName.get())) {
+              val = DEFAULT_MASKED_VALUE;
             }
 
             builder.addColumn(Value.newBuilder().setString(val).build());
