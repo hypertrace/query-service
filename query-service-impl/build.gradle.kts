@@ -71,6 +71,7 @@ dependencies {
     // We want to use log4j2 impl so exclude the log4j binding of slf4j
     exclude("org.slf4j", "slf4j-log4j12")
     exclude("log4j", "log4j")
+    exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
   }
   implementation("org.slf4j:slf4j-api:2.0.11")
   implementation("commons-codec:commons-codec:1.15")
