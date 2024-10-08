@@ -627,12 +627,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
             String mapKeys = resultSet.getString(rowIdx, colIdx);
             String mapVals = resultSet.getString(rowIdx, colIdx + 1);
 
-            Optional<String> logicalNameKey = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
-            Optional<String> logicalNameValue = resultAnalyzer.getLogicalNameFromColIdx(colIdx + 1);
+            Optional<String> logicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
 
-            if ((logicalNameKey.isPresent() && maskedAttributes.contains(logicalNameKey.get()))
-                || (logicalNameValue.isPresent()
-                    && maskedAttributes.contains(logicalNameValue.get()))) {
+            if (logicalName.isPresent() && maskedAttributes.contains(logicalName.get())) {
               mapVals = ARRAY_TYPE_MASKED_VALUE;
             }
 
