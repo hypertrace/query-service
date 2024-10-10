@@ -88,6 +88,7 @@ class PinotResultAnalyzer {
     LOG.debug("Map LogicalName to Key Index: {} ", mapLogicalNameToKeyIndex);
     LOG.debug("Map LogicalName to Value Index: {}", mapLogicalNameToValueIndex);
     LOG.debug("Attributes to Index: {}", logicalNameToPhysicalNameIndex);
+    LOG.debug("Index to LogicalName: {}", indexToLogicalName);
     return new PinotResultAnalyzer(
         resultSet,
         selectedAttributes,
