@@ -85,9 +85,9 @@ class PinotResultAnalyzer {
         }
       }
     }
-    LOG.info("Map LogicalName to Key Index: {} ", mapLogicalNameToKeyIndex);
-    LOG.info("Map LogicalName to Value Index: {}", mapLogicalNameToValueIndex);
-    LOG.info("Attributes to Index: {}", logicalNameToPhysicalNameIndex);
+    LOG.debug("Map LogicalName to Key Index: {} ", mapLogicalNameToKeyIndex);
+    LOG.debug("Map LogicalName to Value Index: {}", mapLogicalNameToValueIndex);
+    LOG.debug("Attributes to Index: {}", logicalNameToPhysicalNameIndex);
     return new PinotResultAnalyzer(
         resultSet,
         selectedAttributes,

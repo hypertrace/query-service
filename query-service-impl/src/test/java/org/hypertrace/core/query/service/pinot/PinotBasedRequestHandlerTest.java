@@ -1820,13 +1820,23 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
                           QueryRequestBuilderUtils.createFilter(
                               "EVENT.startTime",
                               Operator.GT,
-                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99))))
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99)))
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.LT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(300))))
               .build();
       ExecutionContext context = new ExecutionContext("maskTenant", request);
       context.setTimeFilterColumn("EVENT.startTime");
       String expectedQuery =
-          "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
-      Params params = Params.newBuilder().addStringParam("maskTenant").addLongParam(99).build();
+          "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND ( start_time_millis > ? AND start_time_millis < ? )";
+      Params params =
+          Params.newBuilder()
+              .addStringParam("maskTenant")
+              .addLongParam(99)
+              .addLongParam(300)
+              .build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
       String[][] expectedTable =
@@ -1896,20 +1906,28 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
                           QueryRequestBuilderUtils.createFilter(
                               "EVENT.startTime",
                               Operator.GT,
-                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99))))
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99)))
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.LT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(300))))
               .build();
       ExecutionContext context = new ExecutionContext("maskTenant", request);
       context.setTimeFilterColumn("EVENT.startTime");
       String expectedQuery =
-          "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
-      Params params = Params.newBuilder().addStringParam("maskTenant").addLongParam(99).build();
+          "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND ( start_time_millis > ? AND start_time_millis < ? )";
+      Params params =
+          Params.newBuilder()
+              .addStringParam("maskTenant")
+              .addLongParam(99)
+              .addLongParam(300)
+              .build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
       String[][] expectedTable =
           new String[][] {
-            {
-              "*", "trace-id-1",
-            },
+            {"*", "trace-id-1"},
             {"*", "trace-id-1"},
             {"*", "trace-id-1"},
             {"*", "trace-id-2"}
@@ -1975,13 +1993,23 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
                           QueryRequestBuilderUtils.createFilter(
                               "EVENT.startTime",
                               Operator.GT,
-                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99))))
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99)))
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.LT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(300))))
               .build();
       ExecutionContext context = new ExecutionContext("maskTenant", request);
       context.setTimeFilterColumn("EVENT.startTime");
       String expectedQuery =
-          "Select tags__KEYS, tags__VALUES FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
-      Params params = Params.newBuilder().addStringParam("maskTenant").addLongParam(99).build();
+          "Select tags__KEYS, tags__VALUES FROM spanEventView WHERE tenant_id = ? AND ( start_time_millis > ? AND start_time_millis < ? )";
+      Params params =
+          Params.newBuilder()
+              .addStringParam("maskTenant")
+              .addLongParam(99)
+              .addLongParam(300)
+              .build();
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
       String[][] expectedTable =
