@@ -501,9 +501,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   Observable<Row> convert(ResultSetGroup resultSetGroup, ExecutionContext executionContext) {
-    LinkedHashSet<String> selectedAttributes = executionContext.getSelectedColumns();
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
+      LinkedHashSet<String> selectedAttributes = executionContext.getSelectedColumns();
       ResultSet resultSet = resultSetGroup.getResultSet(0);
       List<String> maskedAttributes =
           handlerScopedMaskingConfig.getMaskedAttributes(executionContext);
@@ -629,9 +629,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
             String mapKeys = resultSet.getString(rowIdx, colIdx);
             String mapVals = resultSet.getString(rowIdx, colIdx + 1);
 
-            Optional<String> logicalName = resultAnalyzer.getLogicalNameFromColIdx(logicalColIdx);
+            String logicalName = resultAnalyzer.getLogicalNameFromColIdx(logicalColIdx);
 
-            if (logicalName.isPresent() && maskedAttributes.contains(logicalName.get())) {
+            if (maskedAttributes.contains(logicalName)) {
               mapVals = ARRAY_TYPE_MASKED_VALUE;
             }
 
@@ -647,11 +647,9 @@ public class PinotBasedRequestHandler implements RequestHandler {
             colIdx++;
           } else {
             String val = resultSet.getString(rowIdx, colIdx);
-            Optional<String> columnLogicalName =
-                resultAnalyzer.getLogicalNameFromColIdx(logicalColIdx);
+            String columnLogicalName = resultAnalyzer.getLogicalNameFromColIdx(logicalColIdx);
 
-            if (columnLogicalName.isPresent()
-                && maskedAttributes.contains(columnLogicalName.get())) {
+            if (maskedAttributes.contains(columnLogicalName)) {
               val = DEFAULT_MASKED_VALUE;
             }
 

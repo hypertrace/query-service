@@ -1831,9 +1831,7 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
 
       String[][] expectedTable =
           new String[][] {
-            {
-              "*", "trace-id-1",
-            },
+            {"*", "trace-id-1"},
             {"*", "trace-id-1"},
             {"*", "trace-id-1"},
             {"*", "trace-id-2"}

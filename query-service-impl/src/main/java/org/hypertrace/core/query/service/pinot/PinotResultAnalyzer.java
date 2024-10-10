@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import javax.annotation.Nonnull;
 import org.apache.pinot.client.ResultSet;
 import org.slf4j.Logger;
@@ -159,7 +158,7 @@ class PinotResultAnalyzer {
     return result;
   }
 
-  Optional<String> getLogicalNameFromColIdx(Integer colIdx) {
-    return Optional.ofNullable(indexToLogicalName.get(colIdx));
+  String getLogicalNameFromColIdx(Integer colIdx) {
+    return indexToLogicalName.get(colIdx);
   }
 }
