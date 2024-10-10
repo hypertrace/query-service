@@ -623,14 +623,12 @@ public class PinotBasedRequestHandler implements RequestHandler {
             // Read the key and value column values. The columns should be side by side. That's how
             // the Pinot query
             // is structured
-            String mapKeys = resultSet.getString(rowIdx, colIdx);
-            String mapVals = resultSet.getString(rowIdx, colIdx + 1);
-
             String logicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
-
-            if (maskedAttributes.contains(logicalName)) {
-              mapVals = ARRAY_TYPE_MASKED_VALUE;
-            }
+            String mapKeys = resultSet.getString(rowIdx, colIdx);
+            String mapVals =
+                maskedAttributes.contains(logicalName)
+                    ? ARRAY_TYPE_MASKED_VALUE
+                    : resultSet.getString(rowIdx, colIdx + 1);
 
             try {
               builder.addColumn(
@@ -643,13 +641,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
             // advance colIdx by 1 since we have read 2 columns
             colIdx++;
           } else {
-            String val = resultSet.getString(rowIdx, colIdx);
-            String columnLogicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
-
-            if (maskedAttributes.contains(columnLogicalName)) {
-              val = DEFAULT_MASKED_VALUE;
-            }
-
+            String logicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
+            String val =
+                maskedAttributes.contains(logicalName)
+                    ? DEFAULT_MASKED_VALUE
+                    : resultSet.getString(rowIdx, colIdx);
             builder.addColumn(Value.newBuilder().setString(val).build());
           }
         }
@@ -711,9 +707,5 @@ public class PinotBasedRequestHandler implements RequestHandler {
         && expression.getAttributeExpression().hasSubpath()
         && viewDefinition.getColumnType(expression.getAttributeExpression().getAttributeId())
             != ValueType.STRING_MAP;
-  }
-
-  HandlerScopedMaskingConfig getHandlerScopedMaskingConfig() {
-    return handlerScopedMaskingConfig;
   }
 }
