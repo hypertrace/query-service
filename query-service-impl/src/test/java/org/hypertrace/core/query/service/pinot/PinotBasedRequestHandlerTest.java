@@ -18,7 +18,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import io.reactivex.rxjava3.core.Observable;
 import java.io.IOException;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1353,7 +1354,9 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), resultTable);
+        pinotBasedRequestHandler.convert(
+            resultSetGroup, new ExecutionContext("__default", QueryRequest.newBuilder().build())),
+        resultTable);
   }
 
   @Test
@@ -1371,7 +1374,9 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
     ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), resultTable);
+        pinotBasedRequestHandler.convert(
+            resultSetGroup, new ExecutionContext("__default", QueryRequest.newBuilder().build())),
+        resultTable);
   }
 
   @Test
@@ -1432,7 +1437,9 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), expectedRows);
+        pinotBasedRequestHandler.convert(
+            resultSetGroup, new ExecutionContext("__default", QueryRequest.newBuilder().build())),
+        expectedRows);
   }
 
   @Test
@@ -1467,7 +1474,9 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
         };
 
     verifyResponseRows(
-        pinotBasedRequestHandler.convert(resultSetGroup, new LinkedHashSet<>()), expectedRows);
+        pinotBasedRequestHandler.convert(
+            resultSetGroup, new ExecutionContext("__default", QueryRequest.newBuilder().build())),
+        expectedRows);
   }
 
   @Test
@@ -1753,6 +1762,426 @@ public class PinotBasedRequestHandlerTest extends AbstractServiceTest<QueryReque
       when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
 
       verifyResponseRows(handler.handleRequest(request, context), resultTable);
+    }
+  }
+
+  @Test
+  public void testMaskColumnValueSelection() throws IOException {
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
+      if (!config.getString("name").equals("span-event-view-handler")) {
+        continue;
+      }
+
+      // Mock the PinotClient
+      PinotClient pinotClient = mock(PinotClient.class);
+      PinotClientFactory factory = mock(PinotClientFactory.class);
+      when(factory.getPinotClient(any())).thenReturn(pinotClient);
+
+      String[][] resultTable =
+          new String[][] {
+            {"test-span-id-1", "trace-id-1"},
+            {"test-span-id-2", "trace-id-1"},
+            {"test-span-id-3", "trace-id-1"},
+            {"test-span-id-4", "trace-id-2"}
+          };
+      List<String> columnNames = List.of("span_id", "trace_id");
+      ResultSet resultSet = mockResultSet(4, 2, columnNames, resultTable);
+      ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return true;
+                }
+
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+              },
+              factory);
+
+      QueryRequest request =
+          QueryRequest.newBuilder()
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(
+                  Filter.newBuilder()
+                      .setOperator(Operator.AND)
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.GT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99)))
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.LT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(300))))
+              .build();
+      ExecutionContext context = new ExecutionContext("maskTenant", request);
+      context.setTimeFilterColumn("EVENT.startTime");
+      String expectedQuery =
+          "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND ( start_time_millis > ? AND start_time_millis < ? )";
+      Params params =
+          Params.newBuilder()
+              .addStringParam("maskTenant")
+              .addLongParam(99)
+              .addLongParam(300)
+              .build();
+      when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
+
+      String[][] expectedTable =
+          new String[][] {
+            {"*", "trace-id-1"},
+            {"*", "trace-id-1"},
+            {"*", "trace-id-1"},
+            {"*", "trace-id-2"}
+          };
+
+      verifyResponseRows(handler.handleRequest(request, context), expectedTable);
+    }
+  }
+
+  @Test
+  public void testMaskColumnValueTableFormat() throws IOException {
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
+      if (!config.getString("name").equals("span-event-view-handler")) {
+        continue;
+      }
+
+      // Mock the PinotClient
+      PinotClient pinotClient = mock(PinotClient.class);
+      PinotClientFactory factory = mock(PinotClientFactory.class);
+      when(factory.getPinotClient(any())).thenReturn(pinotClient);
+
+      String[][] resultTable =
+          new String[][] {
+            {"test-span-id-1", "trace-id-1"},
+            {"test-span-id-2", "trace-id-1"},
+            {"test-span-id-3", "trace-id-1"},
+            {"test-span-id-4", "trace-id-2"}
+          };
+      List<String> columnNames = List.of("span_id", "trace_id");
+      ResultSet resultSet = mockResultSet(4, 2, columnNames, resultTable);
+      ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return true;
+                }
+              },
+              factory);
+
+      QueryRequest request =
+          QueryRequest.newBuilder()
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.id"))
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.traceId"))
+              .setFilter(
+                  Filter.newBuilder()
+                      .setOperator(Operator.AND)
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.GT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99)))
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.LT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(300))))
+              .build();
+      ExecutionContext context = new ExecutionContext("maskTenant", request);
+      context.setTimeFilterColumn("EVENT.startTime");
+      String expectedQuery =
+          "Select span_id, trace_id FROM spanEventView WHERE tenant_id = ? AND ( start_time_millis > ? AND start_time_millis < ? )";
+      Params params =
+          Params.newBuilder()
+              .addStringParam("maskTenant")
+              .addLongParam(99)
+              .addLongParam(300)
+              .build();
+      when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
+
+      String[][] expectedTable =
+          new String[][] {
+            {"*", "trace-id-1"},
+            {"*", "trace-id-1"},
+            {"*", "trace-id-1"},
+            {"*", "trace-id-2"}
+          };
+
+      verifyResponseRows(handler.handleRequest(request, context), expectedTable);
+    }
+  }
+
+  @Test
+  public void testMaskMapColumnValue() throws IOException {
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
+      if (!config.getString("name").equals("span-event-view-handler")) {
+        continue;
+      }
+
+      // Mock the PinotClient
+      PinotClient pinotClient = mock(PinotClient.class);
+      PinotClientFactory factory = mock(PinotClientFactory.class);
+      when(factory.getPinotClient(any())).thenReturn(pinotClient);
+
+      String[][] resultTable =
+          new String[][] {
+            {
+              stringify(new ArrayList<>(Arrays.asList("k1", "k2", "k3"))),
+              stringify(new ArrayList<>(Arrays.asList("v1", "v2", "v3")))
+            },
+          };
+      List<String> columnNames =
+          List.of(
+              "tags" + ViewDefinition.MAP_KEYS_SUFFIX, "tags" + ViewDefinition.MAP_VALUES_SUFFIX);
+      ResultSet resultSet = mockResultSet(1, 2, columnNames, resultTable);
+      ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return true;
+                }
+              },
+              factory);
+
+      QueryRequest request =
+          QueryRequest.newBuilder()
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.spanTags"))
+              .setFilter(
+                  Filter.newBuilder()
+                      .setOperator(Operator.AND)
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.GT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99)))
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.LT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(300))))
+              .build();
+      ExecutionContext context = new ExecutionContext("maskTenant", request);
+      context.setTimeFilterColumn("EVENT.startTime");
+      String expectedQuery =
+          "Select tags__KEYS, tags__VALUES FROM spanEventView WHERE tenant_id = ? AND ( start_time_millis > ? AND start_time_millis < ? )";
+      Params params =
+          Params.newBuilder()
+              .addStringParam("maskTenant")
+              .addLongParam(99)
+              .addLongParam(300)
+              .build();
+      when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
+
+      String[][] expectedTable =
+          new String[][] {
+            {
+              "{\"k1\":\"\",\"k2\":\"\",\"k3\":\"\"}",
+            },
+          };
+
+      verifyResponseRows(handler.handleRequest(request, context), expectedTable);
+    }
+  }
+
+  @Test
+  public void testNoMaskColumnValueTenantMismatch() throws IOException {
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
+      if (!config.getString("name").equals("span-event-view-handler")) {
+        continue;
+      }
+
+      // Mock the PinotClient
+      PinotClient pinotClient = mock(PinotClient.class);
+      PinotClientFactory factory = mock(PinotClientFactory.class);
+      when(factory.getPinotClient(any())).thenReturn(pinotClient);
+
+      String[][] resultTable =
+          new String[][] {
+            {
+              stringify(new ArrayList<>(Arrays.asList("k1", "k2", "k3"))),
+              stringify(new ArrayList<>(Arrays.asList("v1", "v2", "v3")))
+            },
+          };
+      List<String> columnNames =
+          List.of(
+              "tags" + ViewDefinition.MAP_KEYS_SUFFIX, "tags" + ViewDefinition.MAP_VALUES_SUFFIX);
+      ResultSet resultSet = mockResultSet(1, 2, columnNames, resultTable);
+      ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return true;
+                }
+              },
+              factory);
+
+      QueryRequest request =
+          QueryRequest.newBuilder()
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.spanTags"))
+              .setFilter(
+                  Filter.newBuilder()
+                      .setOperator(Operator.AND)
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.GT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(99))))
+              .build();
+      ExecutionContext context = new ExecutionContext("noMaskTenant", request);
+      context.setTimeFilterColumn("EVENT.startTime");
+      String expectedQuery =
+          "Select tags__KEYS, tags__VALUES FROM spanEventView WHERE tenant_id = ? AND start_time_millis > ?";
+      Params params = Params.newBuilder().addStringParam("noMaskTenant").addLongParam(99).build();
+      when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
+
+      String[][] expectedTable =
+          new String[][] {
+            {
+              "{\"k1\":\"v1\",\"k2\":\"v2\",\"k3\":\"v3\"}",
+            },
+          };
+
+      verifyResponseRows(handler.handleRequest(request, context), expectedTable);
+    }
+  }
+
+  @Test
+  public void testNoTimerangeOverlapForMasking() throws IOException {
+    for (Config config : serviceConfig.getConfigList("queryRequestHandlersConfig")) {
+      if (!isPinotConfig(config)) {
+        continue;
+      }
+
+      if (!config.getString("name").equals("span-event-view-handler")) {
+        continue;
+      }
+
+      // Mock the PinotClient
+      PinotClient pinotClient = mock(PinotClient.class);
+      PinotClientFactory factory = mock(PinotClientFactory.class);
+      when(factory.getPinotClient(any())).thenReturn(pinotClient);
+
+      String[][] resultTable =
+          new String[][] {
+            {
+              stringify(new ArrayList<>(Arrays.asList("k1", "k2", "k3"))),
+              stringify(new ArrayList<>(Arrays.asList("v1", "v2", "v3")))
+            },
+          };
+      List<String> columnNames =
+          List.of(
+              "tags" + ViewDefinition.MAP_KEYS_SUFFIX, "tags" + ViewDefinition.MAP_VALUES_SUFFIX);
+      ResultSet resultSet = mockResultSet(1, 2, columnNames, resultTable);
+      ResultSetGroup resultSetGroup = mockResultSetGroup(List.of(resultSet));
+
+      PinotBasedRequestHandler handler =
+          new PinotBasedRequestHandler(
+              config.getString("name"),
+              config.getConfig("requestHandlerInfo"),
+              new ResultSetTypePredicateProvider() {
+                @Override
+                public boolean isSelectionResultSetType(ResultSet resultSet) {
+                  return false;
+                }
+
+                @Override
+                public boolean isResultTableResultSetType(ResultSet resultSet) {
+                  return true;
+                }
+              },
+              factory);
+
+      QueryRequest request =
+          QueryRequest.newBuilder()
+              .addSelection(QueryRequestBuilderUtils.createColumnExpression("EVENT.spanTags"))
+              .setFilter(
+                  Filter.newBuilder()
+                      .setOperator(Operator.AND)
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.GT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(1000)))
+                      .addChildFilter(
+                          QueryRequestBuilderUtils.createFilter(
+                              "EVENT.startTime",
+                              Operator.LT,
+                              QueryRequestBuilderUtils.createLongLiteralValueExpression(2000))))
+              .build();
+      ExecutionContext context = new ExecutionContext("maskTenant", request);
+      context.setTimeFilterColumn("EVENT.startTime");
+      String expectedQuery =
+          "Select tags__KEYS, tags__VALUES FROM spanEventView WHERE tenant_id = ? AND ( start_time_millis > ? AND start_time_millis < ? )";
+      Params params =
+          Params.newBuilder()
+              .addStringParam("maskTenant")
+              .addLongParam(1000)
+              .addLongParam(2000)
+              .build();
+      when(pinotClient.executeQuery(expectedQuery, params)).thenReturn(resultSetGroup);
+
+      String[][] expectedTable =
+          new String[][] {
+            {
+              "{\"k1\":\"v1\",\"k2\":\"v2\",\"k3\":\"v3\"}",
+            },
+          };
+
+      verifyResponseRows(handler.handleRequest(request, context), expectedTable);
     }
   }
 

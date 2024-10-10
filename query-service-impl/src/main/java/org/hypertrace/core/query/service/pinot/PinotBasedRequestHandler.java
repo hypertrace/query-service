@@ -28,6 +28,7 @@ import org.apache.pinot.client.ResultSet;
 import org.apache.pinot.client.ResultSetGroup;
 import org.hypertrace.core.query.service.ExecutionContext;
 import org.hypertrace.core.query.service.HandlerScopedFiltersConfig;
+import org.hypertrace.core.query.service.HandlerScopedMaskingConfig;
 import org.hypertrace.core.query.service.QueryCost;
 import org.hypertrace.core.query.service.RequestHandler;
 import org.hypertrace.core.query.service.api.Expression;
@@ -58,6 +59,10 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private static final String START_TIME_ATTRIBUTE_NAME_CONFIG_KEY = "startTimeAttributeName";
   private static final String SLOW_QUERY_THRESHOLD_MS_CONFIG = "slowQueryThresholdMs";
 
+  private static final String DEFAULT_MASKED_VALUE = "*";
+  // This is how empty list is represented in Pinot
+  private static final String ARRAY_TYPE_MASKED_VALUE = "[\"\"]";
+
   private static final int DEFAULT_SLOW_QUERY_THRESHOLD_MS = 3000;
   private static final Set<Operator> GTE_OPERATORS = Set.of(Operator.GE, Operator.GT, Operator.EQ);
 
@@ -67,6 +72,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private QueryRequestToPinotSQLConverter request2PinotSqlConverter;
   private final PinotMapConverter pinotMapConverter;
   private HandlerScopedFiltersConfig handlerScopedFiltersConfig;
+  private HandlerScopedMaskingConfig handlerScopedMaskingConfig;
   // The implementations of ResultSet are package private and hence there's no way to determine the
   // shape of the results
   // other than to do string comparison on the simple class names. In order to be able to unit test
@@ -143,6 +149,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
 
     this.handlerScopedFiltersConfig =
         new HandlerScopedFiltersConfig(config, this.startTimeAttributeName);
+    this.handlerScopedMaskingConfig = new HandlerScopedMaskingConfig(config);
     LOG.info(
         "Using {}ms as the threshold for logging slow queries of handler: {}",
         slowQueryThreshold,
@@ -424,7 +431,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
         LOG.debug("Query results: [ {} ]", resultSetGroup.toString());
       }
       // need to merge data especially for Pinot. That's why we need to track the map columns
-      return this.convert(resultSetGroup, executionContext.getSelectedColumns())
+      return this.convert(resultSetGroup, executionContext)
           .doOnComplete(
               () -> {
                 long requestTimeMs = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -493,17 +500,21 @@ public class PinotBasedRequestHandler implements RequestHandler {
     return queryFilter;
   }
 
-  Observable<Row> convert(ResultSetGroup resultSetGroup, LinkedHashSet<String> selectedAttributes) {
+  Observable<Row> convert(ResultSetGroup resultSetGroup, ExecutionContext executionContext) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
+      LinkedHashSet<String> selectedAttributes = executionContext.getSelectedColumns();
+      Set<String> maskedAttributes =
+          handlerScopedMaskingConfig.getMaskedAttributes(executionContext);
       ResultSet resultSet = resultSetGroup.getResultSet(0);
       // Pinot has different Response format for selection and aggregation/group by query.
       if (resultSetTypePredicateProvider.isSelectionResultSetType(resultSet)) {
         // map merging is only supported in the selection. Filtering and Group by has its own
         // syntax in Pinot
-        handleSelection(resultSetGroup, rowBuilderList, selectedAttributes);
+        handleSelection(resultSetGroup, rowBuilderList, selectedAttributes, maskedAttributes);
       } else if (resultSetTypePredicateProvider.isResultTableResultSetType(resultSet)) {
-        handleTableFormatResultSet(resultSetGroup, rowBuilderList);
+        handleTableFormatResultSet(
+            resultSetGroup, rowBuilderList, selectedAttributes, maskedAttributes);
       } else {
         handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
       }
@@ -516,7 +527,8 @@ public class PinotBasedRequestHandler implements RequestHandler {
   private void handleSelection(
       ResultSetGroup resultSetGroup,
       List<Builder> rowBuilderList,
-      LinkedHashSet<String> selectedAttributes) {
+      LinkedHashSet<String> selectedAttributes,
+      Set<String> maskedAttributes) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
@@ -536,7 +548,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
         for (String logicalName : selectedAttributes) {
           // colVal will never be null. But getDataRow can throw a runtime exception if it failed
           // to retrieve data
-          String colVal = resultAnalyzer.getDataFromRow(rowId, logicalName);
+          String colVal =
+              maskedAttributes.contains(logicalName)
+                  ? DEFAULT_MASKED_VALUE
+                  : resultAnalyzer.getDataFromRow(rowId, logicalName);
+
           builder.addColumn(Value.newBuilder().setString(colVal).build());
         }
       }
@@ -588,10 +604,15 @@ public class PinotBasedRequestHandler implements RequestHandler {
   }
 
   private void handleTableFormatResultSet(
-      ResultSetGroup resultSetGroup, List<Builder> rowBuilderList) {
+      ResultSetGroup resultSetGroup,
+      List<Builder> rowBuilderList,
+      LinkedHashSet<String> selectedAttributes,
+      Set<String> maskedAttributes) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
+      PinotResultAnalyzer resultAnalyzer =
+          PinotResultAnalyzer.create(resultSet, selectedAttributes, viewDefinition);
       for (int rowIdx = 0; rowIdx < resultSet.getRowCount(); rowIdx++) {
         Builder builder;
         builder = Row.newBuilder();
@@ -602,8 +623,13 @@ public class PinotBasedRequestHandler implements RequestHandler {
             // Read the key and value column values. The columns should be side by side. That's how
             // the Pinot query
             // is structured
+            String logicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
             String mapKeys = resultSet.getString(rowIdx, colIdx);
-            String mapVals = resultSet.getString(rowIdx, colIdx + 1);
+            String mapVals =
+                maskedAttributes.contains(logicalName)
+                    ? ARRAY_TYPE_MASKED_VALUE
+                    : resultSet.getString(rowIdx, colIdx + 1);
+
             try {
               builder.addColumn(
                   Value.newBuilder().setString(pinotMapConverter.merge(mapKeys, mapVals)).build());
@@ -615,7 +641,11 @@ public class PinotBasedRequestHandler implements RequestHandler {
             // advance colIdx by 1 since we have read 2 columns
             colIdx++;
           } else {
-            String val = resultSet.getString(rowIdx, colIdx);
+            String logicalName = resultAnalyzer.getLogicalNameFromColIdx(colIdx);
+            String val =
+                maskedAttributes.contains(logicalName)
+                    ? DEFAULT_MASKED_VALUE
+                    : resultSet.getString(rowIdx, colIdx);
             builder.addColumn(Value.newBuilder().setString(val).build());
           }
         }
