@@ -519,7 +519,6 @@ public class PinotBasedRequestHandler implements RequestHandler {
         handleAggregationAndGroupBy(resultSetGroup, rowBuilderList);
       }
     }
-
     return Observable.fromIterable(rowBuilderList)
         .map(Builder::build)
         .doOnNext(row -> LOG.debug("collect a row: {}", row));
