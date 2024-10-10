@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class HandlerScopedMaskingConfig {
-  private static final String TENANT_SCOPED_MASKS_CONFIG_KEY = "tenantScopedMaskingCriteria";
+  private static final String TENANT_SCOPED_MASKS_CONFIG_KEY = "tenantScopedMaskingConfig";
   private Map<String, List<TimeRangeToMaskedAttributes>> tenantToTimeRangeMaskedAttributes =
       Collections.emptyMap();
 
@@ -62,7 +62,8 @@ public class HandlerScopedMaskingConfig {
   @NonFinal
   static class TenantMaskingConfig {
     private static final String TENANT_ID_CONFIG_KEY = "tenantId";
-    private static final String TIME_RANGE_AND_MASK_VALUES_CONFIG_KEY = "timeRangeAndMaskValues";
+    private static final String TIME_RANGE_AND_MASK_VALUES_CONFIG_KEY =
+        "timeRangeToMaskedAttributes";
     String tenantId;
     List<TimeRangeToMaskedAttributes> timeRangeToMaskedAttributes;
 
