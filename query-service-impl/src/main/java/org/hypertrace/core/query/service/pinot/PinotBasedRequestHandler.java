@@ -503,10 +503,10 @@ public class PinotBasedRequestHandler implements RequestHandler {
   Observable<Row> convert(ResultSetGroup resultSetGroup, ExecutionContext executionContext) {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
-      LinkedHashSet<String> selectedAttributes = executionContext.getSelectedColumns();
-      ResultSet resultSet = resultSetGroup.getResultSet(0);
       List<String> maskedAttributes =
           handlerScopedMaskingConfig.getMaskedAttributes(executionContext);
+      ResultSet resultSet = resultSetGroup.getResultSet(0);
+      LinkedHashSet<String> selectedAttributes = executionContext.getSelectedColumns();
       // Pinot has different Response format for selection and aggregation/group by query.
       if (resultSetTypePredicateProvider.isSelectionResultSetType(resultSet)) {
         // map merging is only supported in the selection. Filtering and Group by has its own
