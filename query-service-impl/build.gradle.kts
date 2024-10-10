@@ -22,8 +22,8 @@ dependencies {
     implementation("org.apache.calcite:calcite-babel:1.34.0") {
       because("CVE-2022-39135")
     }
-    implementation("org.apache.avro:avro:1.11.3") {
-      because("CVE-2023-39410")
+    implementation("org.apache.avro:avro:1.11.4") {
+      because("CVE-2024-47561")
     }
     implementation("org.apache.commons:commons-compress:1.26.0") {
       because("CVE-2024-25710")

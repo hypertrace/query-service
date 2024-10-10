@@ -27,7 +27,7 @@ dependencies {
 
   integrationTestImplementation("org.apache.kafka:kafka-clients:7.2.1-ccs")
   integrationTestImplementation("org.apache.kafka:kafka-streams:7.2.1-ccs")
-  integrationTestImplementation("org.apache.avro:avro:1.11.3")
+  integrationTestImplementation("org.apache.avro:avro:1.11.4")
   integrationTestImplementation("com.google.guava:guava:32.1.2-jre")
   integrationTestImplementation("org.hypertrace.core.datamodel:data-model:0.1.12")
   integrationTestImplementation("org.hypertrace.core.kafkastreams.framework:kafka-streams-serdes:0.3.2")
