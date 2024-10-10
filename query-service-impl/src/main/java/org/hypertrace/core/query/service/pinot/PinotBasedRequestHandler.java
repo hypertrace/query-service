@@ -504,7 +504,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
     List<Row.Builder> rowBuilderList = new ArrayList<>();
     if (resultSetGroup.getResultSetCount() > 0) {
       LinkedHashSet<String> selectedAttributes = executionContext.getSelectedColumns();
-      List<String> maskedAttributes =
+      Set<String> maskedAttributes =
           handlerScopedMaskingConfig.getMaskedAttributes(executionContext);
       ResultSet resultSet = resultSetGroup.getResultSet(0);
       // Pinot has different Response format for selection and aggregation/group by query.
@@ -528,7 +528,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
       ResultSetGroup resultSetGroup,
       List<Builder> rowBuilderList,
       LinkedHashSet<String> selectedAttributes,
-      List<String> maskedAttributes) {
+      Set<String> maskedAttributes) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);
@@ -607,7 +607,7 @@ public class PinotBasedRequestHandler implements RequestHandler {
       ResultSetGroup resultSetGroup,
       List<Builder> rowBuilderList,
       LinkedHashSet<String> selectedAttributes,
-      List<String> maskedAttributes) {
+      Set<String> maskedAttributes) {
     int resultSetGroupCount = resultSetGroup.getResultSetCount();
     for (int i = 0; i < resultSetGroupCount; i++) {
       ResultSet resultSet = resultSetGroup.getResultSet(i);

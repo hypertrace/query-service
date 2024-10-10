@@ -4,9 +4,11 @@ import com.typesafe.config.Config;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -30,9 +32,9 @@ public class HandlerScopedMaskingConfig {
     }
   }
 
-  public List<String> getMaskedAttributes(ExecutionContext executionContext) {
+  public Set<String> getMaskedAttributes(ExecutionContext executionContext) {
     String tenantId = executionContext.getTenantId();
-    List<String> maskedAttributes = new ArrayList<>();
+    HashSet<String> maskedAttributes = new HashSet<>();
     if (!tenantToTimeRangeMaskedAttributes.containsKey(tenantId)) {
       return maskedAttributes;
     }
