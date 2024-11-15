@@ -1,38 +1,59 @@
+# 🚨 No Longer Maintained 🚨
+
+> **⚠️ This project is no longer actively maintained.**  
+> You are welcome to use or fork the code, but please note that no further updates, bug fixes, or support will be provided
+
+As of **November 15, 2024**, this project is no longer under active development or maintenance
+
+### What does this mean?
+
+- **No further updates**: The project will not receive new features, bug fixes, or security patches.
+- **Pull requests may not be reviewed**: Contributions are welcome, but they may not be merged.
+- **Issues will not be monitored**: Open issues might not receive a response or resolution
+
+---
+
 # Query Service
+
 The Query Service interfaces with Apache Pinot Data Store
 
 ## Description
 
 | ![space-1.jpg](https://hypertrace-docs.s3.amazonaws.com/arch/ht-query.png) |
-|:--:|
-| *Hypertrace Query Architecture* |
+| :------------------------------------------------------------------------: |
+|                      _Hypertrace Query Architecture_                       |
 
 - Query Service serves time series data for attributes/metrics from spans and events. The query interface this exposes is more like a table where you can select any columns, aggregations on them with filters. It's easy to do slicing and dicing of data (only from one table since no JOINs are supported) with this interface.
 - Currently Pinot is the only DB layer for this service and queries are directly translated to PQL. However, in future we could add support for more data stores like Presto, Druid etc here.
 - This layer doesn't understand the entities and their relationships because the query interface is generic table like interface.
 
 ## Building locally
+
 The Query service uses gradlew to compile/install/distribute. Gradle wrapper is already part of the source code. To build Query Service, run:
 
 ```
 ./gradlew dockerBuildImages
 ```
+
 ## Testing
 
 ### Running unit tests
-Run `./gradlew test` to execute unit tests.
 
+Run `./gradlew test` to execute unit tests.
 
 ### Testing image
 
 #### With docker-compose
+
 To test your image using the docker-compose setup follow the steps:
 
 - Commit you changes to a branch say `query-service-test`.
 - Go to [hypertrace-service](https://github.com/hypertrace/gateway-service) and checkout the above branch in the submodule.
+
 ```
 cd query-service && git checkout query-service-test && cd ..
 ```
+
 - Change tag for `hypertrace-service` from `:main` to `:test` in [docker-compose file](https://github.com/hypertrace/hypertrace/blob/main/docker/docker-compose.yml) like this.
 
 ```yaml
@@ -41,11 +62,13 @@ cd query-service && git checkout query-service-test && cd ..
     container_name: hypertrace-service
     ...
 ```
+
 - and then run `docker-compose up` to test the setup.
 
 and then run `docker-compose up` to test the setup.
 
 #### With Helm setup
+
 Add image repository and tag in values.yaml file [here](https://github.com/hypertrace/hypertrace/blob/main/kubernetes/platform-services/values.yaml) like below and then run `./hypertrace.sh install` again and you can test your image!
 
 ```yaml
@@ -53,7 +76,8 @@ query-service:
   image:
     repository: "hypertrace/query-service"
     tagOverride: "test"
- ```
+```
 
 ## Docker Image Source:
+
 - [DockerHub > Query service](https://hub.docker.com/r/hypertrace/Query-service)
