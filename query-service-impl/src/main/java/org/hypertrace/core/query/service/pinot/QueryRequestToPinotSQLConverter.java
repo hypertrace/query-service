@@ -450,7 +450,9 @@ class QueryRequestToPinotSQLConverter {
     String ret = null;
     switch (value.getValueType()) {
       case STRING_ARRAY:
-        ret = buildArrayValue(value.getStringArrayList(), paramsBuilder::addStringParam);
+        List<String> values =
+            value.getStringArrayList().size() > 0 ? value.getStringArrayList() : List.of("null");
+        ret = buildArrayValue(values, paramsBuilder::addStringParam);
         break;
       case BYTES_ARRAY:
         ret = buildArrayValue(value.getBytesArrayList(), paramsBuilder::addByteStringParam);
