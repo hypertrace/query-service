@@ -13,4 +13,14 @@ import "response.proto";
 service QueryService {
   rpc execute (QueryRequest) returns (stream ResultSetChunk) {
   }
+
+  rpc submitAsyncQuery (SubmitAsyncQueryRequest) returns (SubmitAsyncQueryResponse) {}
+
+  rpc submitAsyncGroupQuery (SubmitAsyncQueryGroupRequest) returns (SubmitAsyncQueryGroupResponse) {}
+
+  rpc getAsyncQueries (GetAsyncQueriesRequest) returns (GetAsyncQueriesResponse) {}
+
+  rpc getAsyncQueryResult (GetAsyncQueryResultRequest) returns (GetAsyncQueryResultResponse) {}
+
+  rpc getAsyncQueryGroupResult (GetAsyncQueryGroupResultRequest) returns (GetAsyncQueryGroupResultResponse) {}
 }
